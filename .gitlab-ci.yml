@@ -1,0 +1,38 @@
+default:
+  image: archlinux:latest
+  tags:
+    - docker
+
+before_script:
+  - pacman -Syu --noconfirm
+    ccache
+    cmake
+    eigen
+    gcc
+    ninja
+    opencv
+    pybind11
+    python
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - export CCACHE_BASEDIR=$(pwd)
+    - export CCACHE_DIR=$(pwd)/.cache/
+    - export CMAKE_PREFIX_PATH=/build/deploy/debug:$CMAKE_PREFIX_PATH
+    - export CXXFLAGS='-fdiagnostics-color --coverage'
+    - mkdir build/
+    - cmake . -B build/
+      -DCMAKE_BUILD_TYPE=Debug
+      -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
+      -GNinja
+    - cmake --build build/
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .cache/
+  artifacts:
+    untracked: true
