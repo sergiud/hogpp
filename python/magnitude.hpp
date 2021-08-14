@@ -17,8 +17,8 @@
 // limitations under the License.
 //
 
-#ifndef PYTHON_HOGPP_VOTING_HPP
-#define PYTHON_HOGPP_VOTING_HPP
+#ifndef PYTHON_HOGPP_MAGNITUDE_HPP
+#define PYTHON_HOGPP_MAGNITUDE_HPP
 
 #include <pybind11/cast.h>
 
@@ -123,4 +123,4 @@ private:
 extern template class Magnitude<float>;
 extern template class Magnitude<double>;
 
-#endif
+#endif // PYTHON_HOGPP_MAGNITUDE_HPP

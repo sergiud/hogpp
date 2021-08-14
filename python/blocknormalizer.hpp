@@ -200,4 +200,4 @@ private:
 extern template class BlockNormalizer<float>;
 extern template class BlockNormalizer<double>;
 
-#endif
+#endif // PYTHON_HOGPP_BLOCKNORMALIZER_HPP

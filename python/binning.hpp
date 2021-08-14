@@ -103,4 +103,4 @@ private:
 extern template class Binning<float>;
 extern template class Binning<double>;
 
-#endif
+#endif // PYTHON_HOGPP_BINNING_HPP
