@@ -11,13 +11,21 @@ HOG features may be seen as a special case of the Scale-invariant Feature
 Transform (SIFT) computed over a dense grid of keypoints where each block is
 additionally contrast-normalized.
 
+## Features
+
+* C++ templated implementation
+* Python support with 32 and 64 bit floating point precision
+* Unrestricted input size (e.g., compared to OpenCV that requires powers of two
+  input)
+
 ## Requirements
 
 * C++17 compiler
-* CMake 3.5
-* Eigen 3.3.7
-* OpenCV 4.0
-* pybind11 2.2.4
+* [CMake](https://gitlab.kitware.com/cmake/cmake) 3.5
+* [Eigen](https://gitlab.com/libeigen/eigen) 3.3.7
+* [fmt](https://github.com/fmtlib/fmt) 6.0
+* [OpenCV](https://github.com/opencv/opencv) 4.0
+* [pybind11](https://github.com/pybind/pybind11) 2.2.4
 
 More recent versions of the above are expected to work as well.
 
@@ -36,7 +44,7 @@ desc.compute(image)
 # Extract the feature descriptor of a region of interest. The method can be
 # called multiple times for different subregions of the above image.
 roi = (0, 0, 64, 128)
-X = desc.features(roi)
+X = desc(roi)
 ```
 
 ## Differences to Dalal & Triggs Formulation

@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2020 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,20 +17,27 @@
 // limitations under the License.
 //
 
-#ifndef HOGPP_CONSTANTS_HPP
-#define HOGPP_CONSTANTS_HPP
+#ifndef HOGPP_NORMTRAITS_HPP
+#define HOGPP_NORMTRAITS_HPP
 
-namespace hogpp::constants {
+#include <limits>
 
-template<class T>
-inline constexpr T pi = T(3.1415926535897932384626433832795028841971693993751);
-
-template<class T>
-inline constexpr T two_pi = T(6.28318530717958623199592693708837032318115234375);
+namespace hogpp {
 
 template<class T>
-inline constexpr T half_pi = T(1.5707963267948965579989817342720925807952880859375);
+struct NormTraits
+{
+    [[nodiscard]] static constexpr T regularization() noexcept
+    {
+        return std::numeric_limits<T>::epsilon();
+    }
 
-} // namespace hogpp::constants
+    [[nodiscard]] static constexpr T clip() noexcept
+    {
+        return T(0.2);
+    }
+};
 
-#endif // HOGPP_CONSTANTS_HPP
+} // namespace hogpp
+
+#endif // HOGPP_NORMTRAITS_HPP

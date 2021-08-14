@@ -5,26 +5,31 @@ default:
 
 before_script:
   - pacman -Syu --noconfirm
+    boost
+    boost-libs
     ccache
     cmake
     eigen
+    fmt
     gcc
+    gcovr
     ninja
     opencv
     pybind11
     python
+    python-numpy
+    python-pytest
 
 stages:
   - build
+  - test
 
 build:
   stage: build
   script:
     - export CCACHE_BASEDIR=$(pwd)
     - export CCACHE_DIR=$(pwd)/.cache/
-    - export CMAKE_PREFIX_PATH=/build/deploy/debug:$CMAKE_PREFIX_PATH
     - export CXXFLAGS='-fdiagnostics-color --coverage'
-    - mkdir build/
     - cmake . -B build/
       -DCMAKE_BUILD_TYPE=Debug
       -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
@@ -36,3 +41,24 @@ build:
       - .cache/
   artifacts:
     untracked: true
+
+test:
+  stage: test
+  script:
+    # Run unit tests
+    - cd build
+    - ctest -C Debug -j$(nproc) --output-on-failure
+    # Run coverage
+    - mkdir coverage
+    - gcovr -r ..
+      -j$(nproc)
+      -s
+      --filter ../include
+      --filter ../src
+      --filter ../python
+      --html --html-title HOGpp --html-details
+      -o coverage/report.html
+  coverage: '/lines:\s+(\d+\.\d+|\d+)%/'
+  artifacts:
+    paths:
+      - build/coverage

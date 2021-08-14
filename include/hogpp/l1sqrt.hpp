@@ -17,65 +17,51 @@
 // limitations under the License.
 //
 
-#ifndef HOGPP_L2HYS_HPP
-#define HOGPP_L2HYS_HPP
+#ifndef HOGPP_L1SQRT_HPP
+#define HOGPP_L1SQRT_HPP
 
-#include <limits>
+#include <unsupported/Eigen/CXX11/Tensor>
+
 #include <type_traits>
 
-#include <hogpp/l2norm.hpp>
+#include <hogpp/l1norm.hpp>
 #include <hogpp/normtraits.hpp>
 
 namespace hogpp {
 
 template<class T, class TraitsType = NormTraits<T> >
-class L2Hys
+class L1Sqrt
 {
 public:
     using Scalar = T;
     using Traits = TraitsType;
 
-    [[nodiscard]] constexpr explicit L2Hys(
-        Scalar clip = TraitsType::clip(),
+    [[nodiscard]] constexpr explicit L1Sqrt(
         Scalar regularization = TraitsType::regularization())
-        : clip_{clip}
-        , l2_{regularization}
+        : l1_{regularization}
     {
     }
 
     template<class Tensor>
     constexpr void operator()(Tensor& block) const
     {
-        // L²-Hys block normalization
-        // L² norm
-        l2_(block);
-        // Clipping
-        block = block.cwiseMin(clip_);
-        // Renormalization
-        l2_(block);
+        // L1-sqrt block normalization
+        l1_(block);
+        block = block.sqrt();
     }
 
-    [[nodiscard]] constexpr T clip() const noexcept
+    [[nodiscard]] constexpr const L1Norm<Scalar>& norm() const noexcept
     {
-        return clip_;
-    }
-
-    [[nodiscard]] constexpr const L2Norm<Scalar>& norm() const noexcept
-    {
-        return l2_;
+        return l1_;
     }
 
 private:
-    Scalar clip_;
-    L2Norm<Scalar, TraitsType> l2_;
+    L1Norm<Scalar, TraitsType> l1_;
 };
 
 template<class T>
-explicit L2Hys(T) -> L2Hys<T>;
-
-template<class T1, class T2>
-explicit L2Hys(T1, T2) -> L2Hys<std::common_type_t<T1, T2> >;
+explicit L1Sqrt(T) -> L1Sqrt<T>;
 
 } // namespace hogpp
 
-#endif // HOGPP_L2HYS_HPP
+#endif // HOGPP_L1SQRT_HPP

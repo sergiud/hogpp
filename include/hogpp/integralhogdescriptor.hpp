@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2020 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,24 +25,42 @@
 #include <cassert>
 #include <cmath>
 
+#include <fmt/format.h>
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include <hogpp/constants.hpp>
+#include <hogpp/gradientmagnitude.hpp>
 #include <hogpp/l2hys.hpp>
+#include <hogpp/unsignedgradient.hpp>
 
 namespace hogpp {
 
-template<class T, class BlockNormalization = L2Hys<T> >
+// clang-format off
+template
+<
+      class T
+    , class MagnitudeType = GradientMagnitude<T>
+    , class BinningType = UnsignedGradient<T>
+    , class BlockNormalizerType = L2Hys<T>
+>
+// clang-format on
 class IntegralHOGDescriptor
 {
 public:
     using Scalar = T;
     using Tensor5 = Eigen::Tensor<Scalar, 5>;
+    using Magnitude = MagnitudeType;
+    using Binning = BinningType;
+    using BlockNormalizer = BlockNormalizerType;
 
     [[nodiscard]] explicit IntegralHOGDescriptor(
-        BlockNormalization normalization = BlockNormalization{})
-        : normalize_{std::move(normalization)}
+        MagnitudeType magnitude = MagnitudeType{},
+        BinningType binning = BinningType{},
+        BlockNormalizerType normalization = BlockNormalizerType{})
+        : vote_{std::move(magnitude)}
+        , binning_{std::move(binning)}
+        , normalize_{std::move(normalization)}
     {
     }
 
@@ -58,11 +76,9 @@ public:
         std::ptrdiff_t n = std::distance(first, last);
         Tensor3 dxs{static_cast<Eigen::DenseIndex>(n), dims.x(), dims.y()};
         Tensor3 dys{dxs.dimensions()};
-        Tensor3 mags{dxs.dimensions()};
 
         cv::Mat dx;
         cv::Mat dy;
-        cv::Mat mag;
 
         const cv::Point anchor{-1, -1};
         const cv::BorderTypes borderMode = cv::BORDER_REFLECT101;
@@ -76,18 +92,15 @@ public:
             cv::filter2D(channel, dy, cv::DataDepth<Scalar>::value, ky, anchor,
                          0, borderMode);
 
-            cv::magnitude(dx, dy, mag);
-
             dxs.template chip<0>(static_cast<Eigen::DenseIndex>(i)) =
                 Eigen::TensorMap<const Tensor2>{dx.ptr<Scalar>(), dx.rows,
                                                 dx.cols};
             dys.template chip<0>(static_cast<Eigen::DenseIndex>(i)) =
                 Eigen::TensorMap<const Tensor2>{dy.ptr<Scalar>(), dy.rows,
                                                 dy.cols};
-            mags.template chip<0>(static_cast<Eigen::DenseIndex>(i)) =
-                Eigen::TensorMap<const Tensor2>{mag.ptr<Scalar>(), mag.rows,
-                                                mag.cols};
         }
+
+        Tensor3 mags = vote_(dxs, dys);
 
         Eigen::Array2i dims1 = dims + 1;
 
@@ -124,23 +137,13 @@ public:
                     continue;
                 }
 
-                using std::atan2;
-                using std::fmod;
-
                 Scalar dx = dxs(kk, i, j);
                 Scalar dy = dys(kk, i, j);
 
                 // Gradient binning
-                Scalar angle = atan2(dy, dx);
+                Scalar weight = binning_(dx, dy);
 
-                if (angle < 0) {
-                    angle += 2 * constants::pi<Scalar>;
-                }
-
-                angle = fmod(angle, constants::pi<Scalar>);
-                assert(angle >= 0 && angle < constants::pi<Scalar>);
-
-                Scalar weight = angle / constants::pi<Scalar>;
+                assert(weight >= 0 && weight <= 1);
 
                 using std::floor;
                 using std::min;
@@ -256,8 +259,10 @@ public:
     void setNumBins(Eigen::DenseIndex value)
     {
         if (value <= 0) {
-            throw std::out_of_range{
-                "the number of histogram bins cannot be zero or negative"};
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor number of histogram bins must be a "
+                "positive number but {} was given",
+                value)};
         }
 
         bins_ = value;
@@ -271,7 +276,10 @@ public:
     void setCellSize(const Eigen::Ref<const Eigen::Array2i>& value)
     {
         if ((value <= 0).any()) {
-            throw std::out_of_range{"cell size cannot be zero or negative"};
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor cell size cannot be zero or negative "
+                "but [{}] was given",
+                fmt::join(value.data(), value.data() + value.size(), ", "))};
         }
 
         cellSize_ = value;
@@ -285,7 +293,10 @@ public:
     void setBlockSize(const Eigen::Ref<const Eigen::Array2i>& value)
     {
         if ((value <= 0).any()) {
-            throw std::out_of_range{"block size cannot be zero or negative"};
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor block size cannot be zero or negative "
+                "but [{}] was given",
+                fmt::join(value.data(), value.data() + value.size(), ", "))};
         }
 
         blockSize_ = value;
@@ -299,7 +310,10 @@ public:
     void setBlockStride(const Eigen::Ref<const Eigen::Array2i>& value)
     {
         if ((value <= 0).any()) {
-            throw std::out_of_range{"block stride cannot be zero or negative"};
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor block stride cannot be zero or negative "
+                "but [{}] was given",
+                fmt::join(value.data(), value.data() + value.size(), ", "))};
         }
 
         blockStride_ = value;
@@ -310,21 +324,78 @@ public:
         return blockStride_;
     }
 
+    [[nodiscard]] const Eigen::Tensor<Scalar, 3>& histogram() const noexcept
+    {
+        return histogram_;
+    }
+
+    void setBinning(BinningType value)
+    {
+        binning_ = std::move(value);
+    }
+
+    [[nodiscard]] const BinningType& binning() const noexcept
+    {
+        return binning_;
+    }
+
+    [[nodiscard]] BinningType& binning() noexcept
+    {
+        return binning_;
+    }
+
+    void setBlockNormalizer(BlockNormalizerType value)
+    {
+        normalize_ = std::move(value);
+    }
+
+    [[nodiscard]] const BlockNormalizerType& blockNormalizer() const noexcept
+    {
+        return normalize_;
+    }
+
+    [[nodiscard]] BlockNormalizerType& blockNormalizer() noexcept
+    {
+        return normalize_;
+    }
+
+    void setMagnitude(MagnitudeType value)
+    {
+        vote_ = std::move(value);
+    }
+
+    [[nodiscard]] const MagnitudeType& magnitude() const noexcept
+    {
+        return vote_;
+    }
+
+    [[nodiscard]] MagnitudeType& magnitude() noexcept
+    {
+        return vote_;
+    }
+
+    [[nodiscard]] bool isEmpty() const noexcept
+    {
+        return histogram_.size() == 0;
+    }
+
 private:
     using Tensor2 = Eigen::Tensor<Scalar, 2, Eigen::RowMajor>;
     using Tensor3 = Eigen::Tensor<Scalar, 3, Eigen::RowMajor>;
 
+    MagnitudeType vote_;
+    BinningType binning_;
+    BlockNormalizerType normalize_;
     Eigen::Tensor<Scalar, 3> histogram_;
-    BlockNormalization normalize_;
     Eigen::DenseIndex bins_ = 9;
     Eigen::Array2i cellSize_{8, 8};
     Eigen::Array2i blockSize_ = cellSize_ * 2;
     Eigen::Array2i blockStride_ = cellSize_;
 };
 
-template<class BlockNormalization>
-explicit IntegralHOGDescriptor(BlockNormalization)
-    -> IntegralHOGDescriptor<typename BlockNormalization::Scalar>;
+template<class BlockNormalizerType>
+explicit IntegralHOGDescriptor(BlockNormalizerType)
+    -> IntegralHOGDescriptor<typename BlockNormalizerType::Scalar>;
 
 } // namespace hogpp
 
