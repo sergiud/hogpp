@@ -17,6 +17,9 @@
 // limitations under the License.
 //
 
+// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
+#include <algorithm>
+
 #include <pybind11/cast.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>

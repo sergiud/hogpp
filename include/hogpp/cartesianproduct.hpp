@@ -17,45 +17,49 @@
 // limitations under the License.
 //
 
-#ifndef PYTHON_TYPE_CASTER_CARTESIANPRODUCT_HPP
-#define PYTHON_TYPE_CASTER_CARTESIANPRODUCT_HPP
+#ifndef HOGPP_CARTESIANPRODUCT_HPP
+#define HOGPP_CARTESIANPRODUCT_HPP
 
+#include <concepts>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
-template<class... Sizes, class Function, class... Loops>
+namespace hogpp {
+
+template<std::integral... Sizes, class Body, std::integral... Loops>
 constexpr void cartesianProduct(
-    const std::tuple<Sizes...>& /*s*/, const std::tuple<Loops...>& l,
-    Function&& func,
-    std::index_sequence<> /*unused*/) noexcept(noexcept(func(l)))
+    [[maybe_unused]] const std::tuple<Sizes...>& s,
+    const std::tuple<Loops...>& l, Body&& body,
+    std::index_sequence<> /*unused*/) noexcept(noexcept(body(l)))
 {
-    func(l);
+    body(l);
 }
 
-template<class... Sizes, class Function, class... Loops, std::size_t Index,
-         std::size_t... Indices>
+template<std::integral... Sizes, class Body, std::integral... Loops,
+         std::size_t Index, std::size_t... Indices>
 constexpr void cartesianProduct(
-    const std::tuple<Sizes...>& s, const std::tuple<Loops...>& l,
-    Function&& func,
+    const std::tuple<Sizes...>& s, const std::tuple<Loops...>& l, Body&& body,
     std::index_sequence<
         Index,
-        Indices...> /*unused*/) noexcept(noexcept(func(std::declval<std::tuple<Sizes...>>())))
+        Indices...> /*unused*/) noexcept(noexcept(body(std::declval<std::tuple<Sizes...>>())))
 {
     for (auto i = 0; i < std::get<Index>(s); ++i) {
         cartesianProduct(s, std::tuple_cat(l, std::make_tuple(i)),
-                         std::forward<Function>(func),
+                         std::forward<Body>(body),
                          std::index_sequence<Indices...>{});
     }
 }
 
-template<class... Sizes, class Function>
-constexpr void
-cartesianProduct(const std::tuple<Sizes...>& s, Function&& func) noexcept(
-    noexcept(func(std::declval<std::tuple<Sizes...>>())))
+template<std::integral... Sizes, class Body>
+constexpr void cartesianProduct(
+    const std::tuple<Sizes...>& s,
+    Body&& body) noexcept(noexcept(body(std::declval<std::tuple<Sizes...>>())))
 {
-    cartesianProduct(s, std::tuple<>{}, std::forward<Function>(func),
+    cartesianProduct(s, std::tuple<>{}, std::forward<Body>(body),
                      std::index_sequence_for<Sizes...>{});
 }
 
-#endif // PYTHON_TYPE_CASTER_CARTESIANPRODUCT_HPP
+} // namespace hogpp
+
+#endif // HOGPP_CARTESIANPRODUCT_HPP

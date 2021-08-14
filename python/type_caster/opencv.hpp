@@ -34,7 +34,8 @@
 #include <pybind11/cast.h>
 #include <pybind11/numpy.h>
 
-#include "cartesianproduct.hpp"
+#include <hogpp/cartesianproduct.hpp>
+
 #include "stride.hpp"
 #include "typesequence.hpp"
 
@@ -141,7 +142,7 @@ private:
                     in.create(static_cast<int>(shape[0]),
                               static_cast<int>(shape[1]), type);
 
-                    cartesianProduct(
+                    hogpp::cartesianProduct(
                         std::make_tuple(shape[0], shape[1]),
                         [&in, p, strides](const auto& i) constexpr {
                             assign<T>(in, p, i, strides);
@@ -177,7 +178,7 @@ private:
                         in.create(static_cast<int>(shape[0]),
                                   static_cast<int>(shape[1]), type);
 
-                        cartesianProduct(
+                        hogpp::cartesianProduct(
                             std::make_tuple(shape[0], shape[1], shape[2]),
                             [&in, p, strides](const auto& i) constexpr {
                                 assign<T>(in, p, i, strides);
@@ -197,7 +198,7 @@ private:
                                  const std::tuple<Strides...>& strides,
                                  std::index_sequence<Indices...> /*unused*/)
     {
-        in.at<T>(std::get<Indices>(i)...) =
+        in.at<T>(static_cast<int>(std::get<Indices>(i))...) =
             *reinterpret_cast<const T*>(p + reduceIndices(i, strides));
     }
 
@@ -209,8 +210,8 @@ private:
         const std::tuple<Strides...>& strides,
         std::index_sequence<Index0, Index1, Index2> /*unused*/)
     {
-        in.ptr<T>(std::get<Index0>(i),
-                  std::get<Index1>(i))[std::get<Index2>(i)] =
+        in.ptr<T>(static_cast<int>(std::get<Index0>(i)),
+                  static_cast<int>(std::get<Index1>(i)))[std::get<Index2>(i)] =
             *reinterpret_cast<const T*>(p + reduceIndices(i, strides));
     }
 

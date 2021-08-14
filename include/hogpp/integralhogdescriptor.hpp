@@ -33,6 +33,7 @@
 #include <hogpp/bounds.hpp>
 #include <hogpp/gradient.hpp>
 #include <hogpp/gradientmagnitude.hpp>
+#include <hogpp/integralhistogram.hpp>
 #include <hogpp/l2hys.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
@@ -264,54 +265,46 @@ public:
         }
 
         const Eigen::Array2i dims{mags.dimension(0), mags.dimension(1)};
-        Eigen::Array2i dims1 = dims + 1;
-
-        histogram_.resize(dims1.x(), dims1.y(), bins_);
-        histogram_.setZero();
+        histogram_.resize(std::make_tuple(dims.x(), dims.y()), bins_);
 
         const Eigen::Tensor<Eigen::DenseIndex, 2, Eigen::RowMajor>& k =
             mags.argmax(2);
 
         const auto scale = static_cast<Scalar>(bins_ - 1);
 
-        // Wavefront scan
-        for (Eigen::DenseIndex i = 0; i < dims.x(); ++i) {
-            for (Eigen::DenseIndex j = 0; j < dims.y(); ++j) {
-                // Histogram propagation
-                const auto& a =
-                    histogram_.template chip<0>(i).template chip<0>(j + 1);
-                const auto& b =
-                    histogram_.template chip<0>(i + 1).template chip<0>(j);
-                const auto& c =
-                    histogram_.template chip<0>(i).template chip<0>(j);
-
-                histogram_.template chip<0>(i + 1).template chip<0>(j + 1) =
-                    a + b - c;
-
+        histogram_.scan(
+            [this, &k, &dxs, &dys, &mags, scale, &masked](
+                Eigen::TensorRef<Eigen::Tensor<Scalar, 1, DataLayout>> bins,
+                const auto& ij) {
+                (void)masked; // Avoid error: lambda capture 'masked' is not
+                              // used [-Werror,-Wunused-lambda-capture] on
+                              // AppleClang
                 if constexpr (!std::is_null_pointer_v<Masking>) {
-                    if (masked(i, j)) {
+                    if (std::apply(masked, ij)) {
                         // Skip masked out pixels
-                        continue;
+                        return;
                     }
                 }
 
                 // Select a channel with the maximum magnitude
-                Eigen::DenseIndex kk = k(i, j);
-                Scalar mag = mags(i, j, kk);
+                Eigen::DenseIndex kk = std::apply(k, ij);
+                const auto ijk = std::tuple_cat(ij, std::make_tuple(kk));
+
+                Scalar mag = std::apply(mags, ijk);
 
                 using std::fpclassify;
 
                 if (fpclassify(mag) == FP_ZERO) {
                     // No gradient; take a shortcut
-                    continue;
+                    return;
                 }
 
                 // The gradient magnitude cannot be negative (or zero at this
                 // point)
                 HOGPP_ASSUME(mag > 0);
 
-                Scalar dx = dxs(i, j, kk);
-                Scalar dy = dys(i, j, kk);
+                Scalar dx = std::apply(dxs, ijk);
+                Scalar dy = std::apply(dys, ijk);
 
                 // Gradient binning
                 Scalar weight = this->binning_(dx, dy);
@@ -341,8 +334,6 @@ public:
                 HOGPP_ASSUME(bin1 <= bin2);
 
                 // Distribute weighted values to neighboring bins.
-                Eigen::TensorRef<Eigen::Tensor<Scalar, 1, DataLayout>> bins =
-                    histogram_.template chip<0>(i + 1).template chip<0>(j + 1);
                 Scalar& value1 = bins.coeffRef(bin1);
                 Scalar& value2 = bins.coeffRef(bin2);
 
@@ -351,19 +342,18 @@ public:
                 // proportionally a higher magnitude.
                 value1 = fma(1 - alpha, mag, value1);
                 value2 = fma(alpha, mag, value2);
-            }
-        }
+            });
     }
 
     [[nodiscard]] Tensor5 features() const
     {
-        if (histogram_.size() == 0) {
+        if (histogram_.isEmpty()) {
             return Tensor5{};
         }
 
         return features(Bounds{0, 0,
-                               static_cast<int>(histogram_.dimension(1) - 1),
-                               static_cast<int>(histogram_.dimension(0) - 1)});
+                               static_cast<int>(histogram().dimension(1) - 1),
+                               static_cast<int>(histogram().dimension(0) - 1)});
     }
 
     [[nodiscard]] Tensor5 features(const Bounds& roi) const
@@ -388,8 +378,8 @@ public:
                             dims.y())};
         }
 
-        const auto dimX = histogram_.dimension(0) - 1;
-        const auto dimY = histogram_.dimension(1) - 1;
+        const auto dimX = histogram().dimension(0) - 1;
+        const auto dimY = histogram().dimension(1) - 1;
         const Eigen::Array2i offset{roi.y, roi.x};
 
         if (offset.x() < 0 || dimX - offset.x() < 0) {
@@ -430,7 +420,7 @@ public:
         Tensor5 X;
 
         X.resize(numBlocks.x(), numBlocks.y(), numCells.x(), numCells.y(),
-                 histogram_.dimension(2));
+                 histogram_.histogram().dimension(2));
         X.setZero();
 
         for (int i = 0; i < numBlocks.x(); ++i) {
@@ -445,18 +435,11 @@ public:
                             blockOffset + cellOffset * cellSize_;
                         const Eigen::Array2i& offset2 = offset1 + cellSize_;
 
-                        const auto& a = histogram_.template chip<0>(offset2.x())
-                                            .template chip<0>(offset2.y());
-                        const auto& b = histogram_.template chip<0>(offset1.x())
-                                            .template chip<0>(offset2.y());
-                        const auto& c = histogram_.template chip<0>(offset2.x())
-                                            .template chip<0>(offset1.y());
-                        const auto& d = histogram_.template chip<0>(offset1.x())
-                                            .template chip<0>(offset1.y());
-
                         // Extract the histogram from the integral histogram
                         // as an intersection.
-                        const Eigen::Tensor<Scalar, 1> h = a - b - c + d;
+                        const Eigen::Tensor<Scalar, 1> h = histogram_.intersect(
+                            std::make_tuple(offset1.x(), offset1.y()),
+                            std::make_tuple(offset2.x(), offset2.y()));
 
                         X.template chip<0>(i)
                             .template chip<0>(j)
@@ -545,26 +528,26 @@ public:
 
     [[nodiscard]] const Eigen::Tensor<Scalar, 3>& histogram() const noexcept
     {
-        return histogram_;
+        return histogram_.histogram();
     }
 
     template<class Derived>
     void setHistogram(
         const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& value)
     {
-        histogram_ = value.eval();
+        histogram_.setHistogram(value);
     }
 
     [[nodiscard]] bool isEmpty() const noexcept
     {
-        return histogram_.size() == 0;
+        return histogram_.isEmpty();
     }
 
 private:
     using Tensor2 = Eigen::Tensor<Scalar, 2, Eigen::RowMajor>;
     using Tensor3 = Eigen::Tensor<Scalar, 3, Eigen::RowMajor>;
 
-    Eigen::Tensor<Scalar, 3> histogram_;
+    IntegralHistogram<Scalar, 2, 1> histogram_;
     Eigen::DenseIndex bins_ = 9;
     Eigen::Array2i cellSize_{8, 8};
     Eigen::Array2i blockSize_ = cellSize_ * 2;

@@ -4,7 +4,7 @@ Compiling from Source
 Requirements
 ------------
 
--  C++17 compiler
+-  C++20 compiler
 -  `CMake <https://gitlab.kitware.com/cmake/cmake>`__ 3.18
 -  `Eigen <https://gitlab.com/libeigen/eigen>`__ 3.3.7
 -  `fmt <https://github.com/fmtlib/fmt>`__ 6.0

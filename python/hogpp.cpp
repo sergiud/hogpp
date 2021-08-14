@@ -17,7 +17,8 @@
 // limitations under the License.
 //
 
-#include <optional>
+// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
+#include <algorithm>
 #include <variant>
 
 #include <pybind11/eigen.h>

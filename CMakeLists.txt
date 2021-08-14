@@ -84,6 +84,7 @@ endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
 
 if (WIN32)
+  add_compile_definitions (NOMINMAX)
   add_compile_definitions (WIN32_LEAN_AND_MEAN)
 endif (WIN32)
 
@@ -100,7 +101,7 @@ target_include_directories (hogpp INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features (hogpp INTERFACE cxx_std_17)
+target_compile_features (hogpp INTERFACE cxx_std_20)
 target_link_libraries (hogpp INTERFACE
   Eigen3::Eigen
   fmt::fmt
@@ -110,7 +111,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
-    python/type_caster/cartesianproduct.hpp
     python/type_caster/stride.hpp
     python/type_caster/tensor.hpp
     python/type_caster/typesequence.hpp
@@ -124,7 +124,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     target_link_libraries (python_type_caster PUBLIC opencv_core)
   endif (OpenCV_FOUND)
 
-  target_compile_features (python_type_caster PUBLIC cxx_std_17)
   target_link_libraries (python_type_caster PUBLIC
     Eigen3::Eigen
     hogpp::hogpp
@@ -188,6 +187,18 @@ endif (pybind11_FOUND AND Python_Development.Module_FOUND)
 
 if (BUILD_TESTING)
   if (Boost_unit_test_framework_FOUND)
+    add_executable (test_integral_histogram
+      tests/cpp/test_integral_histogram.cpp
+    )
+    target_link_libraries (test_integral_histogram PRIVATE
+      Boost::unit_test_framework
+      Eigen3::Eigen
+      hogpp::hogpp
+    )
+
+    add_test (NAME integral_histogram_full COMMAND test_integral_histogram -t full)
+    add_test (NAME integral_histogram_sub COMMAND test_integral_histogram -t sub)
+
     add_executable (test_binning tests/cpp/test_binning.cpp)
     target_link_libraries (test_binning PRIVATE hogpp::hogpp
       Boost::unit_test_framework)

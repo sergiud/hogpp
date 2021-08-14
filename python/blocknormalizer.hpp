@@ -20,11 +20,13 @@
 #ifndef PYTHON_HOGPP_BLOCKNORMALIZER_HPP
 #define PYTHON_HOGPP_BLOCKNORMALIZER_HPP
 
-#include <pybind11/pybind11.h>
-
+// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
+#include <algorithm>
 #include <optional>
 #include <type_traits>
 #include <variant>
+
+#include <pybind11/pybind11.h>
 
 #include <hogpp/l1hys.hpp>
 #include <hogpp/l1norm.hpp>

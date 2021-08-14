@@ -255,11 +255,11 @@ lint:pypy3.10:
   needs: []
 
 lint:cpp:
-  image: sergiud/hogpp:lint
+  image: sergiud/hogpp:lint-18
   stage: test
   allow_failure: true
   script:
-    - fdfind -g '*.[ch]pp' -x clang-format-19 --dry-run --Werror
+    - fdfind -g '*.[ch]pp' -x clang-format-18 --dry-run --Werror
   needs: []
 
 build:bookworm:

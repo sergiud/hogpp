@@ -20,6 +20,9 @@
 #ifndef PYTHON_TYPE_CASTER_BOUNDS_HPP
 #define PYTHON_TYPE_CASTER_BOUNDS_HPP
 
+// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
+#include <algorithm>
+
 #include <pybind11/pybind11.h>
 
 #include <hogpp/bounds.hpp>

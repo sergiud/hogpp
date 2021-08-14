@@ -32,7 +32,8 @@
 #include <pybind11/cast.h>
 #include <pybind11/numpy.h>
 
-#include "cartesianproduct.hpp"
+#include <hogpp/cartesianproduct.hpp>
+
 #include "stride.hpp"
 
 template<class T, std::size_t N, std::size_t... Indices>
@@ -398,11 +399,12 @@ private:
     void copy(const std::uint8_t* ptr, const std::tuple<Sizes...>& sizes,
               const std::tuple<Strides...>& strides)
     {
-        cartesianProduct(sizes, [this, ptr, strides](const auto& i) constexpr {
-            (void)this; // Avoid (incorrect) Clang -Wunused-lambda-capture
-                        // warning
-            assign(ptr, i, strides);
-        });
+        hogpp::cartesianProduct(
+            sizes, [this, ptr, strides](const auto& i) constexpr {
+                (void)this; // Avoid (incorrect) Clang -Wunused-lambda-capture
+                            // warning
+                assign(ptr, i, strides);
+            });
     }
 
     template<std::size_t... Indices>

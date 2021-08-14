@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   lint:
     runs-on: ubuntu-24.04
-    container: sergiud/hogpp:lint
+    container: sergiud/hogpp:lint-18
     defaults:
       run:
         shell: bash -e -o pipefail {0}
@@ -17,12 +17,11 @@ jobs:
 
       - name: Check code style
         run: |
-          fdfind -g '*.[ch]pp' -x clang-format-19 --dry-run --Werror
+          fdfind -g '*.[ch]pp' -x clang-format-18 --dry-run --Werror
 
   build-native:
     name: ${{matrix.os}}-GCC-${{matrix.build_type}}
     runs-on: ${{matrix.os}}
-    needs: lint
     defaults:
       run:
         shell: bash

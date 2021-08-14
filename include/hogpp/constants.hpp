@@ -20,18 +20,18 @@
 #ifndef HOGPP_CONSTANTS_HPP
 #define HOGPP_CONSTANTS_HPP
 
+#include <numbers>
+
 namespace hogpp::constants {
 
 template<class T>
-inline constexpr T pi = T(3.1415926535897932384626433832795028841971693993751);
+inline constexpr T pi = std::numbers::pi_v<T>;
 
 template<class T>
-inline constexpr T two_pi =
-    T(6.28318530717958623199592693708837032318115234375);
+inline constexpr T two_pi = 2 * pi<T>;
 
 template<class T>
-inline constexpr T half_pi =
-    T(1.5707963267948965579989817342720925807952880859375);
+inline constexpr T half_pi = pi<T> / 2;
 
 } // namespace hogpp::constants
 

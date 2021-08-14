@@ -20,9 +20,11 @@
 #ifndef PYTHON_HOGPP_BINNING_HPP
 #define PYTHON_HOGPP_BINNING_HPP
 
-#include <pybind11/pybind11.h>
-
+// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
+#include <algorithm>
 #include <variant>
+
+#include <pybind11/pybind11.h>
 
 #include <hogpp/signedgradient.hpp>
 #include <hogpp/unsignedgradient.hpp>

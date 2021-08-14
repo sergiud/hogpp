@@ -95,7 +95,7 @@ SpacesInParentheses: false
 SpacesInSquareBrackets: false
 SpaceAfterTemplateKeyword: false
 FixNamespaceComments: true
-Standard:           c++17
+Standard:           c++20
 TabWidth:        4
 UseTab:          Never
 ...

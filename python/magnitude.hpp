@@ -20,10 +20,12 @@
 #ifndef PYTHON_HOGPP_MAGNITUDE_HPP
 #define PYTHON_HOGPP_MAGNITUDE_HPP
 
-#include <pybind11/pybind11.h>
-
+// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
+#include <algorithm>
 #include <type_traits>
 #include <variant>
+
+#include <pybind11/pybind11.h>
 
 #include <hogpp/gradientmagnitude.hpp>
 #include <hogpp/gradientsqrtmagnitude.hpp>
