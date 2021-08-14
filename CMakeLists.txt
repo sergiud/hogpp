@@ -7,7 +7,7 @@ project (hogpp
 
 include (CTest)
 
-find_package (Boost 1.70 NO_MODULE COMPONENTS unit_test_framework)
+find_package (Boost 1.70 COMPONENTS unit_test_framework)
 find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 REQUIRED)

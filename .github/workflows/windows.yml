@@ -1,0 +1,55 @@
+name: Windows
+
+on: [push, pull_request]
+
+defaults:
+  run:
+    shell: msys2 {0}
+
+jobs:
+  build:
+    name: ${{matrix.sys}}-${{matrix.env}}-${{matrix.build_type}}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        build_type: [Release, Debug]
+        sys: [mingw32, mingw64]
+        include:
+          - sys: mingw32
+            env: i686
+          - sys: mingw64
+            env: x86_64
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{matrix.sys}}
+        path-type: strict
+        install: >-
+          mingw-w64-${{matrix.env}}-boost
+          mingw-w64-${{matrix.env}}-cmake
+          mingw-w64-${{matrix.env}}-eigen3
+          mingw-w64-${{matrix.env}}-fmt
+          mingw-w64-${{matrix.env}}-gcc
+          mingw-w64-${{matrix.env}}-ninja
+          mingw-w64-${{matrix.env}}-opencv
+          mingw-w64-${{matrix.env}}-pybind11
+          mingw-w64-${{matrix.env}}-python
+          mingw-w64-${{matrix.env}}-python-numpy
+          mingw-w64-${{matrix.env}}-python-pytest
+
+    - name: Configure
+      env:
+        CXX: ${{matrix.env}}-w64-mingw32-g++
+      run: |
+        cmake -S . -B build_${{matrix.build_type}}/ -G Ninja \
+          -DPython_EXECUTABLE:FILEPATH=$(which python) \
+          -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+    - name: Build
+      run: |
+        cmake --build build_${{matrix.build_type}}/ --config ${{matrix.build_type}}
+    - name: Test
+      run: |
+        ctest --test-dir build_${{matrix.build_type}} -j$(nproc) --output-on-failure

@@ -20,6 +20,13 @@ import type_caster_test.opencv as ttt
 import numpy as np
 import pytest
 
+unsupported_dtypes = [np.float16, np.int64, np.uint64, np.object_]
+
+try:
+    unsupported_dtypes += [np.float128]
+except AttributeError:
+    pass
+
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
 @pytest.mark.parametrize('size0', list(range(2, 10, 2)) + list(range(1, 10, 2)))
@@ -52,7 +59,7 @@ def test_rank_2_negative_strides_2(dtype, size0, size1):
     np.testing.assert_array_equal(a, ttt.pass_(a))
 
 
-@pytest.mark.parametrize('dtype', [np.float16, np.float128, np.int64, np.uint64, np.object_])
+@pytest.mark.parametrize('dtype', unsupported_dtypes)
 @pytest.mark.xfail(raises=TypeError)
 def test_rank_2_negative_strides(dtype):
     ttt.pass_(np.empty((0, 0), dtype=dtype))
@@ -85,7 +92,7 @@ def test_rank_3_negative_strides_2(dtype, size0, size1, size2):
     np.testing.assert_array_equal(a, ttt.pass_(a))
 
 
-@pytest.mark.parametrize('dtype', [np.float16, np.float128, np.int64, np.uint64, np.object_])
+@pytest.mark.parametrize('dtype', unsupported_dtypes)
 @pytest.mark.xfail(raises=TypeError)
 def test_rank_3_negative_strides(dtype):
     ttt.pass_(np.empty((0, 0, 0), dtype=dtype))

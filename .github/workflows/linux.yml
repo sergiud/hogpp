@@ -1,0 +1,61 @@
+name: Linux
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: GCC-${{matrix.build_type}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+          build_type: [Release, Debug]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
+          build-essential \
+          cmake \
+          lcov \
+          libboost-dev \
+          libeigen3-dev \
+          libfmt-dev \
+          libopencv-dev \
+          ninja-build \
+          python3-numpy \
+          python3-pybind11 \
+          python3-pytest
+
+    - name: Configure
+      shell: bash
+      run: |
+        if [[ ${{matrix.build_type}} == "Debug" ]]; then
+          export CXXFLAGS=--coverage
+        fi
+        cmake -S . -B build_${{matrix.build_type}} -G Ninja
+    - name: Build
+      run: |
+        cmake --build build_${{matrix.build_type}} \
+              --config ${{matrix.build_type}}
+    - name: Test
+      run: |
+        ctest --test-dir build_${{matrix.build_type}} -j$(nproc) --output-on-failure
+    - name: Generate Coverage
+      if: ${{ startswith(matrix.build_type, 'Debug') }}
+      run: |
+        lcov --directory . --capture --output-file coverage.info
+        lcov --remove coverage.info 'test/*' '/usr/*' --output-file coverage.info
+        lcov --list coverage.info
+
+    - name: Upload Coverage to Codecov
+      if: ${{ startswith(matrix.build_type, 'Debug') }}
+      uses: codecov/codecov-action@v2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+        verbose: true
