@@ -103,3 +103,16 @@ def test_rank_3_negative_strides(dtype):
 @pytest.mark.xfail(raises=TypeError)
 def test_rank_3_unsupported(dtype, size):
     ttt.pass_(np.empty((0, 0, size), dtype=dtype))
+
+
+@pytest.mark.parametrize('bounds1', [[1, 2, 3, 4], [1., 2, 3, 4], [1., 2., 3., 4.]])
+def test_bounds(bounds1):
+    bounds2 = ttt.pass_bounds_(bounds1)
+
+    np.testing.assert_array_equal(bounds1, bounds2)
+
+
+@pytest.mark.parametrize('bounds1', [['f', 2, 3, 4], [1., None, 3, 4], [1., 2., 4.]])
+@pytest.mark.xfail(raises=TypeError)
+def test_invalid_bounds(bounds1):
+    ttt.pass_bounds_(bounds1)

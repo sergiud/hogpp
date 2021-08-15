@@ -40,6 +40,21 @@ void init_opencv(pybind11::module& m)
         "pass_"
         , &pass<cv::Mat>
     )
+    .def
+    (
+        "pass_bounds_"
+        , &pass<cv::Rect>
+    )
+    .def
+    (
+        "pass_bounds_"
+        , &pass<cv::Rect2f>
+    )
+    .def
+    (
+        "pass_bounds_"
+        , &pass<cv::Rect2d>
+    )
     ;
     // clang-format on
 }

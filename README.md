@@ -46,8 +46,9 @@ image = # ...
 # Precompute the gradient histograms. This needs to be done only once for each image.
 desc.compute(image)
 # Extract the feature descriptor of a region of interest. The method can be
-# called multiple times for different subregions of the above image.
-roi = (0, 0, 64, 128)
+# called multiple times for different subregions of the above image. Note the
+# use of matrix indexing along each axis opposed to Cartesian coordinates.
+roi = (0, 0, 128, 64) # top left (row, column) size (height, width)
 X = desc(roi)
 ```
 

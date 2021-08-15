@@ -265,17 +265,25 @@ public:
 
     bool load(handle src, bool /*unused*/)
     {
-        std::tie(value.x, value.y, value.width, value.height) =
-            pybind11::cast<std::tuple<T, T, T, T> >(src);
+        try {
+            std::tie(value.y, value.x, value.height, value.width) =
+                pybind11::cast<std::tuple<T, T, T, T> >(src);
+        }
+        catch (cast_error&) {
+            return false;
+        }
+
         return true;
     }
 
     static handle cast(const cv::Rect_<T>& in, return_value_policy /*policy*/,
                        handle /*parent*/)
     {
-        return make_tuple(in.x, in.y, in.width, in.height).release();
+        return make_tuple(in.y, in.x, in.height, in.width).release();
     }
 };
+
+extern template struct type_caster<cv::Rect>;
 
 } // namespace pybind11::detail
 

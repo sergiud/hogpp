@@ -32,6 +32,21 @@ target_link_libraries (hogpp INTERFACE
 )
 
 if (pybind11_FOUND)
+  add_library (python_type_caster STATIC
+    python/type_caster/opencv.cpp
+    python/type_caster/opencv.hpp
+    python/type_caster/tensor.hpp
+  )
+
+  target_compile_features (python_type_caster PUBLIC cxx_std_17)
+  target_link_libraries (python_type_caster PUBLIC
+    opencv_core
+    pybind11::pybind11
+  )
+
+  set_target_properties (python_type_caster PROPERTIES
+    POSITION_INDEPENDENT_CODE ON)
+
   pybind11_add_module (pyhogpp
     python/binning.cpp
     python/binning.hpp
@@ -42,24 +57,20 @@ if (pybind11_FOUND)
     python/integralhogdescriptor.hpp
     python/magnitude.cpp
     python/magnitude.hpp
-    python/type_caster/opencv.hpp
-    python/type_caster/tensor.hpp
-  )
-
-  pybind11_add_module (type_caster_test
-    python/type_caster_test.cpp
-    python/type_caster/opencv.hpp
-    python/type_caster/tensor.hpp
   )
 
   target_link_libraries (pyhogpp PRIVATE
     hogpp::hogpp
+    python_type_caster
   )
 
-  target_compile_features (type_caster_test PRIVATE cxx_std_17)
+  pybind11_add_module (type_caster_test
+    python/type_caster_test.cpp
+  )
+
   target_link_libraries (type_caster_test PRIVATE
+    python_type_caster
     Eigen3::Eigen
-    opencv_core
   )
 
   set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
