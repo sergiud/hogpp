@@ -176,6 +176,12 @@ jobs:
                 -j$(sysctl -n hw.ncpu) \
                 --output-on-failure
 
+      - name: Generate Documentation
+        run: |
+          cmake --build build_${{matrix.build_type}} \
+                --config ${{matrix.build_type}} \
+                --target sphinx
+
       - name: Generate Coverage
         if: matrix.build_type == 'Debug'
         run: |

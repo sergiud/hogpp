@@ -9,6 +9,8 @@ project (hogpp
 set (CMAKE_CXX_VISIBILITY_PRESET hidden)
 set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
+list (APPEND CMAKE_MODULE_PATH ${hogpp_SOURCE_DIR}/cmake)
+
 include (CheckCXXCompilerFlag)
 include (CheckCXXSymbolExists)
 include (CTest)
@@ -18,8 +20,10 @@ check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 find_package (Boost 1.70 COMPONENTS unit_test_framework)
 find_package (Eigen3 3.4.0 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
+find_package (Git)
 find_package (OpenCV 4.0 REQUIRED)
 find_package (Python 3.0 COMPONENTS Development Interpreter)
+find_package (Sphinx 4.0)
 
 if (NOT Boost_FOUND)
   set (CMAKE_DISABLE_FIND_PACKAGE_pybind11 ON)
@@ -37,8 +41,8 @@ add_library (hogpp INTERFACE)
 add_library (hogpp::hogpp ALIAS hogpp)
 
 target_include_directories (hogpp INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<BUILD_INTERFACE:${hogpp_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${hogpp_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLURDIR}>
 )
 
@@ -70,6 +74,7 @@ if (pybind11_FOUND)
     POSITION_INDEPENDENT_CODE ON)
 
   pybind11_add_module (pyhogpp
+    ${hogpp_BINARY_DIR}/version.txt
     python/binning.cpp
     python/binning.hpp
     python/blocknormalizer.cpp
@@ -191,17 +196,17 @@ if (BUILD_TESTING)
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -n auto
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_hogpp.py)
+      ${hogpp_SOURCE_DIR}/tests/python/test_hogpp.py)
 
     add_test (NAME python_tensor_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -n auto
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
+      ${hogpp_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
 
     add_test (NAME python_opencv_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -n auto
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
+      ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
 
     add_test (NAME python_repr COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
@@ -209,3 +214,36 @@ if (BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_repr.py)
   endif (pybind11_FOUND AND Python_Interpreter_FOUND)
 endif (BUILD_TESTING)
+
+if (Git_FOUND)
+  add_custom_command (OUTPUT ${hogpp_BINARY_DIR}/version.txt
+    COMMAND ${CMAKE_COMMAND}
+      -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+      -DSOURCE_DIR=${hogpp_SOURCE_DIR}
+      -DOUTPUT_FILE=${hogpp_BINARY_DIR}/version.txt
+      -P ${hogpp_SOURCE_DIR}/cmake/GenerateVersion.cmake
+    COMMENT "Generating version information"
+  )
+else (Git_FOUND)
+  file (WRITE ${hogpp_BINARY_DIR}/version.txt
+    "${hogpp_VERSION}"
+  )
+endif (Git_FOUND)
+
+if (Sphinx_FOUND)
+  add_custom_target (sphinx
+    ${CMAKE_COMMAND} -E env
+      PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
+      VERSION=${hogpp_BINARY_DIR}/version.txt
+        $<TARGET_FILE:Sphinx::build> -M html
+        ${hogpp_SOURCE_DIR}/docs
+        ${hogpp_BINARY_DIR}/docs/_build
+        -W --keep-going
+    DEPENDS pyhogpp
+    BYPRODUCTS docs/_build/html/.buildinfo
+    COMMENT "Generating Sphinx HTML documentation"
+    USES_TERMINAL
+  )
+
+  set_property (DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES docs/_build)
+endif (Sphinx_FOUND)
