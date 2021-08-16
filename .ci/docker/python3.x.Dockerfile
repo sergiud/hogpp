@@ -15,6 +15,8 @@ libopencv-dev \
 mold \
 ninja-build
 
+COPY docs/requirements.txt ./docs/
+COPY python/requirements.txt ./python/
 COPY requirements.txt ./
 
 RUN pip install -r requirements.txt

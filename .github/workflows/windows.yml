@@ -46,11 +46,16 @@ jobs:
             mingw-w64-${{matrix.env}}-python-pygments
             mingw-w64-${{matrix.env}}-python-pytest
             mingw-w64-${{matrix.env}}-python-pytest-xdist
+            mingw-w64-${{matrix.env}}-python-sphinx
 
       - name: Setup Coverage Dependencies
         if: matrix.build_type == 'Debug'
         run: |
           pip install 'gcovr==8.2'
+
+      - name: Setup Dependencies
+        run: |
+          pip install -r docs/requirements.txt
 
       - name: Setup Environment
         run: |
@@ -82,6 +87,12 @@ jobs:
           ctest --test-dir build_${{matrix.build_type}} \
                 -j$(nproc) \
                 --output-on-failure
+
+      - name: Generate Documentation
+        run: |
+          cmake --build build_${{matrix.build_type}}/ \
+                --config ${{matrix.build_type}} \
+                --target sphinx
 
       - name: Generate Coverage
         if: matrix.build_type == 'Debug'
@@ -279,6 +290,8 @@ jobs:
                 -DCMAKE_CONFIGURATION_TYPES=${{matrix.build_type}} `
                 -DCMAKE_INSTALL_PREFIX:PATH=./install `
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON `
+                -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON `
+                -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON `
                 -G "${{matrix.generator}}"
 
       - name: Build
@@ -295,3 +308,9 @@ jobs:
           cmake --build build_${{matrix.build_type}}/ `
                 --config ${{matrix.build_type}} `
                 --target RUN_TESTS
+
+      - name: Generate Documentation
+        run: |
+          cmake --build build_${{matrix.build_type}}/ `
+                --config ${{matrix.build_type}} `
+                --target sphinx

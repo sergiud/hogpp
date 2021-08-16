@@ -158,6 +158,8 @@ jobs:
           cmake -S . -B build_${{matrix.build_type}}  \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
+                -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON \
+                -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON \
                 -G Xcode
 
       - name: Build
@@ -171,6 +173,12 @@ jobs:
                 --build-config ${{matrix.build_type}} \
                 -j$(sysctl -n hw.ncpu) \
                 --output-on-failure
+
+      - name: Generate Documentation
+        run: |
+          cmake --build build_${{matrix.build_type}} \
+                --config ${{matrix.build_type}} \
+                --target sphinx
 
       - name: Generate Coverage
         if: matrix.build_type == 'Debug'

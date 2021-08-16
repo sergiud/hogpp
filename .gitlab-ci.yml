@@ -7,7 +7,6 @@ stages:
   - test
 
 .build_template: &build_definition
-
   stage: build
   script:
     - export CCACHE_BASEDIR=$(pwd)
@@ -19,6 +18,8 @@ stages:
       -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
       -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb
       -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON
+      -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON
+      -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON
       -GNinja
     - cmake --build build/
   cache:
@@ -26,10 +27,28 @@ stages:
     paths:
       - .cache/
   artifacts:
-    untracked: true
+    paths:
+      - build/
+    exclude:
+      - build/**/*.o
+
+.docs_template: &docs_definition
+  stage: build
+  script:
+    - PYTHONPATH=${CI_PROJECT_DIR}/build/
+      VERSION=${CI_PROJECT_DIR}/build/version.txt
+      sphinx-build -M html
+      ${CI_PROJECT_DIR}/docs/
+      ${CI_PROJECT_DIR}/build/docs/_build/
+      -W --keep-going
+  artifacts:
+    paths:
+      - build/docs/
 
 .test_template: &test_definition
   stage: test
+  needs:
+    - build
   script:
     # Run unit tests
     - ctest --test-dir build/
@@ -66,6 +85,12 @@ build:python3.10:
   image: sergiud/hogpp:python3.10
   <<: *build_definition
 
+docs:python3.10:
+  image: sergiud/hogpp:python3.10
+  <<: *docs_definition
+  needs:
+    - build:python3.10
+
 test:python3.10:
   image: sergiud/hogpp:python3.10
   <<: *test_definition
@@ -81,6 +106,12 @@ lint:python3.10:
 build:python3.11:
   image: sergiud/hogpp:python3.11
   <<: *build_definition
+
+docs:python3.11:
+  image: sergiud/hogpp:python3.11
+  <<: *docs_definition
+  needs:
+    - build:python3.11
 
 test:python3.11:
   image: sergiud/hogpp:python3.11
@@ -98,6 +129,12 @@ build:python3.12:
   image: sergiud/hogpp:python3.12
   <<: *build_definition
 
+docs:python3.12:
+  image: sergiud/hogpp:python3.12
+  <<: *docs_definition
+  needs:
+    - build:python3.12
+
 test:python3.12:
   image: sergiud/hogpp:python3.12
   <<: *test_definition
@@ -114,6 +151,12 @@ build:python3.13:
   image: sergiud/hogpp:python3.13
   <<: *build_definition
 
+docs:python3.13:
+  image: sergiud/hogpp:python3.13
+  <<: *docs_definition
+  needs:
+    - build:python3.13
+
 test:python3.13:
   image: sergiud/hogpp:python3.13
   <<: *test_definition
@@ -129,6 +172,12 @@ lint:python3.13:
 build:pypy3.10:
   image: sergiud/hogpp:pypy3.10
   <<: *build_definition
+
+docs:pypy3.10:
+  image: sergiud/hogpp:pypy3.10
+  <<: *docs_definition
+  needs:
+    - build:pypy3.10
 
 test:pypy3.10:
   image: sergiud/hogpp:pypy3.10

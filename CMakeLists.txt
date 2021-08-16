@@ -9,6 +9,8 @@ project (hogpp
 set (CMAKE_CXX_VISIBILITY_PRESET hidden)
 set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
+list (APPEND CMAKE_MODULE_PATH ${hogpp_SOURCE_DIR}/cmake)
+
 include (CheckCXXCompilerFlag)
 include (CheckCXXSymbolExists)
 include (CTest)
@@ -25,6 +27,7 @@ find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
 find_package (Python 3.0 COMPONENTS Development OPTIONAL_COMPONENTS Interpreter)
+find_package (Sphinx 4.0)
 
 if (Python_INTERPRETER_ID STREQUAL "PyPy")
   # Correct SOABI which is missing the platform tag. See
@@ -260,3 +263,20 @@ if (BUILD_TESTING)
       ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
   endif (TARGET type_caster_test AND OpenCV_FOUND)
 endif (BUILD_TESTING)
+
+if (TARGET pyhogpp AND Sphinx_FOUND)
+  add_custom_target (sphinx
+    ${CMAKE_COMMAND} -E env
+      PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
+        $<TARGET_FILE:Sphinx::build> -M html
+        ${hogpp_SOURCE_DIR}/docs
+        ${hogpp_BINARY_DIR}/docs/_build
+        -W --keep-going
+    DEPENDS pyhogpp
+    BYPRODUCTS docs/_build/html/.buildinfo
+    COMMENT "Generating Sphinx HTML documentation"
+    USES_TERMINAL
+  )
+
+  set_property (DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES docs/_build)
+endif (TARGET pyhogpp AND Sphinx_FOUND)
