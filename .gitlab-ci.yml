@@ -12,6 +12,7 @@ default:
     eigen
     fmt
     gcc
+    git
     ninja
     opencv
     pybind11
@@ -26,6 +27,9 @@ build:
   stage: build
   before_script:
     - *min_packages_definition
+    - pacman -Sy --noconfirm
+      python-sphinx
+      python-sphinxcontrib-bibtex
   script:
     - export CCACHE_BASEDIR=$(pwd)
     - export CCACHE_DIR=$(pwd)/.cache/
@@ -36,6 +40,7 @@ build:
       -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb
       -GNinja
     - cmake --build build/
+    - cmake --build build/ --target sphinx
   cache:
     key: "$CI_PROJECT_ID"
     paths:

@@ -30,6 +30,7 @@ jobs:
           path-type: minimal
           update: true # Currently, necessary for eigen3 3.4.0
           install: >-
+            git
             lcov
             mingw-w64-${{matrix.env}}-boost
             mingw-w64-${{matrix.env}}-cmake
@@ -82,6 +83,12 @@ jobs:
           ctest --test-dir build_${{matrix.build_type}} \
                 -j$(nproc) \
                 --output-on-failure
+
+      - name: Generate Documentation
+        run: |
+          cmake --build build_${{matrix.build_type}}/ \
+                --config ${{matrix.build_type}} \
+                --target sphinx
 
       - name: Generate Coverage
         if: ${{matrix.build_type == 'Debug'}}
@@ -313,3 +320,9 @@ jobs:
           cmake --build build_${{matrix.build_type}}/ `
                 --config ${{matrix.build_type}} `
                 --target RUN_TESTS
+
+      - name: Generate Documentation
+        run: |
+          cmake --build build_${{matrix.build_type}}/ `
+                --config ${{matrix.build_type}} `
+                --target sphinx

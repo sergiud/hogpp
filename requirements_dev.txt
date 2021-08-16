@@ -2,3 +2,5 @@ numpy
 pybind11>=2.6.2
 pytest
 pytest-xdist
+sphinx>=4.0.0
+sphinxcontrib-bibtex

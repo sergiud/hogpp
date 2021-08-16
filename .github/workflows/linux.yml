@@ -43,6 +43,7 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             cmake \
+            git \
             lcov \
             libboost-test-dev \
             libfmt-dev \
@@ -108,6 +109,12 @@ jobs:
                 --config ${{matrix.build_type}} \
                 -j$(nproc) \
                 --output-on-failure
+
+      - name: Generate Documentation
+        run: |
+          cmake --build build_${{matrix.build_type}} \
+                --config ${{matrix.build_type}} \
+                --target sphinx
 
       - name: Generate Coverage
         if: ${{matrix.build_type == 'Debug'}}
