@@ -21,6 +21,21 @@ import numpy as np
 import pytest
 
 
+@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+def test_descriptor_size(dtype):
+    desc = IntegralHOGDescriptor()
+
+    bounds = (128, 64)
+
+    image = np.random.rand(*bounds).astype(dtype)
+    desc.compute(image)
+
+    assert desc.features_.dtype == dtype
+
+    np.testing.assert_array_equal(desc.features_, desc([0, 0, *bounds]))
+    assert desc.features_.size == 3780
+
+
 @pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
 def test_magnitude_attribute(magnitude):
     desc = IntegralHOGDescriptor(magnitude=magnitude)
@@ -207,3 +222,14 @@ def test_ensure_epsilon(block_norm, epsilon):
         np.testing.assert_almost_equal(desc.epsilon_, epsilon)
 
     assert desc.block_norm_ == block_norm
+
+
+@pytest.mark.parametrize('bounds', [[0, 0, 129, 2], [0, 0, 128, 65], [-1, 0, 128, 64], [0, -1, 128, 64], [0, 0, -1, 2], [0, 0, 2, -1]])
+@pytest.mark.xfail(raises=ValueError)
+def test_invalid_bounds(bounds):
+    desc = IntegralHOGDescriptor()
+
+    image = np.random.rand(128, 64)
+    desc.compute(image)
+
+    desc(bounds)

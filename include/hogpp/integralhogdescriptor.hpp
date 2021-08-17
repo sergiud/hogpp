@@ -187,24 +187,67 @@ public:
             return Tensor5{};
         }
 
-        return features(cv::Rect{0, 0,
-                                 static_cast<int>(histogram_.dimension(1)),
-                                 static_cast<int>(histogram_.dimension(0))});
+        return features(
+            cv::Rect{0, 0, static_cast<int>(histogram_.dimension(1) - 1),
+                     static_cast<int>(histogram_.dimension(0) - 1)});
     }
 
     [[nodiscard]] Tensor5 features(const cv::Rect& roi) const
     {
-        assert(roi.area() >= 0);
-
         if (roi.area() == 0) {
             return Tensor5{};
         }
 
         const Eigen::Array2i dims{roi.height, roi.width};
-        const Eigen::Array2i numBlocks = (dims - blockSize_) / blockStride_ + 1;
-        const Eigen::Array2i numCells = blockSize_ / cellSize_;
+
+        if (dims.x() < 0) {
+            throw std::invalid_argument{
+                fmt::format("IntegralHOGDescriptor features region row count "
+                            "must be positive but is {}",
+                            dims.x())};
+        }
+
+        if (dims.y() < 0) {
+            throw std::invalid_argument{
+                fmt::format("IntegralHOGDescriptor features region column "
+                            "count must be positive but is {}",
+                            dims.y())};
+        }
 
         const Eigen::Array2i offset{roi.y, roi.x};
+
+        if (offset.x() < 0 || dims.x() - offset.x() < 0) {
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor features cannot be extracted from a "
+                "region outside of the input domain specified by the row {}",
+                offset.x())};
+        }
+
+        if (offset.y() < 0 || dims.y() - offset.x() < 0) {
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor features cannot be extracted from a "
+                "region outside of the input domain specified by the column {}",
+                offset.y())};
+        }
+
+        const Eigen::Array2i br = offset + dims;
+
+        if (br.x() > histogram_.dimension(0) - 1) {
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor features cannot be extracted from a "
+                "region larger than the input domain with the bottom row {}",
+                br.x() - 1)};
+        }
+
+        if (br.y() > histogram_.dimension(1) - 1) {
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor features cannot be extracted from a "
+                "region larger than the input domain with the right column {}",
+                br.y() - 1)};
+        }
+
+        const Eigen::Array2i numBlocks = (dims - blockSize_) / blockStride_ + 1;
+        const Eigen::Array2i numCells = blockSize_ / cellSize_;
 
         // Organize the features in a 5-D tensor (blocks (x,y), cells (x,y) and
         // bins).
