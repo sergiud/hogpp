@@ -25,7 +25,7 @@ additionally contrast-normalized.
 ## Requirements
 
 * C++17 compiler
-* [CMake](https://gitlab.kitware.com/cmake/cmake) 3.5
+* [CMake](https://gitlab.kitware.com/cmake/cmake) 3.12
 * [Eigen](https://gitlab.com/libeigen/eigen) 3.3.7
 * [fmt](https://github.com/fmtlib/fmt) 6.0
 * [OpenCV](https://github.com/opencv/opencv) 4.0
