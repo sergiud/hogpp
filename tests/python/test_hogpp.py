@@ -70,25 +70,25 @@ def test_default_attributes():
     assert desc.epsilon_ is not None
 
 
-@pytest.mark.xfail(raises=ValueError)
+@pytest.mark.xfail(raises=TypeError)
 @pytest.mark.parametrize('binning', ['signed1', 'unsigned1'])
 def test_invalid_binning(binning):
     IntegralHOGDescriptor(binning=binning)
 
 
-@pytest.mark.xfail(raises=ValueError)
+@pytest.mark.xfail(raises=TypeError)
 @pytest.mark.parametrize('block_norm', ['l11', 'foo'])
 def test_invalid_block_norm(block_norm):
     IntegralHOGDescriptor(block_norm=block_norm)
 
 
-@pytest.mark.xfail(raises=ValueError)
+@pytest.mark.xfail(raises=TypeError)
 @pytest.mark.parametrize('magnitude', ['l11', 'foo'])
 def test_invalid_magnitude(magnitude):
     IntegralHOGDescriptor(magnitude=magnitude)
 
 
-@pytest.mark.xfail(raises=ValueError)
+@pytest.mark.xfail(raises=TypeError)
 def test_unsupported_paramater():
     IntegralHOGDescriptor(some_parameter=True)
 
@@ -178,15 +178,27 @@ def test_horizontal_gradient(dtype, block_norm, magnitude):
     np.testing.assert_array_equal(X, XX)
 
 
-@pytest.mark.xfail(raises=ValueError)
-@pytest.mark.parametrize('clip_norm', ['foo', -1, 0.0])
-def test_invalid_clip_norm(clip_norm):
+@pytest.mark.xfail(raises=TypeError)
+@pytest.mark.parametrize('clip_norm', ['foo'])
+def test_invalid_clip_norm_type(clip_norm):
     IntegralHOGDescriptor(clip_norm=clip_norm)
 
 
 @pytest.mark.xfail(raises=ValueError)
-@pytest.mark.parametrize('epsilon', ['foo', -1])
-def test_invalid_epsilon(epsilon):
+@pytest.mark.parametrize('clip_norm', [-1, 0.0])
+def test_invalid_clip_norm_value(clip_norm):
+    IntegralHOGDescriptor(clip_norm=clip_norm)
+
+
+@pytest.mark.xfail(raises=TypeError)
+@pytest.mark.parametrize('epsilon', ['foo'])
+def test_invalid_epsilon_type(epsilon):
+    IntegralHOGDescriptor(epsilon=epsilon)
+
+
+@pytest.mark.xfail(raises=ValueError)
+@pytest.mark.parametrize('epsilon', [-1, -2.0])
+def test_invalid_epsilon_value(epsilon):
     IntegralHOGDescriptor(epsilon=epsilon)
 
 

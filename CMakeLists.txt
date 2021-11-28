@@ -53,6 +53,7 @@ if (pybind11_FOUND)
     python/binning.hpp
     python/blocknormalizer.cpp
     python/blocknormalizer.hpp
+    python/formatter.hpp
     python/hogpp.cpp
     python/integralhogdescriptor.cpp
     python/integralhogdescriptor.hpp

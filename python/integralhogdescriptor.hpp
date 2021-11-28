@@ -39,7 +39,18 @@
 class IntegralHOGDescriptor
 {
 public:
-    [[nodiscard]] explicit IntegralHOGDescriptor(const pybind11::kwargs& args);
+    [[nodiscard]] explicit IntegralHOGDescriptor(
+        const std::optional<Eigen::Array2i>& cellSize,
+        const std::optional<Eigen::Array2i>& blockSize,
+        const std::optional<Eigen::Array2i>& blockStride,
+        const std::optional<pybind11::int_>& numBins,
+        const std::optional<MagnitudeType>& magnitude,
+        const std::optional<BinningType>& binning,
+        const std::optional<BlockNormalizerType>& blockNorm,
+        const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+            clipNorm,
+        const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+            epsilon);
 
     void compute(const cv::Mat& image, const pybind11::handle& mask);
 
@@ -82,8 +93,8 @@ private:
     descriptor_;
     // clang-format on
 
-    std::optional<pybind11::float_> clipNorm_;
-    std::optional<pybind11::float_> epsilon_;
+    std::optional<std::variant<pybind11::int_, pybind11::float_> > clipNorm_;
+    std::optional<std::variant<pybind11::int_, pybind11::float_> > epsilon_;
 };
 
 #endif // PYTHON_HOGPP_INTEGRALHOGDESCRIPTOR_HPP

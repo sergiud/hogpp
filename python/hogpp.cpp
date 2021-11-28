@@ -18,10 +18,17 @@
 //
 
 #include <functional>
+#include <optional>
+#include <variant>
 
+#include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
+#include "binning.hpp"
+#include "blocknormalizer.hpp"
 #include "integralhogdescriptor.hpp"
+#include "magnitude.hpp"
 #include "type_caster/opencv.hpp"
 
 PYBIND11_MODULE(hogpp, m)
@@ -36,7 +43,28 @@ PYBIND11_MODULE(hogpp, m)
     // clang-format off
     cls.def
     (
-        py::init<py::kwargs>()
+          py::init
+          <
+              std::optional<Eigen::Array2i>
+            , std::optional<Eigen::Array2i>
+            , std::optional<Eigen::Array2i>
+            , std::optional<pybind11::int_>
+            , std::optional<MagnitudeType>
+            , std::optional<BinningType>
+            , std::optional<BlockNormalizerType>
+            , std::optional<std::variant<pybind11::int_, pybind11::float_> >
+            , std::optional<std::variant<pybind11::int_, pybind11::float_> >
+          >()
+        , py::kw_only()
+        , py::arg("cell_size") = std::nullopt
+        , py::arg("block_size") = std::nullopt
+        , py::arg("block_stride") = std::nullopt
+        , py::arg("num_bins") = std::nullopt
+        , py::arg("magnitude") = std::nullopt
+        , py::arg("binning") = std::nullopt
+        , py::arg("block_norm") = std::nullopt
+        , py::arg("clip_norm") = std::nullopt
+        , py::arg("epsilon") = std::nullopt
     )
     .def
     (

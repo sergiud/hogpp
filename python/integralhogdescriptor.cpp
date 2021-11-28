@@ -22,33 +22,34 @@
 #include <pybind11/eigen.h>
 #include <pybind11/numpy.h>
 
+#include "formatter.hpp"
 #include "integralhogdescriptor.hpp"
 #include "type_caster/tensor.hpp"
 
-template<>
-struct fmt::formatter<pybind11::str> : formatter<string_view>
-{
-    template<class FormatContext>
-    auto format(const pybind11::str& s, FormatContext& ctx)
-    {
-        return formatter<string_view>::format(std::string{s}, ctx);
-    }
-};
-
-template<>
-struct fmt::formatter<pybind11::handle> : formatter<pybind11::str>
-{
-    template<class FormatContext>
-    auto format(const pybind11::handle& o, FormatContext& ctx)
-    {
-        return formatter<pybind11::str>::format(pybind11::repr(o), ctx);
-    }
-};
-
 namespace {
 
+template<class T>
+struct NativeScalar : NativeScalar<std::decay_t<T> >
+{
+};
+
+template<>
+struct NativeScalar<pybind11::float_>
+{
+    using type = double;
+};
+
+template<>
+struct NativeScalar<pybind11::int_>
+{
+    using type = int;
+};
+
+template<class T>
+using NativeScalar_t = typename NativeScalar<T>::type;
+
 template<class... T>
-[[nodiscard]] static constexpr decltype(auto) possible(T... values)
+[[nodiscard]] constexpr decltype(auto) possible(T... values)
 {
     return std::array<std::string, sizeof...(T)>{
         {pybind11::repr(pybind11::cast(values))...}};
@@ -56,128 +57,87 @@ template<class... T>
 
 } // namespace
 
-IntegralHOGDescriptor::IntegralHOGDescriptor(const pybind11::kwargs& args)
+IntegralHOGDescriptor::IntegralHOGDescriptor(
+    const std::optional<Eigen::Array2i>& cellSize,
+    const std::optional<Eigen::Array2i>& blockSize,
+    const std::optional<Eigen::Array2i>& blockStride,
+    const std::optional<pybind11::int_>& numBins,
+    const std::optional<MagnitudeType>& magnitude,
+    const std::optional<BinningType>& binning,
+    const std::optional<BlockNormalizerType>& blockNorm,
+    const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+        clipNorm,
+    const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+        epsilon)
+    : cellSize_{cellSize}
+    , blockSize_{blockSize}
+    , blockStride_{blockStride}
+    , numBins_{numBins}
+    , magnitudeType_{magnitude}
+    , binningType_{binning}
+    , blockNormalizerType_{blockNorm}
+    , clipNorm_{clipNorm}
+    , epsilon_{epsilon}
 {
     // Prefer keyword arguments over dedicated signature to delegate definition
     // of defaults to the native implementation.
 
     // Delay setting parameters until we know the floating point type we
     // will be working with.
-    for (auto&& [key, value] : args) {
-        const std::string& name = pybind11::cast<std::string>(key);
 
-        if (name == "cell_size") {
-            cellSize_ = pybind11::cast<Eigen::Array2i>(value);
-        }
-        else if (name == "block_size") {
-            blockSize_ = pybind11::cast<Eigen::Array2i>(value);
-        }
-        else if (name == "block_stride") {
-            blockStride_ = pybind11::cast<Eigen::Array2i>(value);
-        }
-        else if (name == "num_bins") {
-            numBins_ = pybind11::cast<int>(value);
-        }
-        else if (name == "magnitude") {
-            try {
-                magnitudeType_ = pybind11::cast<MagnitudeType>(value);
-            }
-            catch (const pybind11::cast_error&) {
-                throw std::invalid_argument{fmt::format(
-                    "IntegralHOGDescriptor magnitude can be one "
-                    "of the values {} "
-                    "but the unknown value {} was given",
-                    fmt::join(
-                        possible(MagnitudeType::Identity, MagnitudeType::Square,
-                                 MagnitudeType::Sqrt),
-                        ", "),
-                    value)};
-            }
-        }
-        else if (name == "binning") {
-            try {
-                binningType_ = pybind11::cast<BinningType>(value);
-            }
-            catch (const pybind11::cast_error&) {
-                throw std::invalid_argument{fmt::format(
-                    "IntegralHOGDescriptor binning can be one of the values {} "
-                    "but the unknown value {} was given",
-                    fmt::join(
-                        possible(BinningType::Signed, BinningType::Unsigned),
-                        ", "),
-                    value)};
-            }
-        }
-        else if (name == "block_norm") {
-            try {
-                blockNormalizerType_ =
-                    pybind11::cast<BlockNormalizerType>(value);
-            }
-            catch (const pybind11::cast_error&) {
-                throw std::invalid_argument{
-                    fmt::format("IntegralHOGDescriptor block_norm can be one "
-                                "of the values {} "
-                                "but the unknown value {} was given",
-                                fmt::join(possible(BlockNormalizerType::L1,
-                                                   BlockNormalizerType::L2,
-                                                   BlockNormalizerType::L2Hys,
-                                                   BlockNormalizerType::L1sqrt),
-                                          ", "),
-                                value)};
-            }
-        }
-        else if (name == "clip_norm") {
-            // Allow None
-            if (!value.is_none()) {
-                try {
-                    auto clipNorm = pybind11::cast<pybind11::float_>(value);
-
-                    if (!(clipNorm > pybind11::float_{0.0f})) {
-                        throw pybind11::cast_error{
-                            "clip_norm is 0 or negative"};
+    if (clipNorm) {
+        // Allow None
+        std::visit(
+            [](const auto& value) {
+                if (!value.is_none()) {
+                    try {
+                        if (!(value >
+                              std::decay_t<decltype(value)>{
+                                  NativeScalar_t<decltype(value)>{0}})) {
+                            throw pybind11::cast_error{
+                                "clip_norm is 0 or negative"};
+                        }
                     }
-
-                    clipNorm_ = clipNorm;
-                }
-                catch (const pybind11::cast_error&) {
-                    throw std::invalid_argument{
-                        fmt::format("IntegralHOGDescriptor clip_norm can only "
-                                    "be a positive "
-                                    "floating point value but {} was given",
-                                    value)};
-                }
-            }
-        }
-        else if (name == "epsilon") {
-            // Allow None
-            if (!value.is_none()) {
-                try {
-                    auto epsilon = pybind11::cast<pybind11::float_>(value);
-
-                    if (epsilon < pybind11::float_{0.0f}) {
-                        throw pybind11::cast_error{"epsilon is negative"};
+                    catch (const pybind11::cast_error&) {
+                        throw std::invalid_argument{fmt::format(
+                            "IntegralHOGDescriptor clip_norm can only "
+                            "be a positive floating point value but {} was "
+                            "given",
+                            value)};
                     }
+                }
+            },
+            *clipNorm);
+    }
 
-                    epsilon_ = epsilon;
+    if (epsilon) {
+        // Allow None
+        std::visit(
+            [](const auto& value) {
+                if (!value.is_none()) {
+                    try {
+                        if (value < std::decay_t<decltype(value)>{
+                                        NativeScalar_t<decltype(value)>{0}}) {
+                            throw pybind11::cast_error{
+                                "clip_norm is 0 or negative"};
+                        }
+                    }
+                    catch (const pybind11::cast_error&) {
+                        throw std::invalid_argument{fmt::format(
+                            "IntegralHOGDescriptor epsilon can be either 0 or "
+                            "a positive floating point value but {} was "
+                            "given",
+                            value)};
+                    }
                 }
-                catch (const pybind11::cast_error&) {
-                    throw std::invalid_argument{fmt::format(
-                        "IntegralHOGDescriptor epsilon can be either 0 or a "
-                        "positive floating point value but {} was given",
-                        value)};
-                }
-            }
-        }
-        else {
-            throw std::invalid_argument{fmt::format(
-                "unsupported IntegralHOGDescriptor parameter \"{}\"", name)};
-        }
+            },
+            *epsilon);
     }
 
     if (!blockNormalizerType_ && (clipNorm_ || epsilon_)) {
         // In case block normalizer arguments were provided, we must ensure
-        // these are actually forwarded to the corresponding instance. We assume
-        // the default to be L2-Hys.
+        // these are actually forwarded to the corresponding instance. We
+        // assume the default to be L2-Hys.
         blockNormalizerType_ = BlockNormalizerType::L2Hys;
     }
 
@@ -222,11 +182,11 @@ void IntegralHOGDescriptor::compute(const cv::Mat& image,
                 else {
                     throw std::invalid_argument{fmt::format(
                         FMT_STRING(
-                            "IntegralHOGDescriptor.compute mask must be either "
-                            "a callable or provide an indexer in terms of a "
-                            "__getitem__ method that accepts a 2-tuple, e.g., "
-                            "a numpy.ndarray instance, but a {} object was "
-                            "given"),
+                            "IntegralHOGDescriptor.compute mask must be "
+                            "either a callable or provide an indexer in terms "
+                            "of a __getitem__ method that accepts a 2-tuple, "
+                            "e.g., a numpy.ndarray instance, but a {} object "
+                            "was given"),
                         mask.get_type())};
                 }
 
@@ -329,21 +289,34 @@ void IntegralHOGDescriptor::update()
                 descriptor.setNumBins(*numBins_);
             }
 
+            using Descriptor = std::decay_t<decltype(descriptor)>;
+            using Scalar = typename Descriptor::Scalar;
+
             if (magnitudeType_) {
-                typename std::decay_t<decltype(descriptor)>::Magnitude
-                    magnitude{*magnitudeType_};
+                typename Descriptor::Magnitude magnitude{*magnitudeType_};
                 descriptor.setMagnitude(std::move(magnitude));
             }
 
             if (binningType_) {
-                typename std::decay_t<decltype(descriptor)>::Binning binning{
-                    *binningType_};
+                typename Descriptor::Binning binning{*binningType_};
                 descriptor.setBinning(std::move(binning));
             }
 
             if (blockNormalizerType_) {
-                typename std::decay_t<decltype(descriptor)>::BlockNormalizer
-                    blockNormalizer{*blockNormalizerType_, clipNorm_, epsilon_};
+                auto optionalNumber =
+                    [](const auto& value) -> std::optional<pybind11::float_> {
+                    return pybind11::cast<pybind11::float_>(value);
+                };
+
+                std::optional<pybind11::float_> clipNorm =
+                    !clipNorm_ ? std::nullopt
+                               : std::visit(optionalNumber, *clipNorm_);
+                std::optional<pybind11::float_> epsilon =
+                    !epsilon_ ? std::nullopt
+                              : std::visit(optionalNumber, *epsilon_);
+
+                typename Descriptor::BlockNormalizer blockNormalizer{
+                    *blockNormalizerType_, clipNorm, epsilon};
                 descriptor.setBlockNormalizer(std::move(blockNormalizer));
             }
         },
@@ -389,8 +362,12 @@ pybind11::object IntegralHOGDescriptor::clipNorm() const noexcept
         descriptor_);
 
     return !result.is_none() ? result
-           : clipNorm_       ? pybind11::object{*clipNorm_}
-                             : pybind11::none{};
+           : clipNorm_       ? std::visit(
+                                   [](const auto& value) {
+                                 return pybind11::cast<pybind11::object>(value);
+                                   },
+                                   *clipNorm_)
+                       : pybind11::none{};
 }
 
 pybind11::object IntegralHOGDescriptor::epsilon() const noexcept
