@@ -184,7 +184,8 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(const pybind11::kwargs& args)
     update();
 }
 
-void IntegralHOGDescriptor::compute(const cv::Mat& image)
+void IntegralHOGDescriptor::compute(const cv::Mat& image,
+                                    const pybind11::handle& mask)
 {
     std::vector<cv::Mat> channels;
     cv::split(image, channels);
@@ -202,8 +203,40 @@ void IntegralHOGDescriptor::compute(const cv::Mat& image)
     update();
 
     std::visit(
-        [&channels](auto& descriptor) {
-            descriptor.compute(channels.begin(), channels.end());
+        [&channels, &mask](auto& descriptor) {
+            if (mask.is_none()) {
+                descriptor.compute(channels.begin(), channels.end());
+            }
+            else {
+                pybind11::object getitem;
+
+                if (pybind11::hasattr(mask, "__getitem__")) {
+                    // mask can be indexed, e.g., it's a numpy.ndarray
+                    getitem = pybind11::getattr(mask, "__getitem__");
+                }
+                else if (pybind11::hasattr(mask, "__call__")) {
+                    // mask is a callable
+                    getitem =
+                        pybind11::reinterpret_borrow<pybind11::object>(mask);
+                }
+                else {
+                    throw std::invalid_argument{fmt::format(
+                        FMT_STRING(
+                            "IntegralHOGDescriptor.compute mask must be either "
+                            "a callable or provide an indexer in terms of a "
+                            "__getitem__ method that accepts a 2-tuple, e.g., "
+                            "a numpy.ndarray instance, but a {} object was "
+                            "given"),
+                        mask.get_type())};
+                }
+
+                auto masking = [&getitem](Eigen::DenseIndex i,
+                                          Eigen::DenseIndex j) {
+                    return pybind11::bool_(getitem(pybind11::make_tuple(i, j)));
+                };
+
+                descriptor.compute(channels.begin(), channels.end(), masking);
+            }
         },
         descriptor_);
 }

@@ -252,3 +252,66 @@ def test_zero_gradient(dtype, channels, block_norm):
     assert desc.features_.size > 0
     assert not np.any(np.isinf(desc.features_))
     np.testing.assert_array_almost_equal(desc.features_, 0)
+
+
+@pytest.fixture(params=[np.float32, np.float64])
+def horizontal_gradient_image(request):
+    image = np.zeros((128, 64), dtype=request.param)
+
+    i = image.shape[0] // 2
+    image[i:, ...] = 1
+
+    return image
+
+
+@pytest.mark.parametrize('dtype', [np.bool_, np.uint8])
+def test_compute_mask_ndarray(dtype, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+
+    image = horizontal_gradient_image
+
+    i = image.shape[0] // 2
+    mask = np.zeros_like(image, dtype=dtype)
+    mask[i-1:i+1, ...] = True
+
+    desc.compute(image, mask=mask)
+
+    assert desc.features_.size > 0
+    assert not np.any(np.isinf(desc.features_))
+    np.testing.assert_array_equal(desc.features_[desc.features_ != 0], 0)
+
+
+def test_compute_mask_callable(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+
+    image = horizontal_gradient_image
+    i = image.shape[0] // 2
+
+    def mask(key):
+        k, l = key
+        return k >= i - 1 and k <= i + 1
+
+    desc.compute(image, mask=mask)
+
+    assert not np.any(np.isinf(desc.features_))
+    assert desc.features_.size > 0
+    np.testing.assert_array_equal(desc.features_[desc.features_ != 0], 0)
+
+
+@pytest.mark.parametrize('mask', [0, False, 0.0])
+@pytest.mark.xfail(raises=ValueError)
+def test_compute_mask_invalid(mask, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image, mask=0)
+
+
+@pytest.mark.xfail(raises=TypeError)
+def test_compute_image_positional(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(image=horizontal_gradient_image)
+
+
+@pytest.mark.xfail(raises=TypeError)
+def test_compute_mask_keyword(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image, horizontal_gradient_image > 0)

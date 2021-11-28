@@ -24,6 +24,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <utility>
 
 #include <fmt/format.h>
 
@@ -64,8 +65,9 @@ public:
     {
     }
 
-    template<class InputIterator>
-    void compute(InputIterator first, InputIterator last)
+    template<class InputIterator, class Masking = std::nullptr_t>
+    void compute(InputIterator first, InputIterator last,
+                 Masking&& masked = nullptr)
     {
         const cv::Matx<Scalar, 1, 3> kx{Scalar(-1), Scalar(0), Scalar(1)};
         const cv::Matx<Scalar, 3, 1> ky = kx.t();
@@ -125,6 +127,13 @@ public:
 
                 histogram_.template chip<0>(i + 1).template chip<0>(j + 1) =
                     a + b - c;
+
+                if constexpr (!std::is_null_pointer_v<Masking>) {
+                    if (masked(i, j)) {
+                        // Skip masked out pixels
+                        continue;
+                    }
+                }
 
                 // Select a channel with the maximum magnitude
                 Eigen::DenseIndex kk = k(i, j);

@@ -13,7 +13,7 @@ find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 REQUIRED)
 find_package (Python 3.0 COMPONENTS Development Interpreter)
-find_package (pybind11 2.2.4 NO_MODULE)
+find_package (pybind11 2.6.0 NO_MODULE)
 
 add_library (hogpp INTERFACE)
 add_library (hogpp::hogpp ALIAS hogpp)

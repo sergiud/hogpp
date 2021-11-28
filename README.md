@@ -29,7 +29,7 @@ additionally contrast-normalized.
 * [Eigen](https://gitlab.com/libeigen/eigen) 3.3.7
 * [fmt](https://github.com/fmtlib/fmt) 6.0
 * [OpenCV](https://github.com/opencv/opencv) 4.0
-* [pybind11](https://github.com/pybind/pybind11) 2.2.4
+* [pybind11](https://github.com/pybind/pybind11) 2.6.0
 
 More recent versions of the above are expected to work as well.
 

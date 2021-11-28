@@ -41,7 +41,7 @@ class IntegralHOGDescriptor
 public:
     [[nodiscard]] explicit IntegralHOGDescriptor(const pybind11::kwargs& args);
 
-    void compute(const cv::Mat& image);
+    void compute(const cv::Mat& image, const pybind11::handle& mask);
 
     [[nodiscard]] pybind11::object features() const;
     [[nodiscard]] pybind11::object featuresROI(const cv::Rect& rect) const;

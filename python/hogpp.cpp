@@ -43,6 +43,9 @@ PYBIND11_MODULE(hogpp, m)
           "compute"
         , &IntegralHOGDescriptor::compute
         , py::arg("image")
+        , py::pos_only() // 'image' can only be provided as positional argument
+        , py::kw_only() // All following arguments are keyword-only
+        , py::arg("mask") = py::none{}
     )
     .def
     (
