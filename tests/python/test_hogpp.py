@@ -233,3 +233,22 @@ def test_invalid_bounds(bounds):
     desc.compute(image)
 
     desc(bounds)
+
+
+@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+@pytest.mark.parametrize('channels', [0, 1, 3, 4])
+@pytest.mark.parametrize('block_norm', ['l1', 'l2', 'l2-hys', 'l1-sqrt'])
+def test_zero_gradient(dtype, channels, block_norm):
+    desc = IntegralHOGDescriptor(block_norm=block_norm, epsilon=0)
+
+    shape = (128, 64)
+
+    if channels > 0:
+        shape = (*shape, channels)
+
+    image = np.zeros(shape, dtype=dtype)
+    desc.compute(image)
+
+    assert desc.features_.size > 0
+    assert not np.any(np.isinf(desc.features_))
+    np.testing.assert_array_almost_equal(desc.features_, 0)

@@ -22,8 +22,7 @@
 
 #include <unsupported/Eigen/CXX11/Tensor>
 
-#include <type_traits>
-
+#include <hogpp/normalize.hpp>
 #include <hogpp/normtraits.hpp>
 
 namespace hogpp {
@@ -38,7 +37,6 @@ public:
     [[nodiscard]] constexpr explicit L2Norm(
         Scalar regularization = TraitsType::regularization())
         : eps_{regularization}
-        , eps2_{regularization * regularization}
     {
     }
 
@@ -46,9 +44,8 @@ public:
     constexpr void operator()(Tensor& block) const
     {
         // L² norm
-        const Eigen::Tensor<Scalar, 0> v =
-            (block.square().sum() + eps2_).sqrt();
-        block = block / v(0);
+        const Eigen::Tensor<Scalar, 0> v = block.square().sum().sqrt() + eps_;
+        normalize(block, v(0));
     }
 
     [[nodiscard]] constexpr T regularization() const noexcept
@@ -58,7 +55,6 @@ public:
 
 private:
     Scalar eps_;
-    Scalar eps2_;
 };
 
 template<class T>

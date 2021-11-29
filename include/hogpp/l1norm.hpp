@@ -24,6 +24,7 @@
 
 #include <type_traits>
 
+#include <hogpp/normalize.hpp>
 #include <hogpp/normtraits.hpp>
 
 namespace hogpp {
@@ -46,7 +47,7 @@ public:
     {
         // L² norm
         const Eigen::Tensor<Scalar, 0> v = block.abs().sum() + eps_;
-        block = block / v(0);
+        normalize(block, v(0));
     }
 
     [[nodiscard]] constexpr T regularization() const noexcept
