@@ -22,9 +22,20 @@
 
 namespace hogpp {
 
+/**
+ * @brief Normalizes a block by performing a safe division by the given
+ * value.
+ *
+ * @param block[in,out] The block to be normalized.
+ * @param den The normalization scalar. Unless the corresponding is exactly 0,
+ * each coefficient of the block tensor is divided by this value.
+ */
 template<class Tensor>
 constexpr void normalize(Tensor& block, typename Tensor::Scalar den)
+    noexcept(noexcept(block = block / den))
 {
+    // NOTE Due to rounding errors, block values can be negative but close to
+    // zero.
     if (den != typename Tensor::Scalar{0}) {
         block = block / den;
     }
