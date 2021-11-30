@@ -16,6 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
+if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
+    path = os.getenv('HOGPPPATH')
+    if path:
+        os.add_dll_directory(path)
+
 from hogpp import IntegralHOGDescriptor
 import numpy as np
 import pytest

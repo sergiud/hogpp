@@ -2,14 +2,14 @@ name: Windows
 
 on: [push, pull_request]
 
-defaults:
-  run:
-    shell: msys2 {0}
 
 jobs:
-  build:
+  build-mingw:
     name: ${{matrix.sys}}-${{matrix.env}}-${{matrix.build_type}}
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     strategy:
       fail-fast: true
       matrix:
@@ -22,34 +22,209 @@ jobs:
             env: x86_64
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: ${{matrix.sys}}
-        path-type: strict
-        install: >-
-          mingw-w64-${{matrix.env}}-boost
-          mingw-w64-${{matrix.env}}-cmake
-          mingw-w64-${{matrix.env}}-eigen3
-          mingw-w64-${{matrix.env}}-fmt
-          mingw-w64-${{matrix.env}}-gcc
-          mingw-w64-${{matrix.env}}-ninja
-          mingw-w64-${{matrix.env}}-opencv
-          mingw-w64-${{matrix.env}}-pybind11
-          mingw-w64-${{matrix.env}}-python
-          mingw-w64-${{matrix.env}}-python-numpy
-          mingw-w64-${{matrix.env}}-python-pytest
+      - uses: actions/checkout@v2
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.sys}}
+          path-type: strict
+          install: >-
+            mingw-w64-${{matrix.env}}-boost
+            mingw-w64-${{matrix.env}}-cmake
+            mingw-w64-${{matrix.env}}-eigen3
+            mingw-w64-${{matrix.env}}-fmt
+            mingw-w64-${{matrix.env}}-gcc
+            mingw-w64-${{matrix.env}}-ninja
+            mingw-w64-${{matrix.env}}-opencv
+            mingw-w64-${{matrix.env}}-pybind11
+            mingw-w64-${{matrix.env}}-python
+            mingw-w64-${{matrix.env}}-python-numpy
+            mingw-w64-${{matrix.env}}-python-pytest
 
-    - name: Configure
-      env:
-        CXX: ${{matrix.env}}-w64-mingw32-g++
-      run: |
-        cmake -S . -B build_${{matrix.build_type}}/ -G Ninja \
-          -DPython_EXECUTABLE:FILEPATH=$(which python) \
-          -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
-    - name: Build
-      run: |
-        cmake --build build_${{matrix.build_type}}/ --config ${{matrix.build_type}}
-    - name: Test
-      run: |
-        ctest --test-dir build_${{matrix.build_type}} -j$(nproc) --output-on-failure
+      - name: Configure
+        env:
+          CXX: ${{matrix.env}}-w64-mingw32-g++
+        run: |
+          cmake -S . -B build_${{matrix.build_type}}/ -G Ninja \
+            -DPython_EXECUTABLE:FILEPATH=$(which python) \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+
+      - name: Build
+        run: |
+          cmake --build build_${{matrix.build_type}}/ --config ${{matrix.build_type}}
+
+      - name: Test
+        run: |
+          ctest --test-dir build_${{matrix.build_type}} -j$(nproc) --output-on-failure
+
+  build-msvc:
+    name: ${{matrix.msvc}}-${{matrix.arch}}-${{matrix.build_type}}-Python-${{matrix.python}}
+    runs-on: ${{matrix.os}}
+    defaults:
+      run:
+        shell: powershell
+    strategy:
+      fail-fast: true
+      matrix:
+        arch:
+          - x64
+        build_type:
+          - Release
+        msvc:
+          - VS-16-2019
+        python:
+          - '3.7'
+          - '3.8'
+          - '3.9'
+          - '3.10'
+        include:
+          - msvc: VS-16-2019
+            os: windows-2019
+            generator: 'Visual Studio 16 2019'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # Extracting Boost using Expand-Archive is very slow taking more than 20
+      # min. whereas 7z takes less than a 1 min.
+      - name: Cache 7-Zip
+        id: cache-7z
+        uses: actions/cache@v2
+        with:
+          path: 7zip/
+          key: ${{runner.os}}-7z-21.06
+
+      - name: Download 7-Zip
+        if: steps.cache-7z.outputs.cache-hit != 'true'
+        run: |
+          (New-Object System.Net.WebClient).DownloadFile("https://www.7-zip.org/a/7za920.zip", "7za920.zip");
+          (New-Object System.Net.WebClient).DownloadFile("https://www.7-zip.org/a/7z2106.exe", "7z2106.exe");
+          Expand-Archive 7za920.zip .;
+          ./7za x 7z2106.exe -o7zip;
+
+      - name: Setup 7-Zip
+        run: |
+          echo "$((Get-Item .).FullName)/7zip" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Cache Boost
+        id: cache-boost
+        uses: actions/cache@v2
+        with:
+          path: boost/
+          key: ${{runner.os}}-boost-1.77
+
+      - name: Download Boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          (New-Object System.Net.WebClient).DownloadFile("https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.zip", "boost_1_77_0.zip");
+          7z x boost_1_77_0.zip;
+
+      - name: Setup Boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          cd boost_1_77_0
+          ./bootstrap.bat
+          ./b2 --prefix=${{github.workspace}}/boost --with-test install
+
+      - name: Cache Eigen
+        id: cache-eigen
+        uses: actions/cache@v2
+        with:
+          path: eigen/
+          key: ${{runner.os}}-eigen-3.4.0
+
+      - name: Download Eigen
+        if: steps.cache-eigen.outputs.cache-hit != 'true'
+        run: |
+          (New-Object System.Net.WebClient).DownloadFile("https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip", "eigen-3.4.0.zip");
+          7z x eigen-3.4.0.zip;
+
+      - name: Setup Eigen
+        if: steps.cache-eigen.outputs.cache-hit != 'true'
+        run: |
+          cmake -S eigen-3.4.0 -B build-eigen `
+                -A ${{matrix.arch}} `
+                -DBUILD_TESTING=OFF `
+                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/eigen `
+                -DEIGEN_BUILD_DOC=OFF
+          cmake --build build-eigen --target install
+
+      - name: Cache fmt
+        id: cache-fmt
+        uses: actions/cache@v2
+        with:
+          path: fmt/
+          key: ${{runner.os}}-fmt-8.0.1-${{matrix.build_type}}
+
+      - name: Download fmt
+        if: steps.cache-fmt.outputs.cache-hit != 'true'
+        run: |
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/8.0.1/fmt-8.0.1.zip", "fmt-8.0.1.zip");
+          7z x fmt-8.0.1.zip;
+
+      - name: Setup fmt
+        if: steps.cache-fmt.outputs.cache-hit != 'true'
+        run: |
+          cmake -S fmt-8.0.1 -B build-fmt `
+                -A ${{matrix.arch}} `
+                -DFMT_TEST=OFF `
+                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt
+          cmake --build build-fmt `
+                --config ${{matrix.build_type}} `
+                --target install
+
+      - name: Cache OpenCV
+        id: cache-opencv
+        uses: actions/cache@v2
+        with:
+          path: opencv/
+          key: ${{runner.os}}-opencv-4.5.4
+
+      - name: Download OpenCV
+        if: steps.cache-opencv.outputs.cache-hit != 'true'
+        run: |
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/opencv/opencv/releases/download/4.5.4/opencv-4.5.4-vc14_vc15.exe", "opencv-4.5.4-vc14_vc15.exe");
+          7z x opencv-4.5.4-vc14_vc15.exe;
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{matrix.python}}
+          architecture: ${{matrix.arch}}
+          cache: 'pip'
+          cache-dependency-path: requirements_dev.txt
+
+      - name: Setup Dependencies
+        run: |
+          pip install -r requirements_dev.txt
+
+      - name: Setup Environment
+        run: |
+          echo "Boost_ROOT=$((Get-Item .).FullName)/boost" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "Eigen3_ROOT=$((Get-Item .).FullName)/eigen" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "fmt_ROOT=$((Get-Item .).FullName)/fmt" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "OpenCV_ROOT=$((Get-Item .).FullName)/opencv/build" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          echo "$((Get-Item .).FullName)/opencv/build/x64/vc15/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "HOGPPPATH=$((Get-Item .).FullName)/opencv/build/x64/vc15/bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure
+        run: |
+          cmake -S . -B build_${{matrix.build_type}}/ `
+                -A ${{matrix.arch}} `
+                -DCMAKE_INSTALL_PREFIX:PATH=./install `
+                -DPython_ROOT_DIR=${{env.pythonLocation}} `
+                -G "${{matrix.generator}}"
+
+      - name: Build
+        run: |
+          cmake --build build_${{matrix.build_type}}/ `
+                --config ${{matrix.build_type}}
+
+      - name: Test
+        env:
+          CTEST_OUTPUT_ON_FAILURE: 1
+        run: |
+          cmake --build build_${{matrix.build_type}}/ `
+                --config ${{matrix.build_type}} `
+                --target RUN_TESTS
