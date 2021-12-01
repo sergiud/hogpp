@@ -20,6 +20,8 @@
 #ifndef HOGPP_NORMALIZE_HPP
 #define HOGPP_NORMALIZE_HPP
 
+#include <cmath>
+
 namespace hogpp {
 
 /**
@@ -34,9 +36,11 @@ template<class Tensor>
 constexpr void normalize(Tensor& block, typename Tensor::Scalar den)
     noexcept(noexcept(block = block / den))
 {
+    using std::fpclassify;
+
     // NOTE Due to rounding errors, block values can be negative but close to
     // zero.
-    if (den != typename Tensor::Scalar{0}) {
+    if (fpclassify(den) != FP_ZERO) {
         block = block / den;
     }
 }

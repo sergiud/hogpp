@@ -38,14 +38,15 @@ BOOST_TEST_DECORATOR
 // clang-format on
 BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient, Scalar, Scalars)
 {
+    using std::fpclassify;
     using std::nextafter;
 
     hogpp::SignedGradient<Scalar> binning;
 
-    BOOST_TEST(binning(+1, 0) == 0);
+    BOOST_TEST(fpclassify(binning(+1, 0)) == FP_ZERO);
     BOOST_TEST(binning(-1, 0) == Scalar(0.5));
-    BOOST_TEST(binning(0, 0) == 0);
-    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == 1);
+    BOOST_TEST(fpclassify(binning(0, 0)) == FP_ZERO);
+    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == Scalar{1});
     BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == Scalar(0.5));
 }
 
@@ -57,15 +58,16 @@ BOOST_TEST_DECORATOR
 // clang-format on
 BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient, Scalar, Scalars)
 {
+    using std::fpclassify;
     using std::nextafter;
 
     hogpp::UnsignedGradient<Scalar> binning;
 
-    BOOST_TEST(binning(+1, 0) == 0);
-    BOOST_TEST(binning(-1, 0) == 0);
+    BOOST_TEST(fpclassify(binning(+1, 0)) == FP_ZERO);
+    BOOST_TEST(fpclassify(binning(-1, 0)) == FP_ZERO);
     BOOST_TEST(binning(0, +1) == Scalar(0.5));
     BOOST_TEST(binning(0, -1) == Scalar(0.5));
-    BOOST_TEST(binning(0, 0) == 0);
-    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == 1);
-    BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == 1);
+    BOOST_TEST(fpclassify(binning(0, 0)) == FP_ZERO);
+    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == Scalar{1});
+    BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == Scalar{1});
 }

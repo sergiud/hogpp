@@ -158,8 +158,11 @@ private:
     void copy(const std::uint8_t* ptr, const std::tuple<Sizes...>& sizes,
               const std::tuple<Strides...>& strides)
     {
-        cartesianProduct(sizes, [this, ptr, sizes, strides](const auto& i)
-                                    constexpr { assign(ptr, i, strides); });
+        cartesianProduct(sizes, [this, ptr, strides](const auto& i) constexpr {
+            (void)this; // Avoid (incorrect) Clang -Wunused-lambda-capture
+                        // warning
+            assign(ptr, i, strides);
+        });
     }
 
     template<std::size_t... Indices>

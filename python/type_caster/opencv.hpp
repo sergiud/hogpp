@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -147,8 +148,9 @@ private:
                     success = false;
                 }
                 else {
-                    if (strides[0] > 0 && strides[1] == sizeof(T) * channels &&
-                        strides[2] == sizeof(T)) {
+                    if (strides[0] > 0 &&
+                        strides[1] == static_cast<long>(sizeof(T)) * channels &&
+                        strides[2] == static_cast<long>(sizeof(T))) {
                         std::vector<int> sizes{shape.begin(), shape.end()};
                         std::vector<std::size_t> steps{strides.begin(),
                                                        strides.end()};
@@ -253,12 +255,12 @@ private:
 };
 
 template<class T>
-struct type_caster<cv::Mat_<T> > : type_caster<cv::Mat>
+class type_caster<cv::Mat_<T> > : public type_caster<cv::Mat>
 {
 };
 
 template<class T>
-struct type_caster<cv::Rect_<T> >
+class type_caster<cv::Rect_<T> >
 {
 public:
     PYBIND11_TYPE_CASTER(cv::Rect_<T>, _("Rect"));
@@ -283,7 +285,7 @@ public:
     }
 };
 
-extern template struct type_caster<cv::Rect>;
+extern template class type_caster<cv::Rect>;
 
 } // namespace pybind11::detail
 

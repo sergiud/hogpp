@@ -44,13 +44,15 @@ enum class BlockNormalizerType
 namespace pybind11::detail {
 
 template<>
-struct type_caster<BlockNormalizerType>
+class type_caster<BlockNormalizerType>
 {
-    PYBIND11_TYPE_CASTER(BlockNormalizerType, _("BlockNormalizer"));
-
+public:
     bool load(handle src, bool);
     static handle cast(BlockNormalizerType in, return_value_policy /*policy*/,
                        handle /*parent*/);
+
+private:
+    PYBIND11_TYPE_CASTER(BlockNormalizerType, _("BlockNormalizer"));
 };
 
 } // namespace pybind11::detail

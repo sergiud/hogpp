@@ -48,13 +48,6 @@ struct NativeScalar<pybind11::int_>
 template<class T>
 using NativeScalar_t = typename NativeScalar<T>::type;
 
-template<class... T>
-[[nodiscard]] constexpr decltype(auto) possible(T... values)
-{
-    return std::array<std::string, sizeof...(T)>{
-        {pybind11::repr(pybind11::cast(values))...}};
-}
-
 } // namespace
 
 IntegralHOGDescriptor::IntegralHOGDescriptor(
@@ -290,7 +283,6 @@ void IntegralHOGDescriptor::update()
             }
 
             using Descriptor = std::decay_t<decltype(descriptor)>;
-            using Scalar = typename Descriptor::Scalar;
 
             if (magnitudeType_) {
                 typename Descriptor::Magnitude magnitude{*magnitudeType_};

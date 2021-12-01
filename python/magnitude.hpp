@@ -39,13 +39,15 @@ enum class MagnitudeType
 namespace pybind11::detail {
 
 template<>
-struct type_caster<MagnitudeType>
+class type_caster<MagnitudeType>
 {
-    PYBIND11_TYPE_CASTER(MagnitudeType, _("Magnitude"));
-
+public:
     bool load(handle src, bool);
     static handle cast(MagnitudeType in, return_value_policy /*policy*/,
                        handle /*parent*/);
+
+private:
+    PYBIND11_TYPE_CASTER(MagnitudeType, _("Magnitude"));
 };
 
 } // namespace pybind11::detail

@@ -36,13 +36,15 @@ enum class BinningType
 namespace pybind11::detail {
 
 template<>
-struct type_caster<BinningType>
+class type_caster<BinningType>
 {
-    PYBIND11_TYPE_CASTER(BinningType, _("Binning"));
-
+public:
     bool load(handle src, bool);
     static handle cast(BinningType in, return_value_policy /*policy*/,
                        handle /*parent*/);
+
+private:
+    PYBIND11_TYPE_CASTER(BinningType, _("Binning"));
 };
 
 } // namespace pybind11::detail

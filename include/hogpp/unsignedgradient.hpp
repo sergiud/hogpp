@@ -21,7 +21,6 @@
 #define HOGPP_UNSIGNEDGRADIENT_HPP
 
 #include <cmath>
-#include <limits>
 
 #include <hogpp/constants.hpp>
 
@@ -33,14 +32,13 @@ struct UnsignedGradient
     [[nodiscard]] constexpr Scalar operator()(Scalar dx,
                                               Scalar dy) const noexcept
     {
-        using std::abs;
         using std::atan;
         using std::copysign;
+        using std::fpclassify;
 
-        Scalar angle = abs(dx) < std::numeric_limits<Scalar>::epsilon() &&
-                               abs(dy) < std::numeric_limits<Scalar>::epsilon()
+        Scalar angle = fpclassify(dx) == FP_ZERO && fpclassify(dy) == FP_ZERO
                            ? 0
-                       : abs(dx) > std::numeric_limits<Scalar>::epsilon()
+                       : fpclassify(dx) != FP_ZERO
                            ? atan(dy / dx)
                            : copysign(constants::half_pi<Scalar>, dy);
 

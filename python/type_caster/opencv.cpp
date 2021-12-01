@@ -19,4 +19,4 @@
 
 #include "opencv.hpp"
 
-template struct pybind11::detail::type_caster<cv::Rect>;
+template class pybind11::detail::type_caster<cv::Rect>;
