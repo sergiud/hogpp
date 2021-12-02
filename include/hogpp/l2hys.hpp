@@ -38,6 +38,9 @@ public:
     [[nodiscard]] constexpr explicit L2Hys(
         Scalar clip = TraitsType::clip(),
         Scalar regularization = TraitsType::regularization())
+        noexcept(
+            std::is_nothrow_constructible_v<Scalar, Scalar>&&
+                std::is_nothrow_constructible_v<L2Norm<Scalar, TraitsType> >)
         : clip_{clip}
         , l2_{regularization}
     {

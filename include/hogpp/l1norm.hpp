@@ -38,6 +38,7 @@ public:
 
     [[nodiscard]] constexpr explicit L1Norm(
         Scalar regularization = TraitsType::regularization())
+        noexcept(std::is_nothrow_constructible_v<Scalar, Scalar>)
         : eps_{regularization}
     {
     }

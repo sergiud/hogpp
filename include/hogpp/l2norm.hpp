@@ -22,6 +22,8 @@
 
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#include <type_traits>
+
 #include <hogpp/normalize.hpp>
 #include <hogpp/normtraits.hpp>
 
@@ -36,6 +38,7 @@ public:
 
     [[nodiscard]] constexpr explicit L2Norm(
         Scalar regularization = TraitsType::regularization())
+        noexcept(std::is_nothrow_constructible_v<Scalar, Scalar>)
         : eps_{regularization}
     {
     }

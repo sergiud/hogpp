@@ -22,11 +22,13 @@
 
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 template<class... Sizes, class Function, class... Loops>
 constexpr void cartesianProduct(const std::tuple<Sizes...>& /*s*/,
-                                const std::tuple<Loops...>& l, Function func,
+                                const std::tuple<Loops...>& l, Function&& func,
                                 std::index_sequence<> /*unused*/)
+    noexcept(noexcept(func(l)))
 {
     func(l);
 }
@@ -34,19 +36,22 @@ constexpr void cartesianProduct(const std::tuple<Sizes...>& /*s*/,
 template<class... Sizes, class Function, class... Loops, std::size_t Index,
          std::size_t... Indices>
 constexpr void cartesianProduct(
-    const std::tuple<Sizes...>& s, const std::tuple<Loops...>& l, Function func,
-    std::index_sequence<Index, Indices...> /*unused*/)
+    const std::tuple<Sizes...>& s, const std::tuple<Loops...>& l,
+    Function&& func, std::index_sequence<Index, Indices...> /*unused*/)
+    noexcept(noexcept(func(std::declval<std::tuple<Sizes...> >())))
 {
     for (auto i = 0; i < std::get<Index>(s); ++i) {
-        cartesianProduct(s, std::tuple_cat(l, std::make_tuple(i)), func,
+        cartesianProduct(s, std::tuple_cat(l, std::make_tuple(i)),
+                         std::forward<Function>(func),
                          std::index_sequence<Indices...>{});
     }
 }
 
 template<class... Sizes, class Function>
-constexpr void cartesianProduct(const std::tuple<Sizes...>& s, Function func)
+constexpr void cartesianProduct(const std::tuple<Sizes...>& s, Function&& func)
+    noexcept(noexcept(func(std::declval<std::tuple<Sizes...> >())))
 {
-    cartesianProduct(s, std::tuple<>{}, func,
+    cartesianProduct(s, std::tuple<>{}, std::forward<Function>(func),
                      std::index_sequence_for<Sizes...>{});
 }
 

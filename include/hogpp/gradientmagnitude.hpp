@@ -22,6 +22,8 @@
 
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#include <utility>
+
 #include <hogpp/gradientsquaremagnitude.hpp>
 
 namespace hogpp {
@@ -40,6 +42,8 @@ public:
     [[nodiscard]] constexpr decltype(auto) operator()(
         const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
         const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
+        noexcept(noexcept(
+            std::declval<GradientSquareMagnitude<T> >()(dx, dy).sqrt()))
     {
         return vote_(dx, dy).sqrt();
     }

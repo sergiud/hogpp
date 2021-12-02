@@ -38,6 +38,8 @@ public:
 
     [[nodiscard]] constexpr explicit L1Sqrt(
         Scalar regularization = TraitsType::regularization())
+        noexcept(
+            std::is_nothrow_constructible_v<L1Norm<Scalar, TraitsType>, Scalar>)
         : l1_{regularization}
     {
     }

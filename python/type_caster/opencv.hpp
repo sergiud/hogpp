@@ -52,6 +52,7 @@ struct TypeSequence
 template<class Type, class... Types>
 [[nodiscard]] constexpr auto depthToFormat(
     int depth, TypeSequence<Type, Types...> /*unused*/)
+    noexcept(noexcept(depthToFormat(depth, TypeSequence<Types...>{})))
 {
     if (depth == cv::DataDepth<Type>::value) {
         return pybind11::format_descriptor<Type>::format();

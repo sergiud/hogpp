@@ -39,6 +39,7 @@ struct GradientSquareMagnitude<T, Fast>
     [[nodiscard]] constexpr decltype(auto) operator()(
         const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
         const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
+        noexcept(noexcept(dx.square() + dy.square()))
     {
         return dx.square() + dy.square();
     }
