@@ -19,7 +19,7 @@ additionally contrast-normalized.
 ## Features
 
 * C++ templated implementation
-* Python support with 32 and 64 bit floating point precision
+* Python support with 32, 64, and 80 bit floating point precision
 * Unrestricted input size (e.g., compared to OpenCV that requires powers of two
   input)
 
@@ -27,10 +27,11 @@ additionally contrast-normalized.
 
 * C++17 compiler
 * [CMake](https://gitlab.kitware.com/cmake/cmake) 3.15
-* [Eigen](https://gitlab.com/libeigen/eigen) 3.3.7
+* [Eigen](https://gitlab.com/libeigen/eigen) 3.4.0
 * [fmt](https://github.com/fmtlib/fmt) 6.0
 * [OpenCV](https://github.com/opencv/opencv) 4.0
-* [pybind11](https://github.com/pybind/pybind11) 2.6.0
+* [pybind11](https://github.com/pybind/pybind11) 2.6.2 (version 2.9.0 is
+  required for use with Visual Studio 17 2022 and above)
 
 More recent versions of the above are expected to work as well.
 

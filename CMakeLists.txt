@@ -12,11 +12,16 @@ set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 include (CTest)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework)
-find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
+find_package (Eigen3 3.4.0 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 REQUIRED)
 find_package (Python 3.0 COMPONENTS Development Interpreter)
-find_package (pybind11 2.6.0 NO_MODULE)
+
+if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+  find_package (pybind11 2.9.0 NO_MODULE)
+else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+  find_package (pybind11 2.6.2 NO_MODULE)
+endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
 
 add_library (hogpp INTERFACE)
 add_library (hogpp::hogpp ALIAS hogpp)
@@ -32,7 +37,6 @@ target_link_libraries (hogpp INTERFACE
   Eigen3::Eigen
   fmt::fmt
   opencv_core
-  opencv_imgproc
 )
 
 if (pybind11_FOUND)
@@ -102,6 +106,10 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_empty_float COMMAND test_descriptor -t "empty<float>")
     add_test (NAME descriptor_empty_double COMMAND test_descriptor -t "empty<double>")
     add_test (NAME descriptor_empty_long_double COMMAND test_descriptor -t "empty<long double>")
+
+    add_test (NAME descriptor_void_gradient_float COMMAND test_descriptor -t "void_gradient<float>")
+    add_test (NAME descriptor_void_gradient_double COMMAND test_descriptor -t "void_gradient<double>")
+    add_test (NAME descriptor_void_gradient_long_double COMMAND test_descriptor -t "void_gradient<long double>")
   endif (Boost_unit_test_framework_FOUND)
 
   if (pybind11_FOUND AND Python_Interpreter_FOUND)

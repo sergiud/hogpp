@@ -148,6 +148,7 @@ jobs:
 
       - name: Configure
         env:
+          CXXFLAGS: -Weverything -Wno-c++98-compat -Wno-padded -Wno-c++98-compat-pedantic -Wno-disabled-macro-expansion -Wno-shadow -Wno-used-but-marked-unused -Wno-global-constructors -Wno-shorten-64-to-32 -Wno-documentation -Werror ${{env.CXXFLAGS}}
           Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}  \

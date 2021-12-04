@@ -27,6 +27,7 @@ jobs:
         with:
           msystem: ${{matrix.sys}}
           path-type: strict
+          update: true # Currently, necessary for eigen3 3.4.0
           install: >-
             lcov
             mingw-w64-${{matrix.env}}-boost
@@ -34,15 +35,21 @@ jobs:
             mingw-w64-${{matrix.env}}-eigen3
             mingw-w64-${{matrix.env}}-fmt
             mingw-w64-${{matrix.env}}-gcc
+            mingw-w64-${{matrix.env}}-lld
             mingw-w64-${{matrix.env}}-ninja
             mingw-w64-${{matrix.env}}-opencv
-            mingw-w64-${{matrix.env}}-pybind11
             mingw-w64-${{matrix.env}}-python
             mingw-w64-${{matrix.env}}-python-numpy
+            mingw-w64-${{matrix.env}}-python-pip
             mingw-w64-${{matrix.env}}-python-pytest
+
+      - name: Setup Dependencies
+        run: |
+          pip install -r requirements_dev.txt
 
       - name: Setup Environment
         run: |
+          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
           echo "Python_ROOT=$(dirname $(dirname $(which python)))" >> $GITHUB_ENV
 
       - name: Setup Debug Environment
@@ -53,6 +60,7 @@ jobs:
       - name: Configure
         env:
           CXX: ${{matrix.env}}-w64-mingw32-g++
+          CXXFLAGS: -fuse-ld=lld -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}/ \
             -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
@@ -61,11 +69,14 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build build_${{matrix.build_type}}/ --config ${{matrix.build_type}}
+          cmake --build build_${{matrix.build_type}}/ \
+                --config ${{matrix.build_type}}
 
       - name: Test
         run: |
-          ctest --test-dir build_${{matrix.build_type}} -j$(nproc) --output-on-failure
+          ctest --test-dir build_${{matrix.build_type}} \
+                -j$(nproc) \
+                --output-on-failure
 
       - name: Generate Coverage
         if: ${{matrix.build_type == 'Debug'}}
@@ -257,10 +268,14 @@ jobs:
 
       - name: Setup Dependencies
         run: |
+          pip install -r requirements_dev.txt
+
+      - name: Setup Dependencies (VC17)
+        if: matrix.msvc == 'VS-17-2022'
+        run: |
           # pybind11 prior to version 2.9.0 causes compilation erros in debug
           # builds that use Visual Studio 2022.
           pip install pybind11>=2.9.0
-          pip install -r requirements_dev.txt
 
       - name: Setup Environment
         run: |

@@ -28,7 +28,7 @@ import numpy as np
 import pytest
 
 
-@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
 def test_descriptor_size(dtype):
     desc = IntegralHOGDescriptor()
 
@@ -123,7 +123,7 @@ def test_invalid_block_stride(block_stride):
     IntegralHOGDescriptor(block_stride=block_stride)
 
 
-@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
 @pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 @pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
 def test_vertical_gradient(dtype, block_norm, magnitude):
@@ -153,8 +153,14 @@ def test_vertical_gradient(dtype, block_norm, magnitude):
 
     np.testing.assert_array_equal(X, XX)
 
+    # TODO Add pickle support
+    desc1 = IntegralHOGDescriptor(block_norm=block_norm, magnitude=magnitude)
+    desc1.compute(np.gradient(image, axis=(0, 1)))
 
-@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+    np.testing.assert_array_almost_equal(X, desc1.features_.ravel())
+
+
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
 @pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 @pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
 def test_horizontal_gradient(dtype, block_norm, magnitude):
@@ -255,7 +261,7 @@ def test_invalid_bounds(bounds):
     desc(bounds)
 
 
-@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
 @pytest.mark.parametrize('channels', [0, 1, 3, 4])
 @pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 def test_zero_gradient(dtype, channels, block_norm):
@@ -274,7 +280,7 @@ def test_zero_gradient(dtype, channels, block_norm):
     np.testing.assert_array_almost_equal(desc.features_, 0)
 
 
-@pytest.fixture(params=[np.float32, np.float64])
+@pytest.fixture(params=[np.float32, np.float64, np.longdouble])
 def horizontal_gradient_image(request):
     image = np.zeros((128, 64), dtype=request.param)
 
@@ -285,7 +291,8 @@ def horizontal_gradient_image(request):
 
 
 @pytest.mark.parametrize('dtype', [np.bool_, np.uint8])
-def test_compute_mask_ndarray(dtype, horizontal_gradient_image):
+@pytest.mark.parametrize('channels', [0, 1, 3, 4])
+def test_compute_mask_ndarray(dtype, channels, horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
 
     image = horizontal_gradient_image
@@ -294,11 +301,19 @@ def test_compute_mask_ndarray(dtype, horizontal_gradient_image):
     mask = np.zeros_like(image, dtype=dtype)
     mask[i-1:i+1, ...] = True
 
+    if channels > 0:
+        image = np.repeat(np.atleast_3d(image), channels, axis=-1)
+
     desc.compute(image, mask=mask)
 
     assert desc.features_.size > 0
     assert not np.any(np.isinf(desc.features_))
     np.testing.assert_array_equal(desc.features_[desc.features_ != 0], 0)
+
+    desc1 = IntegralHOGDescriptor()
+    desc1.compute(np.gradient(image, axis=(0, 1)), mask=mask)
+
+    np.testing.assert_array_almost_equal(desc.features_, desc1.features_)
 
 
 def test_compute_mask_callable(horizontal_gradient_image):
@@ -317,12 +332,25 @@ def test_compute_mask_callable(horizontal_gradient_image):
     assert desc.features_.size > 0
     np.testing.assert_array_equal(desc.features_[desc.features_ != 0], 0)
 
+    desc1 = IntegralHOGDescriptor()
+    desc1.compute(np.gradient(image, axis=(0, 1)), mask=mask)
+
+    np.testing.assert_array_almost_equal(desc.features_, desc1.features_)
+
 
 @pytest.mark.parametrize('mask', [0, False, 0.0])
 @pytest.mark.xfail(raises=ValueError)
-def test_compute_mask_invalid(mask, horizontal_gradient_image):
+def test_compute_image_mask_invalid(mask, horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
-    desc.compute(horizontal_gradient_image, mask=0)
+    desc.compute(horizontal_gradient_image, mask=mask)
+
+
+@pytest.mark.parametrize('mask', [0, False, 0.0])
+@pytest.mark.xfail(raises=ValueError)
+def test_compute_gradient_mask_invalid(mask, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(np.gradient(
+        horizontal_gradient_image, axis=(0, 1)), mask=mask)
 
 
 @pytest.mark.xfail(raises=TypeError)
@@ -335,3 +363,18 @@ def test_compute_image_positional(horizontal_gradient_image):
 def test_compute_mask_keyword(horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
     desc.compute(horizontal_gradient_image, horizontal_gradient_image > 0)
+
+
+@pytest.mark.xfail(raises=TypeError)
+@pytest.mark.parametrize('dims', [0, 1, 4, 5])
+def test_compute_image_invalid_dim(dims):
+    desc = IntegralHOGDescriptor()
+    desc.compute(np.empty((0, ) * dims))
+
+
+@pytest.mark.parametrize('dtype', [np.bool_, np.uint8, np.int8, np.uint16, np.int16, np.uintc, np.intc, np.longlong, np.ulonglong])
+def test_decay_to_double(dtype, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image.astype(dtype))
+
+    assert desc.features_.dtype == np.float_

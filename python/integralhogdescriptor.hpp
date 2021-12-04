@@ -25,6 +25,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <variant>
 
 #include <pybind11/cast.h>
@@ -35,6 +36,164 @@
 #include "binning.hpp"
 #include "blocknormalizer.hpp"
 #include "magnitude.hpp"
+
+template<class... Args>
+struct Types
+{
+};
+
+template<class T>
+using Descriptor =
+    hogpp::IntegralHOGDescriptor<T, hogpp::Gradient<T>, Magnitude<T>,
+                                 Binning<T>, BlockNormalizer<T> >;
+
+template<class... T>
+struct MakeDescriptorVariant_t
+{
+    using type = std::variant<Descriptor<T>...>;
+};
+
+template<class... T>
+struct MakeDescriptorVariant_t<Types<T...> >
+{
+    using type = std::variant<Descriptor<T>...>;
+};
+
+template<class... T>
+using MakeDescriptorVariant = typename MakeDescriptorVariant_t<T...>::type;
+
+// Supported underlying floating point types. Internal computations are
+// performed using one of the type which is determined from the input.
+using PrecisionTypes = Types<float, double, long double>;
+// std::variant of descriptor of the supported precision types
+using DescriptorVariant = MakeDescriptorVariant<PrecisionTypes>;
+// Supported input types. Avoid using <cstdint> types because they can differ
+// between compilers. Instead, rely on standard types.
+// clang-format off
+using SupportedTypes = Types
+<
+      bool
+    , double
+    , float
+    , long double
+    , char
+    , signed char
+    , unsigned char
+    , short
+    , signed short
+    , unsigned short
+    , int
+    , signed int
+    , unsigned int
+    , long
+    , signed long
+    , unsigned long
+    , long long
+    , signed long long
+    , unsigned long long
+>;
+// clang-format on
+
+template<long... Ranks>
+struct RankNTensor
+{
+    pybind11::buffer buf;
+};
+
+template<long... Ranks>
+struct RankNTensorPair
+{
+    RankNTensor<Ranks...> buf1;
+    RankNTensor<Ranks...> buf2;
+};
+
+template<long... Ranks>
+class pybind11::detail::type_caster<RankNTensor<Ranks...> >
+{
+public:
+    PYBIND11_TYPE_CASTER(RankNTensor<Ranks...>, _("numpy.ndarray[n, m[, o]]"));
+
+    [[nodiscard]] bool load(handle in, bool /*unused*/)
+    {
+        try {
+            auto a = pybind11::cast<pybind11::buffer>(in);
+            auto info = a.request();
+
+            bool supported = ((info.ndim == Ranks) || ...) &&
+                             compatible(info, SupportedTypes{});
+
+            if (supported) {
+                value.buf = a;
+            }
+
+            return supported;
+        }
+        catch (const pybind11::builtin_exception&) {
+        }
+
+        return false;
+    }
+
+    [[nodiscard]] static handle cast(const RankNTensor<Ranks...>& in,
+                                     return_value_policy /*policy*/,
+                                     handle /*parent*/)
+    {
+        return in.buf.release();
+    }
+
+private:
+    template<class... T>
+    [[nodiscard]] static constexpr bool compatible(
+        const pybind11::buffer_info& info, Types<T...> /*unused*/) noexcept
+    {
+        return ((info.format == pybind11::format_descriptor<T>::format()) ||
+                ...);
+    }
+};
+
+template<long... Ranks>
+class pybind11::detail::type_caster<RankNTensorPair<Ranks...> >
+{
+public:
+    PYBIND11_TYPE_CASTER(
+        RankNTensorPair<Ranks...>,
+        _("Tuple[numpy.ndarray[n, m[, o]], numpy.ndarray[n, m[, o]]]"));
+
+    [[nodiscard]] bool load(handle in, bool /*unused*/)
+    {
+        try {
+            auto [buf1, buf2] = pybind11::cast<
+                std::tuple<RankNTensor<Ranks...>, RankNTensor<Ranks...> > >(in);
+            auto info1 = buf1.buf.request();
+            auto info2 = buf2.buf.request();
+
+            bool supported = info1.ndim == info2.ndim &&
+                             info1.format == info2.format &&
+                             info1.shape == info2.shape;
+
+            if (supported) {
+                value.buf1 = std::move(buf1);
+                value.buf2 = std::move(buf2);
+            }
+
+            return supported;
+        }
+        catch (const pybind11::builtin_exception&) {
+        }
+
+        return false;
+    }
+
+    [[nodiscard]] static handle cast(const RankNTensorPair<Ranks...>& in,
+                                     return_value_policy /*policy*/,
+                                     handle /*parent*/)
+    {
+        return pybind11::make_tuple(in.buf1, in.buf2).release();
+    }
+};
+
+using Rank2Or3Tensor = RankNTensor<2, 3>;
+using Rank2Or3TensorPair = RankNTensorPair<2, 3>;
 
 class IntegralHOGDescriptor
 {
@@ -52,7 +211,8 @@ public:
         const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
             epsilon);
 
-    void compute(const cv::Mat& image, const pybind11::handle& mask);
+    void compute(const Rank2Or3Tensor& image, const pybind11::handle& mask);
+    void compute(const Rank2Or3TensorPair& dydx, const pybind11::handle& mask);
 
     [[nodiscard]] pybind11::object features() const;
     [[nodiscard]] pybind11::object featuresROI(const cv::Rect& rect) const;
@@ -69,10 +229,6 @@ public:
     [[nodiscard]] explicit operator bool() const noexcept;
 
 private:
-    template<class T>
-    using Descriptor = hogpp::IntegralHOGDescriptor<T, Magnitude<T>, Binning<T>,
-                                                    BlockNormalizer<T> >;
-
     [[nodiscard]] bool isEmpty() const noexcept;
     void update();
 
@@ -84,14 +240,7 @@ private:
     std::optional<BinningType> binningType_;
     std::optional<BlockNormalizerType> blockNormalizerType_;
 
-    // clang-format off
-    std::variant
-    <
-          Descriptor<float>
-        , Descriptor<double>
-        //, Descriptor<long double>
-    >
-    descriptor_;
+    DescriptorVariant descriptor_;
     // clang-format on
 
     std::optional<std::variant<pybind11::int_, pybind11::float_> > clipNorm_;

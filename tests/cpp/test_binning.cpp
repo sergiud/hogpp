@@ -20,7 +20,6 @@
 #define BOOST_TEST_MODULE hogpp
 
 #include <cmath>
-#include <limits>
 
 #include <hogpp/signedgradient.hpp>
 #include <hogpp/unsignedgradient.hpp>

@@ -158,13 +158,24 @@ private:
         }
     };
 
+    // clang-format off
+    template<class U>
+    using Demote_t = std::conditional_t
+    <
+          std::is_same_v<U, long double>
+        , double
+        , U
+    >;
+    // clang-format on
+
     struct ClipVisitor
     {
         template<class Norm, std::enable_if_t<HasClip_v<Norm> >* = nullptr>
         [[nodiscard]] pybind11::object operator()(
             const Norm& norm) const noexcept
         {
-            return pybind11::float_{norm.clip()};
+            using Scalar = Demote_t<typename Norm::Scalar>;
+            return pybind11::float_{Scalar(norm.clip())};
         }
 
         template<class Norm, std::enable_if_t<!HasClip_v<Norm> >* = nullptr>
@@ -189,7 +200,8 @@ private:
         [[nodiscard]] pybind11::object operator()(
             [[maybe_unused]] const Norm& norm) const noexcept
         {
-            return pybind11::float_{norm.regularization()};
+            using Scalar = Demote_t<typename Norm::Scalar>;
+            return pybind11::float_{Scalar(norm.regularization())};
         }
 
         template<class Norm,

@@ -68,9 +68,18 @@ PYBIND11_MODULE(hogpp, m)
     .def
     (
           "compute"
-        , &IntegralHOGDescriptor::compute
+        , py::overload_cast<const Rank2Or3Tensor&, const py::handle&>(&IntegralHOGDescriptor::compute)
         , py::arg("image")
         , py::pos_only() // 'image' can only be provided as positional argument
+        , py::kw_only() // All following arguments are keyword-only
+        , py::arg("mask") = py::none{}
+    )
+    .def
+    (
+          "compute"
+        , py::overload_cast<const Rank2Or3TensorPair&, const py::handle&>(&IntegralHOGDescriptor::compute)
+        , py::arg("dydx")
+        , py::pos_only() // 'dxdy' can only be provided as positional argument
         , py::kw_only() // All following arguments are keyword-only
         , py::arg("mask") = py::none{}
     )

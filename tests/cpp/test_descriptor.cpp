@@ -19,9 +19,6 @@
 
 #define BOOST_TEST_MODULE hogpp
 
-#include <cmath>
-#include <limits>
-
 #include <hogpp/integralhogdescriptor.hpp>
 
 #include <boost/mpl/list.hpp>
@@ -37,4 +34,16 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(empty, Scalar, Scalars)
         hogpp::IntegralHOGDescriptor<Scalar>{}.features(cv::Rect{}).size() ==
         0);
     BOOST_TEST(hogpp::IntegralHOGDescriptor<Scalar>{}.histogram().size() == 0);
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(void_gradient, Scalar, Scalars)
+{
+    hogpp::IntegralHOGDescriptor<Scalar, void> d;
+
+    Eigen::Tensor<Scalar, 3> dxs;
+    Eigen::Tensor<Scalar, 3> dys;
+
+    d.compute(dxs, dys, nullptr);
+
+    BOOST_TEST(d.isEmpty());
 }

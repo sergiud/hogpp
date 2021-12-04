@@ -48,6 +48,106 @@ struct NativeScalar<pybind11::int_>
 template<class T>
 using NativeScalar_t = typename NativeScalar<T>::type;
 
+template<class Function>
+[[maybe_unused]] constexpr void matToTensorRank2(
+    [[maybe_unused]] const cv::Mat& image, [[maybe_unused]] Function&& func,
+    Types<> /*unused*/)
+{
+}
+
+template<class Function, class Arg, class... Args>
+[[maybe_unused]] void matToTensorRank2(const cv::Mat& image, Function&& func,
+                                       Types<Arg, Args...> /*unused*/)
+{
+    if (image.depth() != cv::DataDepth<Arg>::value) {
+        matToTensorRank2(image, std::forward<Function>(func), Types<Args...>{});
+    }
+    else {
+        Eigen::TensorMap<const Eigen::Tensor<Arg, 2, Eigen::RowMajor> > t{
+            image.ptr<Arg>(), image.rows, image.cols};
+        func(t.reshape(std::array<long, 3>{{image.rows, image.cols, 1}})
+                 .swap_layout()
+                 .shuffle(std::array<int, 3>{{2, 1, 0}}));
+    }
+}
+
+template<class Function>
+[[maybe_unused]] constexpr void matToTensorRank3(
+    [[maybe_unused]] const cv::Mat& image, [[maybe_unused]] Function&& func,
+    Types<> /*unused*/)
+{
+}
+
+template<class Function, class Arg, class... Args>
+[[maybe_unused]] void matToTensorRank3(const cv::Mat& image, Function&& func,
+                                       Types<Arg, Args...> /*unused*/)
+{
+    if (image.depth() != cv::DataDepth<Arg>::value) {
+        matToTensorRank3(image, std::forward<Function>(func), Types<Args...>{});
+    }
+    else {
+        Eigen::TensorMap<const Eigen::Tensor<Arg, 3, Eigen::RowMajor> > t{
+            image.ptr<Arg>(), 1, 1, image.rows * image.cols * image.channels()};
+        func(t.reshape(std::array<int, 3>{
+                           {image.rows, image.cols, image.channels()}})
+                 .swap_layout()
+                 .shuffle(std::array<int, 3>{{2, 1, 0}}));
+    }
+}
+
+template<class Function>
+void bufferToTensor( // LCOV_EXCL_LINE
+    [[maybe_unused]] const pybind11::buffer& image,
+    [[maybe_unused]] const pybind11::buffer_info& info,
+    [[maybe_unused]] Function&& func, Types<> /*unused*/)
+{
+}
+
+template<class Arg>
+[[nodiscard]] Eigen::Tensor<Arg, 3> extend(const pybind11::buffer& image,
+                                           const pybind11::buffer_info& info)
+{
+    using Tensor2 = Eigen::Tensor<Arg, 2>;
+    using Tensor3 = Eigen::Tensor<Arg, 3>;
+
+    if (info.ndim == 2) {
+        auto tmp = pybind11::cast<Tensor2>(image);
+        // Extend rank-2 arrays by a third dimension.
+        return tmp.reshape(std::array{tmp.dimension(0), tmp.dimension(1),
+                                      typename Tensor2::Index{1}});
+    }
+
+    return pybind11::cast<Tensor3>(image);
+}
+
+template<class Function, class Arg, class... Args>
+void bufferToTensor(const pybind11::buffer& image,
+                    const pybind11::buffer_info& info, Function&& func,
+                    Types<Arg, Args...> /*unused*/)
+{
+    if (info.format != pybind11::format_descriptor<Arg>::format()) {
+        bufferToTensor(image, info, std::forward<Function>(func),
+                       Types<Args...>{});
+    }
+    else {
+        func(extend<Arg>(image, info));
+    }
+}
+
+template<long... Ranks, class Function, class... Args>
+void bufferToTensor(const RankNTensorPair<Ranks...>& p,
+                    const pybind11::buffer_info& info, Function&& func,
+                    Types<Args...> types)
+{
+    auto convert = [&p, &func, &info](const auto& t) {
+        using T = typename std::decay_t<decltype(t)>::Scalar;
+        func(t, extend<T>(p.buf1.buf, info));
+    };
+
+    // Assume [dys, dxs] ordering
+    bufferToTensor(p.buf2.buf, info, convert, types);
+}
+
 } // namespace
 
 IntegralHOGDescriptor::IntegralHOGDescriptor(
@@ -72,9 +172,6 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     , clipNorm_{clipNorm}
     , epsilon_{epsilon}
 {
-    // Prefer keyword arguments over dedicated signature to delegate definition
-    // of defaults to the native implementation.
-
     // Delay setting parameters until we know the floating point type we
     // will be working with.
 
@@ -137,28 +234,50 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     update();
 }
 
-void IntegralHOGDescriptor::compute(const cv::Mat& image,
+template<class... Args>
+[[nodiscard]] DescriptorVariant makeDescriptor(
+    [[maybe_unused]] const pybind11::buffer_info& info, Types<> /*unused*/,
+    Args&&... args)
+    noexcept(std::is_nothrow_constructible_v<Descriptor<double>, Args...>)
+{
+    // Default descriptor instance if floating point was not matched against
+    // supported types.
+    return Descriptor<double>(std::forward<Args>(args)...);
+}
+
+template<class Scalar, class... Scalars, class... Args>
+[[nodiscard]] DescriptorVariant makeDescriptor(
+    const pybind11::buffer_info& info, Types<Scalar, Scalars...> /*unused*/,
+    Args&&... args)
+{
+    if (info.format == pybind11::format_descriptor<Scalar>::format()) {
+        return Descriptor<Scalar>(std::forward<Args>(args)...);
+    }
+
+    return makeDescriptor(info, Types<Scalars...>{},
+                          std::forward<Args>(args)...);
+}
+
+void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
                                     const pybind11::handle& mask)
 {
-    std::vector<cv::Mat> channels;
-    cv::split(image, channels);
+    // TODO Maybe support dtype parameter?
 
-    // Default to 64 bit float
-    switch (image.depth()) {
-        case CV_32F:
-            descriptor_ = Descriptor<float>{};
-            break;
-        default:
-            descriptor_ = Descriptor<double>{};
-            break;
-    }
+    pybind11::buffer image = t.buf;
+    pybind11::buffer_info info = image.request();
+
+    descriptor_ = makeDescriptor(info, PrecisionTypes{});
 
     update();
 
     std::visit(
-        [&channels, &mask](auto& descriptor) {
+        [&image, &info, &mask](auto& descriptor) {
             if (mask.is_none()) {
-                descriptor.compute(channels.begin(), channels.end());
+                auto convert = [&descriptor](const auto& t) {
+                    descriptor.compute(t);
+                };
+
+                bufferToTensor(image, info, convert, SupportedTypes{});
             }
             else {
                 pybind11::object getitem;
@@ -188,7 +307,76 @@ void IntegralHOGDescriptor::compute(const cv::Mat& image,
                     return pybind11::bool_(getitem(pybind11::make_tuple(i, j)));
                 };
 
-                descriptor.compute(channels.begin(), channels.end(), masking);
+                auto convert = [&descriptor, &masking](const auto& t) {
+                    descriptor.compute(t, masking);
+                };
+
+                bufferToTensor(image, info, convert, SupportedTypes{});
+            }
+        },
+        descriptor_);
+}
+
+void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
+                                    const pybind11::handle& mask)
+{
+    pybind11::buffer_info info = dydx.buf1.buf.request();
+
+    descriptor_ = makeDescriptor(info, PrecisionTypes{});
+
+    update();
+
+    std::visit(
+        [&dydx, &info, &mask](auto& descriptor) {
+            using Scalar = typename std::decay_t<decltype(descriptor)>::Scalar;
+
+            if (mask.is_none()) {
+                auto convert = [&descriptor](const auto& dx, const auto& dy) {
+                    Eigen::Tensor<Scalar, 3> dxs = dx.template cast<Scalar>();
+                    Eigen::Tensor<Scalar, 3> dys = dy.template cast<Scalar>();
+
+                    descriptor.compute(dxs, dys, nullptr);
+                };
+
+                bufferToTensor(dydx, info, convert, SupportedTypes{});
+            }
+            else {
+                pybind11::object getitem;
+
+                if (pybind11::hasattr(mask, "__getitem__")) {
+                    // mask can be indexed, e.g., it's a numpy.ndarray
+                    getitem = pybind11::getattr(mask, "__getitem__");
+                }
+                else if (pybind11::hasattr(mask, "__call__")) {
+                    // mask is a callable
+                    getitem =
+                        pybind11::reinterpret_borrow<pybind11::object>(mask);
+                }
+                else {
+                    throw std::invalid_argument{fmt::format(
+                        FMT_STRING(
+                            "IntegralHOGDescriptor.compute mask must be "
+                            "either a callable or provide an indexer in terms "
+                            "of a __getitem__ method that accepts a 2-tuple, "
+                            "e.g., a numpy.ndarray instance, but a {} object "
+                            "was given"),
+                        mask.get_type())};
+                }
+
+                auto masking = [&getitem](Eigen::DenseIndex i,
+                                          Eigen::DenseIndex j) {
+                    return pybind11::bool_(getitem(pybind11::make_tuple(i, j)));
+                };
+
+                auto convert = [&descriptor, &masking](const auto& dx,
+                                                       const auto& dy) {
+                    Eigen::Tensor<Scalar, 3> dxs = dx.template cast<Scalar>();
+                    Eigen::Tensor<Scalar, 3> dys = dy.template cast<Scalar>();
+
+                    descriptor.compute(dxs, dys, masking);
+                };
+
+                bufferToTensor(dydx, info, convert, SupportedTypes{});
             }
         },
         descriptor_);

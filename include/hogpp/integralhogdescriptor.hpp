@@ -29,88 +29,247 @@
 #include <fmt/format.h>
 
 #include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 
+#include <hogpp/gradient.hpp>
 #include <hogpp/gradientmagnitude.hpp>
 #include <hogpp/l2hys.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
 namespace hogpp {
 
-// clang-format off
-template
-<
-      class T
-    , class MagnitudeType = GradientMagnitude<T>
-    , class BinningType = UnsignedGradient<T>
-    , class BlockNormalizerType = L2Hys<T>
->
-// clang-format on
-class IntegralHOGDescriptor
+template<class T>
+struct IntegralHOGDescriptorTraits;
+
+// We want to allow to specify 'void' as Gradient functor type. Since 'void'
+// cannot be instantiated, we need to provide different definitions of
+// IntegralHOGDescriptor with a different set of member variables depending on
+// the specified Gradient type.
+//
+// For this purpose, we separate member variables definition by moving them into
+// a (non-virtual) base class which can be partially specialized. This
+// IntegralHOGDescriptorBase is partially specialized with respect to the
+// Gradient type. A general definition of the class defines a minimal set of
+// member variables without a Gradient member variable. Another variant of the
+// class is partially specialized with respect to the Gradient type. If the
+// latter is non-void, an additional Gradient member variable is defined.
+//
+// In case Gradient is void, the user is required to explicitly provide the
+// gradients and IntegralHOGDescriptor::compute overload that accepts an image
+// tensor is disabled.
+
+template<class Derived, class E = void>
+class IntegralHOGDescriptorBase
 {
 public:
-    using Scalar = T;
-    using Tensor5 = Eigen::Tensor<Scalar, 5>;
-    using Magnitude = MagnitudeType;
-    using Binning = BinningType;
-    using BlockNormalizer = BlockNormalizerType;
+    using Magnitude = typename IntegralHOGDescriptorTraits<Derived>::Magnitude;
+    using Binning = typename IntegralHOGDescriptorTraits<Derived>::Binning;
+    using BlockNormalizer =
+        typename IntegralHOGDescriptorTraits<Derived>::BlockNormalizer;
 
-    [[nodiscard]] explicit IntegralHOGDescriptor(
-        MagnitudeType magnitude = MagnitudeType{},
-        BinningType binning = BinningType{},
-        BlockNormalizerType normalization = BlockNormalizerType{})
+    [[nodiscard]] explicit IntegralHOGDescriptorBase(
+        Magnitude magnitude = Magnitude{}, Binning binning = Binning{},
+        BlockNormalizer normalization = BlockNormalizer{})
         : vote_{std::move(magnitude)}
         , binning_{std::move(binning)}
         , normalize_{std::move(normalization)}
     {
     }
 
-    template<class InputIterator, class Masking = std::nullptr_t>
-    void compute(InputIterator first, InputIterator last,
+    void setBinning(Binning value)
+    {
+        binning_ = std::move(value);
+    }
+
+    [[nodiscard]] const Binning& binning() const noexcept
+    {
+        return binning_;
+    }
+
+    [[nodiscard]] Binning& binning() noexcept
+    {
+        return binning_;
+    }
+
+    void setBlockNormalizer(BlockNormalizer value)
+    {
+        normalize_ = std::move(value);
+    }
+
+    [[nodiscard]] const BlockNormalizer& blockNormalizer() const noexcept
+    {
+        return normalize_;
+    }
+
+    [[nodiscard]] BlockNormalizer& blockNormalizer() noexcept
+    {
+        return normalize_;
+    }
+
+    void setMagnitude(Magnitude value)
+    {
+        vote_ = std::move(value);
+    }
+
+    [[nodiscard]] const Magnitude& magnitude() const noexcept
+    {
+        return vote_;
+    }
+
+    [[nodiscard]] Magnitude& magnitude() noexcept
+    {
+        return vote_;
+    }
+
+protected:
+    Magnitude vote_;
+    Binning binning_;
+    BlockNormalizer normalize_;
+};
+
+template<class Derived>
+class IntegralHOGDescriptorBase
+    // clang-format off
+<
+      Derived
+    , std::void_t
+    <
+        typename IntegralHOGDescriptorTraits<Derived>::Gradient
+    >
+>
+    // clang-format on
+    : public IntegralHOGDescriptorBase<Derived, Derived>
+{
+public:
+    using Gradient = typename IntegralHOGDescriptorTraits<Derived>::Gradient;
+
+    template<class... Args>
+    [[nodiscard]] explicit IntegralHOGDescriptorBase(
+        Gradient gradient = Gradient{}, Args&&... args)
+        : IntegralHOGDescriptorBase<Derived, Derived>{std::forward<Args>(
+              args)...}
+        , gradient_{std::move(gradient)}
+    {
+    }
+
+protected:
+    Gradient gradient_;
+};
+
+// clang-format off
+template
+<
+      class T
+    , class GradientType = Gradient<T>
+    , class MagnitudeType = GradientMagnitude<T>
+    , class BinningType = UnsignedGradient<T>
+    , class BlockNormalizerType = L2Hys<T>
+>
+// clang-format on
+class IntegralHOGDescriptor
+    : public IntegralHOGDescriptorBase
+      // clang-format off
+<
+    IntegralHOGDescriptor
+    <
+          T
+        , GradientType
+        , MagnitudeType
+        , BinningType
+        , BlockNormalizerType
+    >
+>
+// clang-format on
+{
+    // clang-format off
+    using Base = IntegralHOGDescriptorBase
+    <
+        IntegralHOGDescriptor
+        <
+              T
+            , GradientType
+            , MagnitudeType
+            , BinningType
+            , BlockNormalizerType
+        >
+    >
+    ;
+    // clang-format on
+public:
+    using Scalar = T;
+    using Tensor5 = Eigen::Tensor<Scalar, 5>;
+    using Gradient = GradientType;
+    using Magnitude = MagnitudeType;
+    using Binning = BinningType;
+    using BlockNormalizer = BlockNormalizerType;
+
+    [[nodiscard]] IntegralHOGDescriptor() = default;
+
+    // clang-format off
+    template
+    <
+          class ...Args
+        , class B = Base
+        , std::enable_if_t
+        <
+            std::is_constructible_v<Base, Args...>
+        >* = nullptr
+    >
+    // clang-format on
+    [[nodiscard]] explicit IntegralHOGDescriptor(Args&&... args)
+        : Base{std::forward<Args>(args)...}
+    {
+    }
+
+    // clang-format off
+    template
+    <
+          class U
+        , int DataLayout
+        , class Masking = std::nullptr_t
+        , class G = GradientType
+        // Enable overload only if Gradient is not void
+        , std::enable_if_t<!std::is_void_v<G> >* = nullptr
+    >
+    // clang-format on
+    void compute(const Eigen::Tensor<U, 3, DataLayout>& image,
                  Masking&& masked = nullptr)
     {
-        const cv::Matx<Scalar, 1, 3> kx{Scalar(-1), Scalar(0), Scalar(1)};
-        const cv::Matx<Scalar, 3, 1> ky = kx.t();
+        Eigen::Tensor<Scalar, 3, DataLayout> dxs;
+        Eigen::Tensor<Scalar, 3, DataLayout> dys;
 
-        const cv::Mat& image = *first;
-        const Eigen::Array2i dims{image.rows, image.cols};
+        std::tie(dxs, dys) = this->gradient_(image);
 
-        std::ptrdiff_t n = std::distance(first, last);
-        Tensor3 dxs{static_cast<Eigen::DenseIndex>(n), dims.x(), dims.y()};
-        Tensor3 dys{dxs.dimensions()};
+        assert(dxs.dimension(0) == image.dimension(0));
+        assert(dxs.dimension(1) == image.dimension(1));
+        assert(dxs.dimension(2) == image.dimension(2));
 
-        cv::Mat dx;
-        cv::Mat dy;
+        assert(dys.dimension(0) == image.dimension(0));
+        assert(dys.dimension(1) == image.dimension(1));
+        assert(dys.dimension(2) == image.dimension(2));
 
-        const cv::Point anchor{-1, -1};
-        const cv::BorderTypes borderMode = cv::BORDER_REFLECT101;
+        compute(dxs, dys, std::forward<Masking>(masked));
+    }
 
-        for (InputIterator start = first; first != last; ++first) {
-            std::ptrdiff_t i = std::distance(start, first);
-            const cv::Mat& channel = *first;
+    template<int DataLayout, class Masking = std::nullptr_t>
+    void compute(const Eigen::Tensor<Scalar, 3, DataLayout>& dxs,
+                 const Eigen::Tensor<Scalar, 3, DataLayout>& dys,
+                 Masking&& masked)
+    {
+        Tensor3 mags =
+            this->vote_(dxs, dys).swap_layout().shuffle(std::array{2, 1, 0});
 
-            cv::filter2D(channel, dx, cv::DataDepth<Scalar>::value, kx, anchor,
-                         0, borderMode);
-            cv::filter2D(channel, dy, cv::DataDepth<Scalar>::value, ky, anchor,
-                         0, borderMode);
-
-            dxs.template chip<0>(static_cast<Eigen::DenseIndex>(i)) =
-                Eigen::TensorMap<const Tensor2>{dx.ptr<Scalar>(), dx.rows,
-                                                dx.cols};
-            dys.template chip<0>(static_cast<Eigen::DenseIndex>(i)) =
-                Eigen::TensorMap<const Tensor2>{dy.ptr<Scalar>(), dy.rows,
-                                                dy.cols};
+        if (mags.size() == 0) {
+            return; // Nothing to do
         }
 
-        Tensor3 mags = vote_(dxs, dys);
-
+        const Eigen::Array2i dims{mags.dimension(0), mags.dimension(1)};
         Eigen::Array2i dims1 = dims + 1;
 
         histogram_.resize(dims1.x(), dims1.y(), bins_);
         histogram_.setZero();
 
         const Eigen::Tensor<Eigen::DenseIndex, 2, Eigen::RowMajor>& k =
-            mags.argmax(0);
+            mags.argmax(2);
 
         const auto scale = static_cast<Scalar>(bins_ - 1);
 
@@ -137,7 +296,7 @@ public:
 
                 // Select a channel with the maximum magnitude
                 Eigen::DenseIndex kk = k(i, j);
-                Scalar mag = mags(kk, i, j);
+                Scalar mag = mags(i, j, kk);
 
                 assert(mag >= 0);
 
@@ -146,11 +305,11 @@ public:
                     continue;
                 }
 
-                Scalar dx = dxs(kk, i, j);
-                Scalar dy = dys(kk, i, j);
+                Scalar dx = dxs(i, j, kk);
+                Scalar dy = dys(i, j, kk);
 
                 // Gradient binning
-                Scalar weight = binning_(dx, dy);
+                Scalar weight = this->binning_(dx, dy);
 
                 assert(weight >= 0 && weight <= 1);
 
@@ -301,7 +460,7 @@ public:
                 // Block normalization
                 auto block = X.template chip<0>(i).template chip<0>(j);
 
-                normalize_(block);
+                this->normalize_(block);
             }
         }
 
@@ -381,51 +540,6 @@ public:
         return histogram_;
     }
 
-    void setBinning(BinningType value)
-    {
-        binning_ = std::move(value);
-    }
-
-    [[nodiscard]] const BinningType& binning() const noexcept
-    {
-        return binning_;
-    }
-
-    [[nodiscard]] BinningType& binning() noexcept
-    {
-        return binning_;
-    }
-
-    void setBlockNormalizer(BlockNormalizerType value)
-    {
-        normalize_ = std::move(value);
-    }
-
-    [[nodiscard]] const BlockNormalizerType& blockNormalizer() const noexcept
-    {
-        return normalize_;
-    }
-
-    [[nodiscard]] BlockNormalizerType& blockNormalizer() noexcept
-    {
-        return normalize_;
-    }
-
-    void setMagnitude(MagnitudeType value)
-    {
-        vote_ = std::move(value);
-    }
-
-    [[nodiscard]] const MagnitudeType& magnitude() const noexcept
-    {
-        return vote_;
-    }
-
-    [[nodiscard]] MagnitudeType& magnitude() noexcept
-    {
-        return vote_;
-    }
-
     [[nodiscard]] bool isEmpty() const noexcept
     {
         return histogram_.size() == 0;
@@ -435,9 +549,6 @@ private:
     using Tensor2 = Eigen::Tensor<Scalar, 2, Eigen::RowMajor>;
     using Tensor3 = Eigen::Tensor<Scalar, 3, Eigen::RowMajor>;
 
-    MagnitudeType vote_;
-    BinningType binning_;
-    BlockNormalizerType normalize_;
     Eigen::Tensor<Scalar, 3> histogram_;
     Eigen::DenseIndex bins_ = 9;
     Eigen::Array2i cellSize_{8, 8};
@@ -448,6 +559,64 @@ private:
 template<class BlockNormalizerType>
 explicit IntegralHOGDescriptor(BlockNormalizerType)
     -> IntegralHOGDescriptor<typename BlockNormalizerType::Scalar>;
+
+// clang-format off
+template
+<
+      class T
+    , class GradientType
+    , class MagnitudeType
+    , class BinningType
+    , class BlockNormalizerType
+>
+// clang-format on
+struct IntegralHOGDescriptorTraits
+    // clang-format off
+<
+    IntegralHOGDescriptor
+    <
+        T
+        , GradientType
+        , MagnitudeType
+        , BinningType
+        , BlockNormalizerType
+    >
+>
+// clang-format on
+{
+    using Gradient = GradientType;
+    using Magnitude = MagnitudeType;
+    using Binning = BinningType;
+    using BlockNormalizer = BlockNormalizerType;
+};
+
+// clang-format off
+template
+<
+      class T
+    , class MagnitudeType
+    , class BinningType
+    , class BlockNormalizerType
+>
+// clang-format on
+struct IntegralHOGDescriptorTraits
+    // clang-format off
+<
+    IntegralHOGDescriptor
+    <
+        T
+        , void
+        , MagnitudeType
+        , BinningType
+        , BlockNormalizerType
+    >
+>
+// clang-format on
+{
+    using Magnitude = MagnitudeType;
+    using Binning = BinningType;
+    using BlockNormalizer = BlockNormalizerType;
+};
 
 } // namespace hogpp
 
