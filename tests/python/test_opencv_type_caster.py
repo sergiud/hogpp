@@ -23,11 +23,14 @@ if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
     if path:
         os.add_dll_directory(path)
 
-import type_caster_test.opencv as ttt
+from itertools import repeat
 import numpy as np
 import pytest
+import type_caster_test.opencv as ttt
 
 unsupported_dtypes = [np.float16, np.int64, np.uint64, np.object_]
+supported_dtypes = [np.uint8, np.int8, np.int16, np.uint16, np.int32,
+                    np.float32, np.float64]
 
 try:
     unsupported_dtypes += [np.float128]
@@ -123,3 +126,10 @@ def test_bounds(bounds1):
 @pytest.mark.xfail(raises=TypeError)
 def test_invalid_bounds(bounds1):
     ttt.pass_bounds_(bounds1)
+
+
+@pytest.mark.parametrize('ndim', [0, 4, 5, 6])
+@pytest.mark.parametrize('dtype', supported_dtypes)
+@pytest.mark.xfail(raises=TypeError)
+def test_unsupported_ndim(ndim, dtype):
+    ttt.pass_(np.empty(tuple(repeat(0, ndim)), dtype=dtype))

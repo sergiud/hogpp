@@ -76,3 +76,9 @@ def test_rank_4_tensor(dtype, size0, size1, size2, size3):
 def test_rank_5_tensor(dtype, size0, size1, size2, size3, size4):
     a = np.random.rand(size0, size1, size2, size3, size4).astype(dtype)
     np.testing.assert_array_equal(a, ttt.pass_(a))
+
+
+@pytest.mark.parametrize('dtype', [np.object_])
+@pytest.mark.xfail(raises=TypeError)
+def test_unsupported_dtype(dtype):
+    ttt.pass_(np.empty((0, 0), dtype=dtype))
