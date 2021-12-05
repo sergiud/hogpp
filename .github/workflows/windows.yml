@@ -28,6 +28,7 @@ jobs:
           msystem: ${{matrix.sys}}
           path-type: strict
           install: >-
+            lcov
             mingw-w64-${{matrix.env}}-boost
             mingw-w64-${{matrix.env}}-cmake
             mingw-w64-${{matrix.env}}-eigen3
@@ -39,6 +40,11 @@ jobs:
             mingw-w64-${{matrix.env}}-python
             mingw-w64-${{matrix.env}}-python-numpy
             mingw-w64-${{matrix.env}}-python-pytest
+
+      - name: Setup Debug Environment
+        if: ${{matrix.build_type == 'Debug'}}
+        run: |
+          echo 'CXXFLAGS=--coverage' >> $GITHUB_ENV
 
       - name: Configure
         env:
@@ -55,6 +61,25 @@ jobs:
       - name: Test
         run: |
           ctest --test-dir build_${{matrix.build_type}} -j$(nproc) --output-on-failure
+
+      - name: Generate Coverage
+        if: ${{matrix.build_type == 'Debug'}}
+        run: |
+          lcov --directory . --capture --output-file coverage.info
+          lcov --remove coverage.info \
+              '*/mingw32/*' \
+              '*/mingw64/*' \
+              '*/tests/cpp/*' \
+              --output-file coverage.info
+          lcov --list coverage.info
+
+      - name: Upload Coverage to Codecov
+        if: ${{matrix.build_type == 'Debug'}}
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true
 
   build-msvc:
     name: ${{matrix.msvc}}-${{matrix.arch}}-${{matrix.build_type}}-Python-${{matrix.python}}
