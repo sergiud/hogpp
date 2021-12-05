@@ -1,8 +1,9 @@
 # HOGpp
 
 ![Linux](https://github.com/sergiud/hogpp/actions/workflows/linux.yml/badge.svg)
+![macOS](https://github.com/sergiud/hogpp/actions/workflows/macos.yml/badge.svg)
 ![Windows](https://github.com/sergiud/hogpp/actions/workflows/windows.yml/badge.svg)
-[![codecov](https://codecov.io/gh/sergiud/hogpp/branch/master/graph/badge.svg?token=PQ3WKQGKC4)](https://codecov.io/gh/sergiud/hogpp)
+![codecov](https://codecov.io/gh/sergiud/hogpp/branch/master/graph/badge.svg?token=PQ3WKQGKC4)(https://codecov.io/gh/sergiud/hogpp)
 
 This repository contains an implementation of the rectangular histogram of
 oriented gradients feature descriptor (R-HOG) using integral histograms. The
@@ -25,7 +26,7 @@ additionally contrast-normalized.
 ## Requirements
 
 * C++17 compiler
-* [CMake](https://gitlab.kitware.com/cmake/cmake) 3.12
+* [CMake](https://gitlab.kitware.com/cmake/cmake) 3.15
 * [Eigen](https://gitlab.com/libeigen/eigen) 3.3.7
 * [fmt](https://github.com/fmtlib/fmt) 6.0
 * [OpenCV](https://github.com/opencv/opencv) 4.0

@@ -64,15 +64,16 @@ public:
     [[nodiscard]] BinningType binning() const;
     [[nodiscard]] BlockNormalizerType blockNormalizer() const;
     [[nodiscard]] MagnitudeType magnitude() const;
-    [[nodiscard]] bool isEmpty() const noexcept;
     [[nodiscard]] pybind11::object clipNorm() const noexcept;
     [[nodiscard]] pybind11::object epsilon() const noexcept;
+    [[nodiscard]] explicit operator bool() const noexcept;
 
 private:
     template<class T>
     using Descriptor = hogpp::IntegralHOGDescriptor<T, Magnitude<T>, Binning<T>,
                                                     BlockNormalizer<T> >;
 
+    [[nodiscard]] bool isEmpty() const noexcept;
     void update();
 
     std::optional<Eigen::Array2i> cellSize_;

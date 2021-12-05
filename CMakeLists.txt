@@ -1,10 +1,13 @@
-cmake_minimum_required (VERSION 3.12)
+cmake_minimum_required (VERSION 3.15)
 project (hogpp
   VERSION 0.1.0
   LANGUAGES CXX
   DESCRIPTION "Fast histogram of oriented gradients computation using integral histogram"
   HOMEPAGE_URL https://github.com/sergiud/hogpp
 )
+
+set (CMAKE_CXX_VISIBILITY_PRESET hidden)
+set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 include (CTest)
 

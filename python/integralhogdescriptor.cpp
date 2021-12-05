@@ -372,3 +372,8 @@ pybind11::object IntegralHOGDescriptor::epsilon() const noexcept
         },
         descriptor_);
 }
+
+IntegralHOGDescriptor::operator bool() const noexcept
+{
+    return !isEmpty();
+}

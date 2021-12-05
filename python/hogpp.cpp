@@ -17,7 +17,6 @@
 // limitations under the License.
 //
 
-#include <functional>
 #include <optional>
 #include <variant>
 
@@ -84,7 +83,7 @@ PYBIND11_MODULE(hogpp, m)
     .def
     (
           "__bool__"
-        , std::not1(std::mem_fn(&IntegralHOGDescriptor::isEmpty))
+        , &IntegralHOGDescriptor::operator bool
     )
     .def_property_readonly
     (

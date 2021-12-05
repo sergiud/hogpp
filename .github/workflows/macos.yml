@@ -1,0 +1,184 @@
+name: macOS
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: AppleClang-${{matrix.build_type}}-Python-${{matrix.python}}
+    runs-on: macos-11
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: true
+      matrix:
+        build_type:
+          - Release
+          - Debug
+        python:
+          - '3.7'
+          - '3.8'
+          - '3.9'
+          - '3.10'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          version: 1.10.0
+
+      - name: Cache Boost
+        id: cache-boost
+        uses: actions/cache@v2
+        with:
+          path: boost/
+          key: ${{runner.os}}-boost-1.77
+
+      - name: Download Boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.zip
+          unzip boost_1_77_0.zip;
+
+      - name: Setup Boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          cd boost_1_77_0
+          ./bootstrap.sh
+          ./b2 --prefix=${{github.workspace}}/boost --with-test install
+
+      - name: Cache Eigen
+        id: cache-eigen
+        uses: actions/cache@v2
+        with:
+          path: eigen/
+          key: ${{runner.os}}-eigen-3.4.0
+
+      - name: Download Eigen
+        if: steps.cache-eigen.outputs.cache-hit != 'true'
+        run: |
+          wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip
+          unzip eigen-3.4.0.zip
+
+      - name: Setup Eigen
+        if: steps.cache-eigen.outputs.cache-hit != 'true'
+        run: |
+          cmake -S eigen-3.4.0 -B build-eigen \
+                -DBUILD_TESTING=OFF \
+                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/eigen \
+                -DEIGEN_BUILD_DOC=OFF \
+                -G Ninja
+          cmake --build build-eigen --target install
+
+      - name: Cache fmt
+        id: cache-fmt
+        uses: actions/cache@v2
+        with:
+          path: fmt/
+          key: ${{runner.os}}-fmt-8.0.1-${{matrix.build_type}}
+
+      - name: Download fmt
+        if: steps.cache-fmt.outputs.cache-hit != 'true'
+        run: |
+          wget https://github.com/fmtlib/fmt/releases/download/8.0.1/fmt-8.0.1.zip
+          unzip fmt-8.0.1.zip
+
+      - name: Setup fmt
+        if: steps.cache-fmt.outputs.cache-hit != 'true'
+        run: |
+          cmake -S fmt-8.0.1 -B build-fmt \
+                -DFMT_TEST=OFF \
+                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt \
+                -G Ninja
+          cmake --build build-fmt \
+                --config ${{matrix.build_type}} \
+                --target install
+
+      - name: Cache OpenCV
+        id: cache-opencv
+        uses: actions/cache@v2
+        with:
+          path: opencv/
+          key: ${{runner.os}}-opencv-4.5.4
+
+      - name: Download OpenCV
+        if: steps.cache-opencv.outputs.cache-hit != 'true'
+        run: |
+          wget https://github.com/opencv/opencv/archive/refs/tags/4.5.4.zip
+          unzip 4.5.4.zip
+
+      - name: Setup OpenCV
+        if: steps.cache-opencv.outputs.cache-hit != 'true'
+        run: |
+          cmake -S opencv-4.5.4 -B build-opencv \
+                -DBUILD_LIST=core,imgproc \
+                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv \
+                -G Ninja
+          cmake --build build-opencv \
+                --config ${{matrix.build_type}} \
+                --target install
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{matrix.python}}
+          architecture: ${{matrix.arch}}
+          cache: 'pip'
+          cache-dependency-path: requirements_dev.txt
+
+      - name: Setup Dependencies
+        run: |
+          pip install -r requirements_dev.txt
+          brew install lcov
+
+      - name: Setup Debug Environment
+        if: ${{matrix.build_type == 'Debug'}}
+        run: |
+          echo 'CXXFLAGS=--coverage' >> $GITHUB_ENV
+
+      - name: Setup Environment
+        run: |
+          echo 'Boost_ROOT=${{github.workspace}}/boost' >> $GITHUB_ENV
+          echo 'Eigen3_ROOT=${{github.workspace}}/eigen' >> $GITHUB_ENV
+          echo 'fmt_ROOT=${{github.workspace}}/fmt' >> $GITHUB_ENV
+          echo 'OpenCV_ROOT=${{github.workspace}}/opencv' >> $GITHUB_ENV
+          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
+
+      - name: Configure
+        run: |
+          cmake -S . -B build_${{matrix.build_type}}  \
+                -DPython_ROOT_DIR=${{env.pythonLocation}} \
+                -G Ninja
+
+      - name: Build
+        run: |
+          cmake --build build_${{matrix.build_type}} \
+                --config ${{matrix.build_type}}
+
+      - name: Test
+        run: |
+          ctest --test-dir build_${{matrix.build_type}} \
+                --config ${{matrix.build_type}} \
+                -j$(sysctl -n hw.ncpu) \
+                --output-on-failure
+
+      - name: Generate Coverage
+        if: ${{matrix.build_type == 'Debug'}}
+        run: |
+          lcov --directory . --capture --output-file coverage.info
+          lcov --remove coverage.info \
+              '*/site-packages/pybind11/include/*' \
+              '/usr/*' \
+              'tests/*' \
+              --output-file coverage.info
+          lcov --list coverage.info
+
+      - name: Upload Coverage to Codecov
+        if: ${{matrix.build_type == 'Debug'}}
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true

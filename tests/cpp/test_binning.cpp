@@ -33,6 +33,7 @@ using Scalars = boost::mpl::list<float, double, long double>;
 // clang-format off
 BOOST_TEST_DECORATOR
 (
+    *boost::unit_test::tolerance(5.96048e-08f)
     *boost::unit_test::tolerance(3.90314e-17l)
 )
 // clang-format on
@@ -53,6 +54,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient, Scalar, Scalars)
 // clang-format off
 BOOST_TEST_DECORATOR
 (
+    *boost::unit_test::tolerance(5.96048e-08f)
     *boost::unit_test::tolerance(3.90314e-17l)
 )
 // clang-format on
