@@ -71,6 +71,7 @@ jobs:
           - Release
         msvc:
           - VS-16-2019
+          - VS-17-2022
         python:
           - '3.7'
           - '3.8'
@@ -80,6 +81,9 @@ jobs:
           - msvc: VS-16-2019
             os: windows-2019
             generator: 'Visual Studio 16 2019'
+          - msvc: VS-17-2022
+            os: windows-2022
+            generator: 'Visual Studio 17 2022'
 
     steps:
       - uses: actions/checkout@v2
