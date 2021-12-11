@@ -72,11 +72,10 @@ jobs:
 
       - name: Configure
         env:
-          CXXFLAGS: -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Wno-attributes -Werror -Wl,-ltbb ${{env.CXXFLAGS}}
+          CXXFLAGS: -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Wno-attributes -Werror ${{env.CXXFLAGS}}
           Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build/ \
-                -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON \
@@ -170,7 +169,7 @@ jobs:
 
       - name: Build
         env:
-          CXXFLAGS: -Weverything -Wno-c++98-compat -Wno-padded -Wno-c++98-compat-pedantic -Wno-disabled-macro-expansion -Wno-shadow -Wno-used-but-marked-unused -Wno-global-constructors -Wno-shorten-64-to-32 -Wno-documentation -Wno-poison-system-directories -Werror ${{env.CXXFLAGS}}
+          CXXFLAGS: -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Wno-attributes -Werror ${{env.CXXFLAGS}}
         run: |
           pip install --no-build-isolation \
             --config-settings build-dir=build/ \

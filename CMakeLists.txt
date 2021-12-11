@@ -7,6 +7,7 @@ project (hogpp
 )
 
 set (CMAKE_CXX_VISIBILITY_PRESET hidden)
+set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 list (APPEND CMAKE_MODULE_PATH ${hogpp_SOURCE_DIR}/cmake)
@@ -23,11 +24,40 @@ check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 set (PYBIND11_NOPYTHON ON)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
-find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
-find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
 find_package (Python 3.0 COMPONENTS Development.Module OPTIONAL_COMPONENTS Interpreter)
 find_package (Sphinx 4.0)
+
+if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
+  set (CIBUILDWHEEL ON)
+else ("$ENV{CIBUILDWHEEL}" EQUAL 1)
+  set (CIBUILDWHEEL OFF)
+endif ("$ENV{CIBUILDWHEEL}" EQUAL 1)
+
+if (NOT CIBUILDWHEEL)
+  find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
+  find_package (fmt 6.0 REQUIRED)
+else (NOT CIBUILDWHEEL)
+  include (FetchContent)
+
+  # Use EXCLUDE_FROM_ALL to avoid installing headers and libraries into the
+  # wheels.
+
+  FetchContent_Declare (eigen3
+    GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+    GIT_TAG 3.4.0
+    EXCLUDE_FROM_ALL
+  )
+
+  FetchContent_Declare (fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG 11.0.2
+    EXCLUDE_FROM_ALL
+  )
+
+  FetchContent_MakeAvailable (eigen3)
+  FetchContent_MakeAvailable (fmt)
+endif (NOT CIBUILDWHEEL)
 
 if (SKBUILD_SOABI)
   set (Python_SOABI ${SKBUILD_SOABI})
@@ -101,9 +131,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     pybind11::headers
     PRIVATE Python::Module
   )
-
-  set_target_properties (python_type_caster PROPERTIES
-    POSITION_INDEPENDENT_CODE ON)
 
   python_add_library (pyhogpp WITH_SOABI
     python/binning.cpp

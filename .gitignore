@@ -5,4 +5,5 @@
 /build*/
 /dist/
 /docs/_build/
+/wheelhouse/
 __pycache__/

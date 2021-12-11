@@ -12,32 +12,38 @@ build.targets = ['pyhogpp']
 sdist.exclude = [
     '*',
     '!/CMakeLists.txt',
-    '!/data/*',
-    '!/docs/*',
-    '!/include/*',
+    '!/data/**',
+    '!/docs/**',
+    '!/include/**',
     '!/LICENSE',
     '!/pyproject.toml',
-    '!/python/*',
-    '!/python/hogpp/__init__.py',
-    '!/scripts/*',
-    '!/tests/*',
-    '!/workflow/*',
+    '!/python/**',
+    '!/README.md',
+    '!/tests/**',
 ]
 
 [tool.scikit-build.cmake]
-version = ">=3.18"
+version = "CMakeLists.txt"
 build-type = "Release"
 
 [tool.scikit-build.cmake.define]
 BUILD_TESTING = false
-CMAKE_CXX_FLAGS = '-DPYBIND11_DETAILED_ERROR_MESSAGES'
 CMAKE_DISABLE_FIND_PACKAGE_OpenCV = true
 CMAKE_DISABLE_FIND_PACKAGE_Sphinx = true
 CMAKE_REQUIRE_FIND_PACKAGE_pybind11 = true
 
+[tool.cibuildwheel]
+free-threaded-support = true
+test-requires = [
+    "Pillow>=11.0.0",
+    "pytest",
+]
+test-command = 'pytest -W error {project}/tests/python/module'
+
 [project]
 name = 'hogpp'
-version = '0.1.0a1.dev2'
+version = '0.1.0a1.dev3'
+readme = 'README.md'
 description = 'Fast computation of rectangular histogram of oriented gradients (R-HOG) features using integral histogram'
 authors = [
   {name = "Sergiu Deitsch", email = "sergiu.deitsch@gmail.com"},
@@ -64,7 +70,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license = {text = "Apache License (2.0)"}
-requires-python = ">= 3.9"
+requires-python = ">=3.9"
 
 [project.urls]
 Documentation = "https://hogpp.readthedocs.io"
@@ -94,4 +100,3 @@ xfail_strict = true
 addopts = [
     '--import-mode=importlib',
 ]
-

@@ -34,7 +34,12 @@ import pytest
 
 @pytest.fixture(params=['gray', 'color'])
 def circle_image(request):
-    with Image.open(os.path.join('data', f'circle-{request.param}.png'), 'r') as im:
+    # Obtain an absolute to the image file to avoid requiring to run pytest from
+    # the project root.
+    image_fn = os.path.abspath(os.path.join(os.path.dirname(
+        __file__), '..', '..', '..', 'data', f'circle-{request.param}.png'))
+
+    with Image.open(image_fn, 'r') as im:
         return np.asarray(im)
 
 
