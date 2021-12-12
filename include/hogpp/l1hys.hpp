@@ -48,8 +48,8 @@ public:
     template<class Tensor>
     constexpr void operator()(Tensor& block) const
     {
-        // L²-Hys block normalization
-        // L² norm
+        // L¹-Hys block normalization
+        // L¹ norm
         l1_(block);
         // Clipping
         block = block.cwiseMin(clip_);
