@@ -55,7 +55,7 @@ def test_binning_attribute(binning):
     assert desc.binning_ == binning
 
 
-@pytest.mark.parametrize('block_norm', ['l1', 'l2', 'l2-hys', 'l1-sqrt'])
+@pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 def test_block_norm_attribute(block_norm):
     desc = IntegralHOGDescriptor(block_norm=block_norm)
     assert desc.block_norm_ == block_norm
@@ -124,7 +124,7 @@ def test_invalid_block_stride(block_stride):
 
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
-@pytest.mark.parametrize('block_norm', ['l1', 'l2', 'l2-hys', 'l1-sqrt'])
+@pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 @pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
 def test_vertical_gradient(dtype, block_norm, magnitude):
     image = np.empty((16, 16), dtype=dtype)
@@ -155,7 +155,7 @@ def test_vertical_gradient(dtype, block_norm, magnitude):
 
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
-@pytest.mark.parametrize('block_norm', ['l1', 'l2', 'l2-hys', 'l1-sqrt'])
+@pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 @pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
 def test_horizontal_gradient(dtype, block_norm, magnitude):
     image = np.empty((16, 16), dtype=dtype)
@@ -209,9 +209,10 @@ def test_invalid_epsilon_value(epsilon):
     IntegralHOGDescriptor(epsilon=epsilon)
 
 
+@pytest.mark.parametrize('block_norm', ['l1-hys', 'l2-hys'])
 @pytest.mark.parametrize('clip_norm', [0.2, 0.5, 1, 1e3])
-def test_clip_norm_init(clip_norm):
-    desc = IntegralHOGDescriptor(clip_norm=clip_norm)
+def test_clip_norm_init(block_norm, clip_norm):
+    desc = IntegralHOGDescriptor(block_norm=block_norm, clip_norm=clip_norm)
     np.testing.assert_almost_equal(desc.clip_norm_, clip_norm)
 
 
@@ -232,7 +233,7 @@ def test_no_clip_norm(block_norm, clip_norm):
     assert desc.block_norm_ == block_norm
 
 
-@pytest.mark.parametrize('block_norm', ['l1', 'l1-sqrt', 'l2', 'l2-hys'])
+@pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l1-sqrt', 'l2', 'l2-hys'])
 @pytest.mark.parametrize('epsilon', [0, 1e-5, 1, None])
 def test_ensure_epsilon(block_norm, epsilon):
     desc = IntegralHOGDescriptor(block_norm=block_norm, epsilon=epsilon)
@@ -256,7 +257,7 @@ def test_invalid_bounds(bounds):
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
 @pytest.mark.parametrize('channels', [0, 1, 3, 4])
-@pytest.mark.parametrize('block_norm', ['l1', 'l2', 'l2-hys', 'l1-sqrt'])
+@pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 def test_zero_gradient(dtype, channels, block_norm):
     desc = IntegralHOGDescriptor(block_norm=block_norm, epsilon=0)
 

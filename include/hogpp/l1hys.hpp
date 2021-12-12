@@ -17,31 +17,31 @@
 // limitations under the License.
 //
 
-#ifndef HOGPP_L2HYS_HPP
-#define HOGPP_L2HYS_HPP
+#ifndef HOGPP_L1HYS_HPP
+#define HOGPP_L1HYS_HPP
 
 #include <type_traits>
 
-#include <hogpp/l2norm.hpp>
+#include <hogpp/l1norm.hpp>
 #include <hogpp/normtraits.hpp>
 
 namespace hogpp {
 
 template<class T, class TraitsType = NormTraits<T> >
-class L2Hys
+class L1Hys
 {
 public:
     using Scalar = T;
     using Traits = TraitsType;
 
-    [[nodiscard]] constexpr explicit L2Hys(
+    [[nodiscard]] constexpr explicit L1Hys(
         Scalar clip = TraitsType::clip(),
         Scalar regularization = TraitsType::regularization())
         noexcept(
             std::is_nothrow_constructible_v<Scalar, Scalar>&&
-                std::is_nothrow_constructible_v<L2Norm<Scalar, TraitsType> >)
+                std::is_nothrow_constructible_v<L1Norm<Scalar, TraitsType> >)
         : clip_{clip}
-        , l2_{regularization}
+        , l1_{regularization}
     {
     }
 
@@ -50,11 +50,11 @@ public:
     {
         // L²-Hys block normalization
         // L² norm
-        l2_(block);
+        l1_(block);
         // Clipping
         block = block.cwiseMin(clip_);
         // Renormalization
-        l2_(block);
+        l1_(block);
     }
 
     [[nodiscard]] constexpr T clip() const noexcept
@@ -62,22 +62,22 @@ public:
         return clip_;
     }
 
-    [[nodiscard]] constexpr const L2Norm<Scalar>& norm() const noexcept
+    [[nodiscard]] constexpr const L1Norm<Scalar>& norm() const noexcept
     {
-        return l2_;
+        return l1_;
     }
 
 private:
     Scalar clip_;
-    L2Norm<Scalar, TraitsType> l2_;
+    L1Norm<Scalar, TraitsType> l1_;
 };
 
 template<class T>
-explicit L2Hys(T) -> L2Hys<T>;
+explicit L1Hys(T) -> L1Hys<T>;
 
 template<class T1, class T2>
-explicit L2Hys(T1, T2) -> L2Hys<std::common_type_t<T1, T2> >;
+explicit L1Hys(T1, T2) -> L1Hys<std::common_type_t<T1, T2> >;
 
 } // namespace hogpp
 
-#endif // HOGPP_L2HYS_HPP
+#endif // HOGPP_L1HYS_HPP

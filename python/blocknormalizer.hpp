@@ -26,6 +26,7 @@
 #include <type_traits>
 #include <variant>
 
+#include <hogpp/l1hys.hpp>
 #include <hogpp/l1norm.hpp>
 #include <hogpp/l1sqrt.hpp>
 #include <hogpp/l2hys.hpp>
@@ -36,6 +37,7 @@
 enum class BlockNormalizerType
 {
     L1,
+    L1Hys,
     L1sqrt,
     L2,
     L2Hys
@@ -62,6 +64,7 @@ class BlockNormalizer
 {
 public:
     using L1 = hogpp::L1Norm<T>;
+    using L1Hys = hogpp::L1Hys<T>;
     using L1Sqrt = hogpp::L1Sqrt<T>;
     using L2 = hogpp::L2Norm<T>;
     using L2Hys = hogpp::L2Hys<T>;
@@ -76,6 +79,12 @@ public:
             case BlockNormalizerType::L1:
                 norm_ = L1{epsilon ? pybind11::cast<T>(*epsilon)
                                    : L1::Traits::regularization()};
+                break;
+            case BlockNormalizerType::L1Hys:
+                norm_ = L1Hys{
+                    clip ? pybind11::cast<T>(*clip) : L1Hys::Traits::clip(),
+                    epsilon ? pybind11::cast<T>(*epsilon)
+                            : L1Hys::Traits::regularization()};
                 break;
             case BlockNormalizerType::L2:
                 norm_ = L2{epsilon ? pybind11::cast<T>(*epsilon)
@@ -122,6 +131,12 @@ private:
         operator()(const L1& /*unused*/) const noexcept
         {
             return BlockNormalizerType::L1;
+        }
+
+        [[nodiscard]] constexpr BlockNormalizerType
+        operator()(const L1Hys& /*unused*/) const noexcept
+        {
+            return BlockNormalizerType::L1Hys;
         }
 
         [[nodiscard]] constexpr BlockNormalizerType
@@ -190,7 +205,8 @@ private:
     // clang-format off
     std::variant
     <
-          hogpp::L1Norm<T>
+          hogpp::L1Hys<T>
+        , hogpp::L1Norm<T>
         , hogpp::L1Sqrt<T>
         , hogpp::L2Hys<T>
         , hogpp::L2Norm<T>

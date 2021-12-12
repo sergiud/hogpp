@@ -28,6 +28,9 @@ bool type_caster<BlockNormalizerType>::load(handle src, bool /*unused*/)
     if (name == "l1") {
         value = BlockNormalizerType::L1;
     }
+    else if (name == "l1-hys") {
+        value = BlockNormalizerType::L1Hys;
+    }
     else if (name == "l2") {
         value = BlockNormalizerType::L2;
     }
@@ -53,6 +56,9 @@ handle type_caster<BlockNormalizerType>::cast(BlockNormalizerType in,
     switch (in) {
         case BlockNormalizerType::L1:
             result = "l1";
+            break;
+        case BlockNormalizerType::L1Hys:
+            result = "l1-hys";
             break;
         case BlockNormalizerType::L2:
             result = "l2";
