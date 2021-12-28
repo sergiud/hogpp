@@ -253,9 +253,8 @@ jobs:
       - name: Setup Dependencies
         run: |
           # pybind11 prior to version 2.9.0 causes compilation erros in debug
-          # builds that use Visual Studio 2022. Use a recent development version
-          # of pybind11 until the final version is released.
-          pip install git+https://github.com/pybind/pybind11.git@59aa99860c60bd171b9565e9920f125fdb749267
+          # builds that use Visual Studio 2022.
+          pip install pybind11>=2.9.0
           pip install -r requirements_dev.txt
 
       - name: Setup Environment
