@@ -89,6 +89,7 @@ jobs:
         shell: powershell
     env:
       CL: /MP
+      CXXFLAGS: /WX
     strategy:
       fail-fast: true
       matrix:

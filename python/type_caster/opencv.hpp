@@ -125,7 +125,14 @@ private:
         switch (shape.size()) {
             case 2: {
                 if (strides[0] > 0 && strides[1] == sizeof(T)) {
-                    std::vector<int> sizes{shape.begin(), shape.end()};
+                    std::vector<int> sizes;
+                    sizes.resize(shape.size());
+
+                    std::transform(shape.begin(), shape.end(), sizes.begin(),
+                                   [](pybind11::ssize_t value) constexpr {
+                                       return static_cast<int>(value);
+                                   });
+
                     std::vector<std::size_t> steps{strides.begin(),
                                                    strides.end()};
 
@@ -152,7 +159,13 @@ private:
                     if (strides[0] > 0 &&
                         strides[1] == static_cast<long>(sizeof(T)) * channels &&
                         strides[2] == static_cast<long>(sizeof(T))) {
-                        std::vector<int> sizes{shape.begin(), shape.end()};
+                        std::vector<int> sizes;
+                        sizes.resize(shape.size());
+
+                        std::transform(
+                            shape.begin(), shape.end(), sizes.begin(),
+                            [](pybind11::ssize_t value)
+                                constexpr { return static_cast<int>(value); });
                         std::vector<std::size_t> steps{strides.begin(),
                                                        strides.end()};
 
