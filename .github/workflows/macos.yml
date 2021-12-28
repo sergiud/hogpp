@@ -147,9 +147,11 @@ jobs:
           echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
 
       - name: Configure
+        env:
+          Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}  \
-                -DPython_ROOT_DIR=${{env.pythonLocation}} \
+                -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
                 -G Ninja
 
       - name: Build

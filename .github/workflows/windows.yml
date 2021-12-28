@@ -41,6 +41,10 @@ jobs:
             mingw-w64-${{matrix.env}}-python-numpy
             mingw-w64-${{matrix.env}}-python-pytest
 
+      - name: Setup Environment
+        run: |
+          echo "Python_ROOT=$(dirname $(dirname $(which python)))" >> $GITHUB_ENV
+
       - name: Setup Debug Environment
         if: ${{matrix.build_type == 'Debug'}}
         run: |
@@ -50,9 +54,10 @@ jobs:
         env:
           CXX: ${{matrix.env}}-w64-mingw32-g++
         run: |
-          cmake -S . -B build_${{matrix.build_type}}/ -G Ninja \
-            -DPython_EXECUTABLE:FILEPATH=$(which python) \
-            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+          cmake -S . -B build_${{matrix.build_type}}/ \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+            -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
+            -G Ninja
 
       - name: Build
         run: |
@@ -278,12 +283,14 @@ jobs:
           echo "HOGPPPATH=$((Get-Item .).FullName)/opencv/${{matrix.arch}}/vc17/bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Configure
+        env:
+          Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}/ `
                 -A ${{matrix.arch}} `
                 -DCMAKE_CONFIGURATION_TYPES=${{matrix.build_type}} `
                 -DCMAKE_INSTALL_PREFIX:PATH=./install `
-                -DPython_ROOT_DIR=${{env.pythonLocation}} `
+                -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON `
                 -G "${{matrix.generator}}"
 
       - name: Build
