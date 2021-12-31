@@ -20,8 +20,14 @@ additionally contrast-normalized.
 
 * C++ templated implementation
 * Python support with 32, 64, and 80 bit floating point precision
-* Unrestricted input size (e.g., compared to OpenCV that requires powers of two
-  input)
+* Unrestricted input size (e.g., OpenCV as of version 4.5.5 requires the input
+  to be a [multiple of the block
+  size](https://github.com/opencv/opencv/blob/5f249a3e67bfe3627e184bf5535da64daeaeb1c8/modules/objdetect/src/hog.cpp#L95-L96))
+* Masking support
+
+For a complete summary of differences between HOGpp and existing
+implementations, refer to the [feature
+matrix](#comparison-to-existing-libraries) below.
 
 ## Requirements
 
@@ -53,6 +59,18 @@ desc.compute(image)
 roi = (0, 0, 128, 64) # top left (row, column) size (height, width)
 X = desc(roi)
 ```
+
+## Comparison to Existing Libraries
+
+The following feature matrix summarizes the differences between existing
+implementations.
+
+| Library      | Signed Orientations | Custom Gradients |  Masking  | Arbitrary Input Size | Implementation |
+| :---         |        :---:        |       :---:      |   :---:   |        :---:         |     :---:      |
+| HOGpp        | ✔️                   | ✔️                | ✔️         | ✔️                    | C++            |
+| OpenCV       | ✔️                   | ✖                | ✖         | ✖                    | C++            |
+| scikit-image | ✖                   | ✖                | ✖         | ✔️                    | Cython/Python  |
+
 
 ## Differences to Dalal & Triggs Formulation
 
