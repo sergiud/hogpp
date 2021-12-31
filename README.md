@@ -32,6 +32,7 @@ matrix](#comparison-to-existing-libraries) below.
 ## Requirements
 
 * C++17 compiler
+* [Boost](https://www.boost.org) 1.70
 * [CMake](https://gitlab.kitware.com/cmake/cmake) 3.15
 * [Eigen](https://gitlab.com/libeigen/eigen) 3.4.0
 * [fmt](https://github.com/fmtlib/fmt) 6.0

@@ -18,6 +18,10 @@ find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 REQUIRED)
 find_package (Python 3.0 COMPONENTS Development Interpreter)
 
+if (NOT Boost_FOUND)
+  set (CMAKE_DISABLE_FIND_PACKAGE_pybind11 ON)
+endif (NOT Boost_FOUND)
+
 if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
   find_package (pybind11 2.9.0 NO_MODULE)
 else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
