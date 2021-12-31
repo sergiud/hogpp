@@ -17,6 +17,17 @@
 // limitations under the License.
 //
 
+#include <algorithm>
+#include <cstddef>
+
+#ifdef HAVE_EXECUTION
+#include <execution>
+#endif // HAVE_EXECUTION
+
+#include <boost/range/adaptor/indexed.hpp>
+#include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/iterator_range.hpp>
+
 #include <fmt/format.h>
 
 #include <pybind11/eigen.h>
@@ -24,6 +35,7 @@
 
 #include "formatter.hpp"
 #include "integralhogdescriptor.hpp"
+#include "type_caster/opencv.hpp"
 #include "type_caster/tensor.hpp"
 
 namespace {
@@ -402,6 +414,87 @@ pybind11::object IntegralHOGDescriptor::featuresROI(const cv::Rect& rect) const
                          return pybind11::cast(descriptor.features(rect));
                      },
                      descriptor_);
+}
+
+pybind11::object IntegralHOGDescriptor::featuresROIs(
+    const pybind11::iterable& rects) const
+{
+    auto extract = [&rects](auto& descriptor) {
+        using Scalar = typename std::decay_t<decltype(descriptor)>::Scalar;
+        using Tensor = std::decay_t<decltype(
+            descriptor.features(std::declval<cv::Rect>()))>;
+        using Dimensions =
+            std::decay_t<decltype(std::declval<Tensor>().dimensions())>;
+        constexpr auto NumDimensions = Tensor::NumDimensions;
+
+        const std::size_t n = pybind11::len(rects);
+        Eigen::Tensor<Scalar, NumDimensions + 1> features;
+
+        // TODO Replace by C++20 ranges
+        auto idxs =
+            boost::make_iterator_range(rects.begin(), rects.end()) |
+            boost::adaptors::transformed([](const pybind11::handle& rect) {
+                return pybind11::cast<cv::Rect>(rect);
+            }) |
+            boost::adaptors::indexed();
+
+        auto first = idxs.begin();
+        Dimensions one;
+        cv::Rect firstBounds;
+
+        if (n > 0) {
+            // Allocate memory once the bounds of the first element are known.
+            // We cannot perform the allocation within the for_each lambda
+            // because it will be possibly executed multiple times at the same
+            // time causing in a race condition. Therefore, we process the first
+            // element independently from the remaining ones.
+            firstBounds = first->value();
+            auto X = descriptor.features(firstBounds);
+            // Store the dimensions of a single tensor to ensure the bounds
+            // produce compatible tensors
+            one = X.dimensions();
+            std::array<Eigen::DenseIndex,
+                       static_cast<std::size_t>(NumDimensions) + 1>
+                dims;
+            dims.front() = static_cast<Eigen::DenseIndex>(n);
+            std::copy(X.dimensions().begin(), X.dimensions().end(),
+                      std::next(dims.begin()));
+
+            features.resize(dims);
+            features.template chip<0>(
+                static_cast<Eigen::DenseIndex>(first->index())) = X;
+
+            ++first;
+        }
+
+        auto assign = [&one, &firstBounds, &features, &descriptor](auto value) {
+            auto X = descriptor.features(value.value());
+
+            if (X.dimensions() != one) {
+                throw pybind11::value_error{fmt::format(
+                    "IntegralHOGDescriptor extraction of features from "
+                    "multiple regions requires all bounds to be of the same "
+                    "dimensions. however, the bounds at index 0 are different "
+                    "from those at index {} ({} vs. {})",
+                    value.index(), pybind11::cast(firstBounds),
+                    pybind11::cast(value.value()))};
+            }
+
+            features.template chip<0>(
+                static_cast<Eigen::DenseIndex>(value.index())) = X;
+        };
+
+        // Process the remaining bounds
+        std::for_each(
+#ifdef HAVE_EXECUTION
+            std::execution::par,
+#endif // HAVE_EXECUTION
+            first, idxs.end(), assign);
+
+        return pybind11::cast(features);
+    };
+
+    return isEmpty() ? pybind11::none{} : std::visit(extract, descriptor_);
 }
 
 std::tuple<int, int> IntegralHOGDescriptor::cellSize() const

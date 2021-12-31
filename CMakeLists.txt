@@ -9,6 +9,7 @@ project (hogpp
 set (CMAKE_CXX_VISIBILITY_PRESET hidden)
 set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
+include (CheckCXXSymbolExists)
 include (CTest)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework)
@@ -22,6 +23,8 @@ if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
 else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
   find_package (pybind11 2.6.2 NO_MODULE)
 endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+
+check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
 
 add_library (hogpp INTERFACE)
 add_library (hogpp::hogpp ALIAS hogpp)
@@ -68,7 +71,12 @@ if (pybind11_FOUND)
     python/magnitude.hpp
   )
 
+  if (HAVE_EXECUTION)
+    target_compile_definitions (pyhogpp PRIVATE HAVE_EXECUTION)
+  endif (HAVE_EXECUTION)
+
   target_link_libraries (pyhogpp PRIVATE
+    Boost::boost
     hogpp::hogpp
     python_type_caster
   )

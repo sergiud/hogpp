@@ -39,7 +39,10 @@ def test_descriptor_size(dtype):
 
     assert desc.features_.dtype == dtype
 
-    np.testing.assert_array_equal(desc.features_, desc([0, 0, *bounds]))
+    X = desc.features_
+
+    np.testing.assert_array_equal(X, desc([0, 0, *bounds]))
+    np.testing.assert_array_equal(X[np.newaxis], desc([[0, 0, *bounds]]))
     assert desc.features_.size == 3780
 
 
@@ -135,6 +138,7 @@ def test_vertical_gradient(dtype, block_norm, magnitude):
     desc.compute(image)
 
     assert desc([0, 0, 0, 0]).size == 0
+    assert desc([[0, 0, 0, 0]]).size == 0
     assert desc.histogram_.size != 0
 
     X = desc.features_.ravel()
@@ -378,3 +382,19 @@ def test_decay_to_double(dtype, horizontal_gradient_image):
     desc.compute(horizontal_gradient_image.astype(dtype))
 
     assert desc.features_.dtype == np.float_
+
+
+def test_empty_multiple_bounds(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image)
+
+    X = desc([])
+    np.testing.assert_array_equal(X.shape, (0, 0, 0, 0, 0, 0))
+
+
+@pytest.mark.xfail(raises=ValueError)
+def test_different_multiple_bounds(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image)
+
+    desc([[0, 0, 0, 0], [0, 0, 0, 0], [1, 2, 3, 4]])

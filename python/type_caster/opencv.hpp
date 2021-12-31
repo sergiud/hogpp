@@ -285,7 +285,7 @@ public:
             std::tie(value.y, value.x, value.height, value.width) =
                 pybind11::cast<std::tuple<T, T, T, T> >(src);
         }
-        catch (cast_error&) {
+        catch (const pybind11::builtin_exception&) {
             return false;
         }
 

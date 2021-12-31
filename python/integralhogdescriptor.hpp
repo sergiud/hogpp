@@ -216,6 +216,8 @@ public:
 
     [[nodiscard]] pybind11::object features() const;
     [[nodiscard]] pybind11::object featuresROI(const cv::Rect& rect) const;
+    [[nodiscard]] pybind11::object featuresROIs(
+        const pybind11::iterable& rects) const;
     [[nodiscard]] std::tuple<int, int> cellSize() const;
     [[nodiscard]] std::tuple<int, int> blockSize() const;
     [[nodiscard]] std::tuple<int, int> blockStride() const;

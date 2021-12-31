@@ -33,6 +33,7 @@ build:
     - cmake . -B build/
       -DCMAKE_BUILD_TYPE=Debug
       -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
+      -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb
       -GNinja
     - cmake --build build/
   cache:

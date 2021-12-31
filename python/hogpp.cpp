@@ -91,6 +91,12 @@ PYBIND11_MODULE(hogpp, m)
     )
     .def
     (
+          "__call__"
+        , &IntegralHOGDescriptor::featuresROIs
+        , py::arg("rois")
+    )
+    .def
+    (
           "__bool__"
         , &IntegralHOGDescriptor::operator bool
     )
