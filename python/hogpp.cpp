@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -154,6 +154,17 @@ PYBIND11_MODULE(hogpp, m)
     (
           "epsilon_"
         , &IntegralHOGDescriptor::epsilon
+    )
+    .def
+    (
+        py::pickle
+        (
+            [] (const IntegralHOGDescriptor& d)
+            {
+                return d.state();
+            }
+            , &IntegralHOGDescriptor::fromState
+        )
     )
     ;
     // clang-format off

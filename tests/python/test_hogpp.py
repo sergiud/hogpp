@@ -2,7 +2,7 @@
 # HOGpp - Fast histogram of oriented gradients computation using integral
 # histograms
 #
-# Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+# Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
         os.add_dll_directory(path)
 
 from hogpp import IntegralHOGDescriptor
+import copy
 import numpy as np
 import pytest
 
@@ -398,3 +399,44 @@ def test_different_multiple_bounds(horizontal_gradient_image):
     desc.compute(horizontal_gradient_image)
 
     desc([[0, 0, 0, 0], [0, 0, 0, 0], [1, 2, 3, 4]])
+
+
+@pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
+@pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
+@pytest.mark.parametrize('clip_norm', [0.2, 0.5, 1, 1e3])
+@pytest.mark.parametrize('epsilon', [0, 1e-5, 1, None])
+def test_pickle_empty_descriptor(block_norm, magnitude, clip_norm, epsilon):
+    desc = IntegralHOGDescriptor(
+        block_norm=block_norm, magnitude=magnitude, clip_norm=clip_norm, epsilon=epsilon)
+
+    desc1 = copy.deepcopy(desc)
+
+    assert not desc
+    assert desc.block_norm_ == desc1.block_norm_
+    assert desc.magnitude_ == desc1.magnitude_
+    assert desc.clip_norm_ == desc1.clip_norm_
+    assert desc.epsilon_ == desc1.epsilon_
+
+    np.testing.assert_array_equal(desc.features_, desc1.features_)
+    np.testing.assert_array_equal(desc.histogram_, desc1.histogram_)
+
+
+@pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
+@pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
+@pytest.mark.parametrize('clip_norm', [0.2, 0.5, 1, 1e3])
+@pytest.mark.parametrize('epsilon', [0, 1e-5, 1, None])
+def test_pickle_descriptor(block_norm, magnitude, clip_norm, epsilon, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor(
+        block_norm=block_norm, magnitude=magnitude, clip_norm=clip_norm, epsilon=epsilon)
+    desc.compute(horizontal_gradient_image)
+
+    desc1 = copy.deepcopy(desc)
+
+    assert desc
+    assert desc.block_norm_ == desc1.block_norm_
+    assert desc.magnitude_ == desc1.magnitude_
+    assert desc.clip_norm_ == desc1.clip_norm_
+    assert desc.epsilon_ == desc1.epsilon_
+
+    np.testing.assert_array_equal(desc.features_, desc1.features_)
+    np.testing.assert_array_equal(desc.histogram_, desc1.histogram_)

@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,21 @@
 #include "type_caster/tensor.hpp"
 
 namespace {
+
+template<class... Elements, std::size_t... Indices>
+[[nodiscard]] constexpr decltype(auto)
+    tuple_head(const std::tuple<Elements...>& t,
+               std::index_sequence<Indices...>)
+{
+    return std::forward_as_tuple(std::get<Indices>(t)...);
+}
+
+template<std::size_t N, class... Elements>
+[[nodiscard]] constexpr decltype(auto)
+    tuple_head(const std::tuple<Elements...>& t)
+{
+    return tuple_head(t, std::make_index_sequence<N>{});
+}
 
 template<class T>
 struct NativeScalar : NativeScalar<std::decay_t<T> >
@@ -278,9 +293,7 @@ void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
     pybind11::buffer image = t.buf;
     pybind11::buffer_info info = image.request();
 
-    descriptor_ = makeDescriptor(info, PrecisionTypes{});
-
-    update();
+    update(info);
 
     std::visit(
         [&image, &info, &mask](auto& descriptor) {
@@ -334,9 +347,7 @@ void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
 {
     pybind11::buffer_info info = dydx.buf1.buf.request();
 
-    descriptor_ = makeDescriptor(info, PrecisionTypes{});
-
-    update();
+    update(info);
 
     std::visit(
         [&dydx, &info, &mask](auto& descriptor) {
@@ -596,6 +607,12 @@ void IntegralHOGDescriptor::update()
         descriptor_);
 }
 
+void IntegralHOGDescriptor::update(const pybind11::buffer_info& info)
+{
+    descriptor_ = makeDescriptor(info, PrecisionTypes{});
+    update();
+}
+
 BinningType IntegralHOGDescriptor::binning() const
 {
     return std::visit(
@@ -657,4 +674,53 @@ pybind11::object IntegralHOGDescriptor::epsilon() const noexcept
 IntegralHOGDescriptor::operator bool() const noexcept
 {
     return !isEmpty();
+}
+
+IntegralHOGDescriptor::State IntegralHOGDescriptor::state() const
+{
+    // clang-format off
+    return std::make_tuple
+    (
+          cellSize_
+        , blockSize_
+        , blockStride_
+        , numBins_
+        , magnitudeType_
+        , binningType_
+        , blockNormalizerType_
+        , clipNorm_
+        , epsilon_
+        , histogram()
+    )
+    ;
+    // clang-format on
+}
+
+IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
+    const IntegralHOGDescriptor::State& value)
+{
+    constexpr auto N = std::tuple_size_v<State>;
+    constexpr auto N_minus_one = N - 1;
+
+    auto result = std::make_from_tuple<IntegralHOGDescriptor>(
+        tuple_head<N_minus_one>(value));
+
+    pybind11::object histogram = std::get<N_minus_one>(value);
+
+    if (!histogram.is_none()) {
+        auto X = pybind11::cast<pybind11::buffer>(histogram);
+        const pybind11::buffer_info& info = X.request();
+
+        // Histogram floating point type defines descriptor's working precision
+        result.update(info);
+
+        std::visit(
+            [&X](auto& descriptor) {
+                using Tensor = std::decay_t<decltype(descriptor.histogram())>;
+                descriptor.setHistogram(pybind11::cast<Tensor>(X));
+            },
+            result.descriptor_);
+    }
+
+    return result;
 }

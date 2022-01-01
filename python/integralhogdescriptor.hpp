@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -198,6 +198,27 @@ using Rank2Or3TensorPair = RankNTensorPair<2, 3>;
 class IntegralHOGDescriptor
 {
 public:
+    // Unfortunately, it is not possible to extract the argument types of a
+    // constructor (particularly, because a class may define multiple
+    // constructors implicitly). We therefore need to write the constructor
+    // signature explicitly.
+
+    // clang-format off
+    using State = std::tuple
+    <
+          std::optional<Eigen::Array2i>
+        , std::optional<Eigen::Array2i>
+        , std::optional<Eigen::Array2i>
+        , std::optional<pybind11::int_>
+        , std::optional<MagnitudeType>
+        , std::optional<BinningType>
+        , std::optional<BlockNormalizerType>
+        , std::optional<std::variant<pybind11::int_, pybind11::float_> >
+        , std::optional<std::variant<pybind11::int_, pybind11::float_> >
+        , pybind11::object
+    >;
+    // clang-format on
+
     [[nodiscard]] explicit IntegralHOGDescriptor(
         const std::optional<Eigen::Array2i>& cellSize,
         const std::optional<Eigen::Array2i>& blockSize,
@@ -230,14 +251,18 @@ public:
     [[nodiscard]] pybind11::object epsilon() const noexcept;
     [[nodiscard]] explicit operator bool() const noexcept;
 
+    [[nodiscard]] State state() const;
+    [[nodiscard]] static IntegralHOGDescriptor fromState(const State& value);
+
 private:
     [[nodiscard]] bool isEmpty() const noexcept;
     void update();
+    void update(const pybind11::buffer_info& info);
 
     std::optional<Eigen::Array2i> cellSize_;
     std::optional<Eigen::Array2i> blockSize_;
     std::optional<Eigen::Array2i> blockStride_;
-    std::optional<int> numBins_;
+    std::optional<pybind11::int_> numBins_;
     std::optional<MagnitudeType> magnitudeType_;
     std::optional<BinningType> binningType_;
     std::optional<BlockNormalizerType> blockNormalizerType_;

@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -538,6 +538,13 @@ public:
     [[nodiscard]] const Eigen::Tensor<Scalar, 3>& histogram() const noexcept
     {
         return histogram_;
+    }
+
+    template<class Derived>
+    void setHistogram(
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& value)
+    {
+        histogram_ = value.eval();
     }
 
     [[nodiscard]] bool isEmpty() const noexcept
