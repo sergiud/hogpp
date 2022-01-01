@@ -78,16 +78,17 @@ using NativeScalar_t = typename NativeScalar<T>::type;
 template<class Function>
 [[maybe_unused]] constexpr void matToTensorRank2(
     [[maybe_unused]] const cv::Mat& image, [[maybe_unused]] Function&& func,
-    Types<> /*unused*/)
+    TypeSequence<> /*unused*/)
 {
 }
 
 template<class Function, class Arg, class... Args>
 [[maybe_unused]] void matToTensorRank2(const cv::Mat& image, Function&& func,
-                                       Types<Arg, Args...> /*unused*/)
+                                       TypeSequence<Arg, Args...> /*unused*/)
 {
     if (image.depth() != cv::DataDepth<Arg>::value) {
-        matToTensorRank2(image, std::forward<Function>(func), Types<Args...>{});
+        matToTensorRank2(image, std::forward<Function>(func),
+                         TypeSequence<Args...>{});
     }
     else {
         Eigen::TensorMap<const Eigen::Tensor<Arg, 2, Eigen::RowMajor> > t{
@@ -101,16 +102,17 @@ template<class Function, class Arg, class... Args>
 template<class Function>
 [[maybe_unused]] constexpr void matToTensorRank3(
     [[maybe_unused]] const cv::Mat& image, [[maybe_unused]] Function&& func,
-    Types<> /*unused*/)
+    TypeSequence<> /*unused*/)
 {
 }
 
 template<class Function, class Arg, class... Args>
 [[maybe_unused]] void matToTensorRank3(const cv::Mat& image, Function&& func,
-                                       Types<Arg, Args...> /*unused*/)
+                                       TypeSequence<Arg, Args...> /*unused*/)
 {
     if (image.depth() != cv::DataDepth<Arg>::value) {
-        matToTensorRank3(image, std::forward<Function>(func), Types<Args...>{});
+        matToTensorRank3(image, std::forward<Function>(func),
+                         TypeSequence<Args...>{});
     }
     else {
         Eigen::TensorMap<const Eigen::Tensor<Arg, 3, Eigen::RowMajor> > t{
@@ -126,7 +128,7 @@ template<class Function>
 void bufferToTensor( // LCOV_EXCL_LINE
     [[maybe_unused]] const pybind11::buffer& image,
     [[maybe_unused]] const pybind11::buffer_info& info,
-    [[maybe_unused]] Function&& func, Types<> /*unused*/)
+    [[maybe_unused]] Function&& func, TypeSequence<> /*unused*/)
 {
 }
 
@@ -150,11 +152,11 @@ template<class Arg>
 template<class Function, class Arg, class... Args>
 void bufferToTensor(const pybind11::buffer& image,
                     const pybind11::buffer_info& info, Function&& func,
-                    Types<Arg, Args...> /*unused*/)
+                    TypeSequence<Arg, Args...> /*unused*/)
 {
     if (info.format != pybind11::format_descriptor<Arg>::format()) {
         bufferToTensor(image, info, std::forward<Function>(func),
-                       Types<Args...>{});
+                       TypeSequence<Args...>{});
     }
     else {
         func(extend<Arg>(image, info));
@@ -164,7 +166,7 @@ void bufferToTensor(const pybind11::buffer& image,
 template<long... Ranks, class Function, class... Args>
 void bufferToTensor(const RankNTensorPair<Ranks...>& p,
                     const pybind11::buffer_info& info, Function&& func,
-                    Types<Args...> types)
+                    TypeSequence<Args...> types)
 {
     auto convert = [&p, &func, &info](const auto& t) {
         using T = typename std::decay_t<decltype(t)>::Scalar;
@@ -263,8 +265,8 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
 
 template<class... Args>
 [[nodiscard]] DescriptorVariant makeDescriptor(
-    [[maybe_unused]] const pybind11::buffer_info& info, Types<> /*unused*/,
-    Args&&... args)
+    [[maybe_unused]] const pybind11::buffer_info& info,
+    TypeSequence<> /*unused*/, Args&&... args)
     noexcept(std::is_nothrow_constructible_v<Descriptor<double>, Args...>)
 {
     // Default descriptor instance if floating point was not matched against
@@ -274,14 +276,14 @@ template<class... Args>
 
 template<class Scalar, class... Scalars, class... Args>
 [[nodiscard]] DescriptorVariant makeDescriptor(
-    const pybind11::buffer_info& info, Types<Scalar, Scalars...> /*unused*/,
-    Args&&... args)
+    const pybind11::buffer_info& info,
+    TypeSequence<Scalar, Scalars...> /*unused*/, Args&&... args)
 {
     if (info.format == pybind11::format_descriptor<Scalar>::format()) {
         return Descriptor<Scalar>(std::forward<Args>(args)...);
     }
 
-    return makeDescriptor(info, Types<Scalars...>{},
+    return makeDescriptor(info, TypeSequence<Scalars...>{},
                           std::forward<Args>(args)...);
 }
 

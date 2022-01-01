@@ -36,11 +36,7 @@
 #include "binning.hpp"
 #include "blocknormalizer.hpp"
 #include "magnitude.hpp"
-
-template<class... Args>
-struct Types
-{
-};
+#include "type_caster/typesequence.hpp"
 
 template<class T>
 using Descriptor =
@@ -54,7 +50,7 @@ struct MakeDescriptorVariant_t
 };
 
 template<class... T>
-struct MakeDescriptorVariant_t<Types<T...> >
+struct MakeDescriptorVariant_t<TypeSequence<T...> >
 {
     using type = std::variant<Descriptor<T>...>;
 };
@@ -64,13 +60,13 @@ using MakeDescriptorVariant = typename MakeDescriptorVariant_t<T...>::type;
 
 // Supported underlying floating point types. Internal computations are
 // performed using one of the type which is determined from the input.
-using PrecisionTypes = Types<float, double, long double>;
+using PrecisionTypes = TypeSequence<float, double, long double>;
 // std::variant of descriptor of the supported precision types
 using DescriptorVariant = MakeDescriptorVariant<PrecisionTypes>;
 // Supported input types. Avoid using <cstdint> types because they can differ
 // between compilers. Instead, rely on standard types.
 // clang-format off
-using SupportedTypes = Types
+using SupportedTypes = TypeSequence
 <
       bool
     , double
@@ -144,7 +140,8 @@ public:
 private:
     template<class... T>
     [[nodiscard]] static constexpr bool compatible(
-        const pybind11::buffer_info& info, Types<T...> /*unused*/) noexcept
+        const pybind11::buffer_info& info,
+        TypeSequence<T...> /*unused*/) noexcept
     {
         return ((info.format == pybind11::format_descriptor<T>::format()) ||
                 ...);

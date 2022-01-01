@@ -36,11 +36,7 @@
 
 #include "cartesianproduct.hpp"
 #include "stride.hpp"
-
-template<class... T>
-struct TypeSequence
-{
-};
+#include "typesequence.hpp"
 
 [[noreturn]] inline std::string depthToFormat(
     [[maybe_unused]] int depth, [[maybe_unused]] TypeSequence<> /*unused*/)

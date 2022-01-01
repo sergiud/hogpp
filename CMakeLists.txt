@@ -48,9 +48,12 @@ target_link_libraries (hogpp INTERFACE
 
 if (pybind11_FOUND)
   add_library (python_type_caster STATIC
+    python/type_caster/cartesianproduct.hpp
     python/type_caster/opencv.cpp
     python/type_caster/opencv.hpp
+    python/type_caster/stride.hpp
     python/type_caster/tensor.hpp
+    python/type_caster/typesequence.hpp
   )
 
   target_compile_features (python_type_caster PUBLIC cxx_std_17)
