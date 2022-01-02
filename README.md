@@ -19,11 +19,12 @@ additionally contrast-normalized.
 ## Features
 
 * C++ templated implementation
-* Python support with 32, 64, and 80 bit floating point precision
+* Python support for 32, 64, and 80 bit floating point precision
 * Unrestricted input size (e.g., OpenCV as of version 4.5.5 requires the input
   to be a [multiple of the block
   size](https://github.com/opencv/opencv/blob/5f249a3e67bfe3627e184bf5535da64daeaeb1c8/modules/objdetect/src/hog.cpp#L95-L96))
-* Masking support
+* Masking support (i.e., spatial exclusion of gradient magnitudes from
+  contributing to features)
 
 For a complete summary of differences between HOGpp and existing
 implementations, refer to the [feature
