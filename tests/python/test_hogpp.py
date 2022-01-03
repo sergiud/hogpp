@@ -266,6 +266,18 @@ def test_invalid_bounds(bounds):
     desc(bounds)
 
 
+@pytest.mark.parametrize('bounds', [[64, 32, 32, 32], [64, 32, 64, 16]])
+def test_valid_bounds(bounds):
+    desc = IntegralHOGDescriptor()
+
+    image = np.random.rand(128, 64)
+    desc.compute(image)
+
+    X = desc(bounds)
+
+    assert X.size > 0
+
+
 @pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
 @pytest.mark.parametrize('channels', [0, 1, 3, 4])
 @pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])

@@ -382,16 +382,18 @@ public:
                             dims.y())};
         }
 
+        const auto dimX = histogram_.dimension(0) - 1;
+        const auto dimY = histogram_.dimension(1) - 1;
         const Eigen::Array2i offset{roi.y, roi.x};
 
-        if (offset.x() < 0 || dims.x() - offset.x() < 0) {
+        if (offset.x() < 0 || dimX - offset.x() < 0) {
             throw std::invalid_argument{fmt::format(
                 "IntegralHOGDescriptor features cannot be extracted from a "
                 "region outside of the input domain specified by the row {}",
                 offset.x())};
         }
 
-        if (offset.y() < 0 || dims.y() - offset.x() < 0) {
+        if (offset.y() < 0 || dimY - offset.y() < 0) {
             throw std::invalid_argument{fmt::format(
                 "IntegralHOGDescriptor features cannot be extracted from a "
                 "region outside of the input domain specified by the column {}",
@@ -400,14 +402,14 @@ public:
 
         const Eigen::Array2i br = offset + dims;
 
-        if (br.x() > histogram_.dimension(0) - 1) {
+        if (br.x() > dimX) {
             throw std::invalid_argument{fmt::format(
                 "IntegralHOGDescriptor features cannot be extracted from a "
                 "region larger than the input domain with the bottom row {}",
                 br.x() - 1)};
         }
 
-        if (br.y() > histogram_.dimension(1) - 1) {
+        if (br.y() > dimY) {
             throw std::invalid_argument{fmt::format(
                 "IntegralHOGDescriptor features cannot be extracted from a "
                 "region larger than the input domain with the right column {}",
