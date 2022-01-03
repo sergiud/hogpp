@@ -58,6 +58,7 @@ if (pybind11_FOUND)
 
   target_compile_features (python_type_caster PUBLIC cxx_std_17)
   target_link_libraries (python_type_caster PUBLIC
+    Eigen3::Eigen
     opencv_core
     pybind11::pybind11
   )

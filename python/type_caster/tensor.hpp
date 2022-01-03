@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,9 +22,11 @@
 
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <type_traits>
+#include <utility>
 
 #include <pybind11/buffer_info.h>
 #include <pybind11/cast.h>
@@ -42,13 +44,52 @@ template<class T, std::size_t N, std::size_t... Indices>
 }
 
 template<class T, std::size_t N, std::size_t... Indices>
-[[nodiscard]] constexpr auto strides(
-    const std::array<Eigen::DenseIndex, N>& values,
-    std::index_sequence<Indices...> /*unused*/) noexcept
+[[nodiscard]] constexpr decltype(auto)
+    f_strides(const std::array<Eigen::DenseIndex, N>& values,
+              std::index_sequence<Indices...> /*unused*/) noexcept
 {
     return std::array<Eigen::DenseIndex, N>{
         prod<T>(values, std::make_index_sequence<Indices>{})...};
 }
+
+template<class T, std::size_t N>
+[[nodiscard]] constexpr decltype(auto)
+    f_strides(const std::array<Eigen::DenseIndex, N>& values) noexcept
+{
+    return f_strides<T>(values, std::make_index_sequence<N>{});
+}
+
+template<class T, std::size_t N>
+[[nodiscard]] constexpr decltype(auto)
+    c_strides(const std::array<Eigen::DenseIndex, N>& values) noexcept
+{
+    std::array<Eigen::DenseIndex, N> reversed;
+    std::reverse_copy(values.begin(), values.end(), reversed.begin());
+
+    std::array<Eigen::DenseIndex, N> tmp = f_strides<T>(reversed);
+
+    std::array<Eigen::DenseIndex, N> result;
+    std::reverse_copy(tmp.begin(), tmp.end(), result.begin());
+
+    return result;
+}
+
+template<int Options>
+struct RowMajor_t
+    : std::bool_constant<(Options & Eigen::RowMajor) == Eigen::RowMajor>
+{
+};
+
+template<int Options>
+struct ColMajor_t : std::bool_constant<!RowMajor_t<Options>::value>
+{
+};
+
+template<int Options>
+inline constexpr bool RowMajor_v = RowMajor_t<Options>::value;
+
+template<int Options>
+inline constexpr bool ColMajor_v = ColMajor_t<Options>::value;
 
 namespace pybind11::detail {
 
@@ -107,31 +148,102 @@ public:
         return true;
     }
 
-    static handle cast(Tensor in, return_value_policy /* policy */,
+    template<class TensorType>
+    static handle cast(TensorType&& in, return_value_policy policy,
                        handle /* parent */)
     {
-        return convert(in);
+        switch (policy) {
+            case return_value_policy::automatic:
+                if constexpr (std::is_rvalue_reference_v<TensorType>) {
+                    return move(std::forward<TensorType>(in));
+                }
+                // copy l-value references
+                break;
+            case return_value_policy::automatic_reference:
+            case return_value_policy::reference:
+            case return_value_policy::reference_internal:
+                return reference(std::forward<TensorType>(in));
+            case return_value_policy::move:
+            case return_value_policy::take_ownership:
+                if constexpr (!std::is_const_v<TensorType>) {
+                    return move(std::forward<TensorType>(in));
+                }
+            case return_value_policy::copy:
+                // Delegate to default handler
+                break;
+        }
+
+        // automatic & copy
+        return copy(std::forward<TensorType>(in)); // LCOV_EXCL_LINE
     }
 
 private:
-    template<class Scalar, int Dims, int Options>
-    static handle convert(Eigen::Tensor<Scalar, Dims, Options> t)
+    template<class TensorType>
+    [[nodiscard]] static handle reference(TensorType&& t)
     {
-        auto* p = new Tensor{std::move(t)};
-
-        capsule cleanup{p, [](void* p) { delete static_cast<Tensor*>(p); }};
-        constexpr auto N = static_cast<std::size_t>(Dims);
+        using NonRefTensor = std::decay_t<TensorType>;
+        using Scalar = typename NonRefTensor::Scalar;
+        constexpr auto N =
+            static_cast<std::size_t>(NonRefTensor::NumDimensions);
 
         const std::array<Eigen::DenseIndex, N> s =
-            strides<Scalar>(p->dimensions(), std::make_index_sequence<N>{});
+            strides<Scalar, NonRefTensor::NumDimensions, NonRefTensor::Options>(
+                t.dimensions());
 
-        constexpr auto style = (Options & Eigen::ColMajor) == Eigen::ColMajor
-                                   ? array::f_style
-                                   : array::c_style;
+        buffer_info info{const_cast<Scalar*>(t.data()), t.dimensions(),
+                         std::vector<pybind11::ssize_t>{s.begin(), s.end()},
+                         std::is_const_v<TensorType>};
 
-        array_t<Scalar, style> result{
-            p->dimensions(), std::vector<Eigen::DenseIndex>{s.begin(), s.end()},
-            p->data(), cleanup};
+        return array{info}.release();
+    }
+
+    template<class TensorType>
+    [[nodiscard]] static handle move(TensorType&& t)
+    {
+        using NonRefTensor = std::decay_t<TensorType>;
+        using Scalar = typename NonRefTensor::Scalar;
+
+        constexpr auto N = NonRefTensor::NumDimensions;
+        constexpr auto Options = NonRefTensor::Options;
+
+        auto* p = new Tensor{std::forward<TensorType>(t)};
+        return take<Scalar, N, Options>(p);
+    }
+
+    template<class Scalar, int N, int Options>
+    [[nodiscard]] static handle copy(const Eigen::Tensor<Scalar, N, Options>& t)
+    {
+        auto* p = new Tensor{t};
+        return take<Scalar, N, Options>(p);
+    }
+
+    template<class Scalar, std::size_t N, int Options,
+             std::enable_if_t<RowMajor_v<Options> >* = nullptr>
+    [[nodiscard]] constexpr static decltype(auto)
+        strides(const std::array<Eigen::DenseIndex, N>& dimensions) noexcept
+    {
+        return ::c_strides<Scalar>(dimensions);
+    }
+
+    template<class Scalar, std::size_t N, int Options,
+             std::enable_if_t<ColMajor_v<Options> >* = nullptr>
+    [[nodiscard]] constexpr static decltype(auto)
+        strides(const std::array<Eigen::DenseIndex, N>& dimensions) noexcept
+    {
+        return ::f_strides<Scalar>(dimensions);
+    }
+
+    template<class Scalar, std::size_t N, int Options>
+    [[nodiscard]] static handle take(Tensor* p)
+    {
+        capsule cleanup{p, [](void* p) { delete static_cast<Tensor*>(p); }};
+
+        const std::array<Eigen::DenseIndex, N> s =
+            strides<Scalar, N, Options>(p->dimensions());
+
+        array result{p->dimensions(),
+                     std::vector<pybind11::ssize_t>{s.begin(), s.end()},
+                     p->data(), cleanup};
 
         return result.release();
     }

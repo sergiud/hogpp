@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,38 +59,39 @@ void init_opencv(pybind11::module& m)
     // clang-format on
 }
 
+template<int Options>
 void init_tensor(pybind11::module& m)
 {
     // clang-format off
     m.def
     (
         "pass_"
-        , &pass<Eigen::Tensor<float, 0> >
+        , &pass<Eigen::Tensor<float, 0, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<float, 1> >
+        , &pass<Eigen::Tensor<float, 1, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<float, 2> >
+        , &pass<Eigen::Tensor<float, 2, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<float, 3> >
+        , &pass<Eigen::Tensor<float, 3, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<float, 4> >
+        , &pass<Eigen::Tensor<float, 4, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<float, 5> >
+        , &pass<Eigen::Tensor<float, 5, Options> >
     )
     ;
     // clang-format on
@@ -99,32 +100,32 @@ void init_tensor(pybind11::module& m)
     m.def
     (
         "pass_"
-        , &pass<Eigen::Tensor<double, 0> >
+        , &pass<Eigen::Tensor<double, 0, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<double, 1> >
+        , &pass<Eigen::Tensor<double, 1, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<double, 2> >
+        , &pass<Eigen::Tensor<double, 2, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<double, 3> >
+        , &pass<Eigen::Tensor<double, 3, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<double, 4> >
+        , &pass<Eigen::Tensor<double, 4, Options> >
     )
     .def
     (
         "pass_"
-        , &pass<Eigen::Tensor<double, 5> >
+        , &pass<Eigen::Tensor<double, 5, Options> >
     )
     ;
     // clang-format on
@@ -135,8 +136,12 @@ void init_tensor(pybind11::module& m)
 PYBIND11_MODULE(type_caster_test, m)
 {
     auto tensor = m.def_submodule("tensor");
+    auto f_style = tensor.def_submodule("f_style");
+    auto c_style = tensor.def_submodule("c_style");
+
     auto opencv = m.def_submodule("opencv");
 
     init_opencv(opencv);
-    init_tensor(tensor);
+    init_tensor<Eigen::ColMajor>(f_style);
+    init_tensor<Eigen::RowMajor>(c_style);
 }

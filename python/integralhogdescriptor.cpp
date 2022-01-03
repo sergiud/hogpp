@@ -408,12 +408,15 @@ void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
 
 pybind11::object IntegralHOGDescriptor::features() const
 {
-    return isEmpty() ? pybind11::none{}
-                     : std::visit(
-                           [](auto& descriptor) {
-                               return pybind11::cast(descriptor.features());
-                           },
-                           descriptor_);
+    return isEmpty()
+               ? pybind11::none{}
+               : std::visit(
+                     [](auto& descriptor) {
+                         return pybind11::cast(
+                             descriptor.features(),
+                             pybind11::return_value_policy::reference_internal);
+                     },
+                     descriptor_);
 }
 
 pybind11::object IntegralHOGDescriptor::featuresROI(const cv::Rect& rect) const
@@ -423,7 +426,9 @@ pybind11::object IntegralHOGDescriptor::featuresROI(const cv::Rect& rect) const
                ? pybind11::array{}
                : std::visit(
                      [&rect](auto& descriptor) {
-                         return pybind11::cast(descriptor.features(rect));
+                         return pybind11::cast(
+                             descriptor.features(rect),
+                             pybind11::return_value_policy::move);
                      },
                      descriptor_);
 }
@@ -528,7 +533,7 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
 
         pybind11::gil_scoped_acquire acquire;
 
-        return pybind11::cast(features);
+        return pybind11::cast(std::move(features));
     };
 
     return isEmpty() ? pybind11::none{} : std::visit(extract, descriptor_);
