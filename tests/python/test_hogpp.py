@@ -401,6 +401,19 @@ def test_different_multiple_bounds(horizontal_gradient_image):
     desc([[0, 0, 0, 0], [0, 0, 0, 0], [1, 2, 3, 4]])
 
 
+def test_multiple_bounds(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image)
+
+    X1, X2 = desc([[0, 0, 0, 0], [0, 0, 0, 0]])
+
+    np.testing.assert_array_equal(X1, X2)
+
+    Y1, Y2 = desc([[0, 0, 3, 4], [0, 0, 3, 4]])
+
+    np.testing.assert_array_equal(Y1, Y2)
+
+
 @pytest.mark.parametrize('block_norm', ['l1', 'l1-hys', 'l2', 'l2-hys', 'l1-sqrt'])
 @pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
 @pytest.mark.parametrize('clip_norm', [0.2, 0.5, 1, 1e3])

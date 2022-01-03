@@ -44,6 +44,7 @@ jobs:
             libboost-test-dev \
             libfmt-dev \
             libopencv-dev \
+            libtbb-dev \
             ninja-build
 
           pip install -r requirements_dev.txt
@@ -83,7 +84,7 @@ jobs:
 
       - name: Configure
         env:
-          CXXFLAGS: -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Wno-attributes -Werror ${{env.CXXFLAGS}}
+          CXXFLAGS: -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Wno-attributes -Werror -Wl,-ltbb ${{env.CXXFLAGS}}
           Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build_${{matrix.build_type}} \

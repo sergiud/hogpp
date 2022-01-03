@@ -35,6 +35,7 @@ jobs:
             mingw-w64-${{matrix.env}}-eigen3
             mingw-w64-${{matrix.env}}-fmt
             mingw-w64-${{matrix.env}}-gcc
+            mingw-w64-${{matrix.env}}-intel-tbb
             mingw-w64-${{matrix.env}}-lld
             mingw-w64-${{matrix.env}}-ninja
             mingw-w64-${{matrix.env}}-opencv
@@ -60,7 +61,7 @@ jobs:
       - name: Configure
         env:
           CXX: ${{matrix.env}}-w64-mingw32-g++
-          CXXFLAGS: -fuse-ld=lld -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}
+          CXXFLAGS: -fuse-ld=lld -Wl,-ltbb -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}/ \
                 -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \

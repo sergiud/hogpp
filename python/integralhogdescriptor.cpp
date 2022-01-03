@@ -19,14 +19,13 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <vector>
 
 #ifdef HAVE_EXECUTION
 #include <execution>
 #endif // HAVE_EXECUTION
 
 #include <boost/range/adaptor/indexed.hpp>
-#include <boost/range/adaptor/transformed.hpp>
-#include <boost/range/iterator_range.hpp>
 
 #include <fmt/format.h>
 
@@ -436,24 +435,57 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
         using Scalar = typename std::decay_t<decltype(descriptor)>::Scalar;
         using Tensor = std::decay_t<decltype(
             descriptor.features(std::declval<cv::Rect>()))>;
-        using Dimensions =
-            std::decay_t<decltype(std::declval<Tensor>().dimensions())>;
         constexpr auto NumDimensions = Tensor::NumDimensions;
 
         const std::size_t n = pybind11::len(rects);
         Eigen::Tensor<Scalar, NumDimensions + 1> features;
 
-        // TODO Replace by C++20 ranges
-        auto idxs =
-            boost::make_iterator_range(rects.begin(), rects.end()) |
-            boost::adaptors::transformed([](const pybind11::handle& rect) {
-                return pybind11::cast<cv::Rect>(rect);
-            }) |
-            boost::adaptors::indexed();
+        // Greedily convert bounds to be able to release the GIL for
+        // multithreaded processing
+        std::vector<cv::Rect> bounds;
+        bounds.resize(n);
 
-        auto first = idxs.begin();
-        Dimensions one;
+        std::transform(rects.begin(), rects.end(), bounds.begin(),
+                       [](const pybind11::handle& rect) {
+                           return pybind11::cast<cv::Rect>(rect);
+                       });
+
         cv::Rect firstBounds;
+
+        // Check for compatible bounds upfront. We cannot perform the check in
+        // the for_each lambda because throwing an exception from the lambda
+        // when using the parallel version of for_each causes segmentation
+        // faults.
+        if (!bounds.empty()) {
+            firstBounds = bounds.front();
+
+            auto pos = std::find_if_not(std::next(bounds.begin()), bounds.end(),
+                                        [&bounds](const cv::Rect& value) {
+                                            return bounds.front().size() ==
+                                                   value.size();
+                                        });
+
+            if (pos != bounds.end()) {
+                auto index = std::distance(bounds.begin(), pos);
+
+                throw pybind11::value_error{fmt::format(
+                    "IntegralHOGDescriptor extraction of features from "
+                    "multiple regions requires all bounds to be of the same "
+                    "dimensions. however, the bounds at index 0 are different "
+                    "from those at index {} ({} vs. {})",
+                    index, pybind11::cast(bounds.front()),
+                    pybind11::cast(*pos))};
+            }
+        }
+
+        // TODO Replace by C++20 ranges
+        auto tmp = std::as_const(bounds) | boost::adaptors::indexed();
+        // Unfortunately, we also need to greedily evaluate the indexed sequence
+        // because std::for_each will not run in parallel with a forward
+        // iterator.
+        const std::vector idxs(tmp.begin(), tmp.end());
+
+        auto first = idxs.cbegin();
 
         if (n > 0) {
             // Allocate memory once the bounds of the first element are known.
@@ -461,11 +493,9 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
             // because it will be possibly executed multiple times at the same
             // time causing in a race condition. Therefore, we process the first
             // element independently from the remaining ones.
-            firstBounds = first->value();
             auto X = descriptor.features(firstBounds);
             // Store the dimensions of a single tensor to ensure the bounds
             // produce compatible tensors
-            one = X.dimensions();
             std::array<Eigen::DenseIndex,
                        static_cast<std::size_t>(NumDimensions) + 1>
                 dims;
@@ -480,29 +510,23 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
             ++first;
         }
 
-        auto assign = [&one, &firstBounds, &features, &descriptor](auto value) {
+        auto assign = [&features, &descriptor](auto value) {
             auto X = descriptor.features(value.value());
-
-            if (X.dimensions() != one) {
-                throw pybind11::value_error{fmt::format(
-                    "IntegralHOGDescriptor extraction of features from "
-                    "multiple regions requires all bounds to be of the same "
-                    "dimensions. however, the bounds at index 0 are different "
-                    "from those at index {} ({} vs. {})",
-                    value.index(), pybind11::cast(firstBounds),
-                    pybind11::cast(value.value()))};
-            }
 
             features.template chip<0>(
                 static_cast<Eigen::DenseIndex>(value.index())) = X;
         };
+
+        pybind11::gil_scoped_release release;
 
         // Process the remaining bounds
         std::for_each(
 #ifdef HAVE_EXECUTION
             std::execution::par,
 #endif // HAVE_EXECUTION
-            first, idxs.end(), assign);
+            first, idxs.cend(), assign);
+
+        pybind11::gil_scoped_acquire acquire;
 
         return pybind11::cast(features);
     };
