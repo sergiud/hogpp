@@ -140,9 +140,19 @@ public:
                 return false;
             }
 
-            copy(static_cast<const std::uint8_t*>(info.ptr), info.shape,
-                 info.strides,
-                 std::make_index_sequence<Tensor::NumDimensions>{});
+            bool fallback = true;
+
+            if constexpr (Tensor::NumDimensions > 0) {
+                fallback = !contiguous(info, a);
+            }
+
+            if (fallback) {
+                // Non-contiguous memory requires taking the strides into
+                // consideration
+                copy(static_cast<const std::uint8_t*>(info.ptr), info.shape,
+                     info.strides,
+                     std::make_index_sequence<Tensor::NumDimensions>{});
+            }
         }
 
         return true;
@@ -178,6 +188,115 @@ public:
     }
 
 private:
+    // clang-format off
+    template<bool RowMajor>
+    static constexpr auto Style_v = std::conditional_t
+    <
+          RowMajor
+        , std::integral_constant<int, array::c_style>
+        , std::integral_constant<int, array::f_style>
+    >::value;
+    // clang-format on
+
+    template<bool RowMajor>
+    using Comparer_t =
+        std::conditional_t<RowMajor, std::greater<>, std::less<> >;
+
+    [[nodiscard]] bool contiguous(const pybind11::buffer_info& info,
+                                  const pybind11::array& a) noexcept
+    {
+        using Scalar = typename Tensor::Scalar;
+
+        constexpr auto style = Style_v<RowMajor_v<Tensor::Options> >;
+        constexpr auto otherStyle = Style_v<ColMajor_v<Tensor::Options> >;
+
+        // Contiguous layout of C-style arrays implies strides in descending
+        // order
+        using ThisComparer = Comparer_t<RowMajor_v<Tensor::Options> >;
+        // Contiguous layout of F-style arrays implies strides in ascending
+        // order
+        using OtherComparer = Comparer_t<ColMajor_v<Tensor::Options> >;
+
+        // Arrays can be both C-style and Fortran-style contiguous
+        // simultaneously. This is evidently true for 1-dimensional arrays, but
+        // can also be true for higher dimensional arrays.
+
+        // When matching the layout, we need to ensure that the stride is not
+        // arbitrary
+
+        // clang-format on
+        if ((a.flags() & style) == style &&
+            std::is_sorted(info.strides.begin(), info.strides.end(),
+                           ThisComparer{})) {
+            // Take a shortcut
+            value = map(static_cast<const Scalar*>(info.ptr), info.shape);
+        }
+        else if ((a.flags() & otherStyle) == otherStyle &&
+                 std::is_sorted(info.strides.begin(), info.strides.end(),
+                                OtherComparer{})) {
+            // If incompatible contiguous memory layout (i.e., compatible to
+            // the opposite layout, we can still construct a tensor and
+            // change the layout post hoc.
+            using OtherOptions_t = std::conditional_t<
+                ColMajor_v<Tensor::Options>,
+                std::integral_constant<int, Eigen::RowMajor>,
+                std::integral_constant<int, Eigen::ColMajor> >;
+
+            using MappedTensor = Eigen::Tensor<Scalar, Tensor::NumDimensions,
+                                               OtherOptions_t::value>;
+
+            value = reverseMap<MappedTensor>(
+                static_cast<const Scalar*>(info.ptr), info.shape);
+        }
+        else {
+            // Not contiguous layout
+            return false;
+        }
+
+        // Processed contiguous layout
+        return true;
+    }
+
+    template<class MappedTensor, class Ptr, std::size_t... Indices>
+    [[nodiscard]] constexpr static decltype(auto)
+        map(Ptr p, const std::vector<pybind11::ssize_t>& shape,
+            std::index_sequence<Indices...> /*unused*/) noexcept
+    {
+        static_assert(std::is_pointer_v<Ptr>, "Ptr must be a pointer");
+
+        using T =
+            std::conditional_t<std::is_const_v<std::remove_pointer_t<Ptr> >,
+                               std::add_const_t<MappedTensor>, MappedTensor>;
+
+        return Eigen::TensorMap<T>{p, shape[Indices]...};
+    }
+
+    template<class MappedTensor = Tensor, class Ptr>
+    [[nodiscard]] constexpr static decltype(auto)
+        map(Ptr p, const std::vector<pybind11::ssize_t>& shape) noexcept
+    {
+        return map<MappedTensor>(
+            p, shape, std::make_index_sequence<Tensor::NumDimensions>{});
+    }
+
+    template<class MappedTensor, class Ptr, std::size_t... Indices>
+    [[nodiscard]] constexpr static decltype(auto)
+        reverseMap(Ptr p, const std::vector<pybind11::ssize_t>& shape,
+                   std::index_sequence<Indices...> /*unused*/) noexcept
+    {
+        auto&& mapped = map<MappedTensor>(p, shape);
+        return mapped.swap_layout().shuffle(
+            std::array{(sizeof...(Indices) - Indices - 1)...});
+    }
+
+    template<class MappedTensor = Tensor, class Ptr>
+    [[nodiscard]] constexpr static decltype(auto)
+        reverseMap(Ptr p, const std::vector<pybind11::ssize_t>& shape) noexcept
+    {
+        return reverseMap<MappedTensor>(
+            p, shape, std::make_index_sequence<Tensor::NumDimensions>{});
+    }
+
     template<class TensorType>
     [[nodiscard]] static handle reference(TensorType&& t)
     {

@@ -29,6 +29,7 @@ import numpy as np
 import pytest
 
 styles = [ttt_f, ttt_c]
+layouts = [np.ascontiguousarray, np.asfortranarray]
 
 
 @pytest.mark.parametrize('style', styles)
@@ -38,53 +39,78 @@ def test_rank_0_tensor(style):
 
 
 @pytest.mark.parametrize('style', styles)
+@pytest.mark.parametrize('layout', layouts)
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
 @pytest.mark.parametrize('size0', list(range(0, 10, 2)) + list(range(1, 10, 2)))
-def test_rank_1_tensor(style, dtype, size0):
-    a = np.random.rand(size0).astype(dtype)
+def test_rank_1_tensor(style, layout, dtype, size0):
+    a = layout(np.random.rand(size0).astype(dtype))
     np.testing.assert_array_equal(a, style.pass_(a))
 
 
 @pytest.mark.parametrize('style', styles)
+@pytest.mark.parametrize('layout', layouts)
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
 @pytest.mark.parametrize('size0', list(range(0, 10, 2)) + list(range(1, 10, 2)))
 @pytest.mark.parametrize('size1', list(range(0, 10, 2)) + list(range(1, 10, 2)))
-def test_rank_2_tensor(style, dtype, size0, size1):
-    a = np.random.rand(size0, size1).astype(dtype)
+def test_rank_2_tensor(style, layout, dtype, size0, size1):
+    a = layout(np.random.rand(size0, size1).astype(dtype))
+    b = a[..., ::-1]
+    c = a[::-1, ...]
+
     np.testing.assert_array_equal(a, style.pass_(a))
+    np.testing.assert_array_equal(b, style.pass_(b))
+    np.testing.assert_array_equal(c, style.pass_(c))
 
 
 @pytest.mark.parametrize('style', styles)
+@pytest.mark.parametrize('layout', layouts)
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
 @pytest.mark.parametrize('size0', list(range(0, 10, 2)) + list(range(1, 10, 2)))
 @pytest.mark.parametrize('size1', list(range(5, 10, 2)) + list(range(6, 10, 2)))
 @pytest.mark.parametrize('size2', list(range(5, 10, 2)) + list(range(6, 10, 2)))
-def test_rank_3_tensor(style, dtype, size0, size1, size2):
-    a = np.random.rand(size0, size1, size2).astype(dtype)
+def test_rank_3_tensor(style, layout, dtype, size0, size1, size2):
+    a = layout(np.random.rand(size0, size1, size2).astype(dtype))
+    b = a[..., ::-1]
+    c = a[::-1, ...]
+
     np.testing.assert_array_equal(a, style.pass_(a))
+    np.testing.assert_array_equal(b, style.pass_(b))
+    np.testing.assert_array_equal(c, style.pass_(c))
 
 
 @pytest.mark.parametrize('style', styles)
+@pytest.mark.parametrize('layout', layouts)
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
 @pytest.mark.parametrize('size0', list(range(0, 10, 2)) + list(range(1, 10, 2)))
 @pytest.mark.parametrize('size1', list(range(5, 10, 2)) + list(range(6, 10, 2)))
 @pytest.mark.parametrize('size2', list(range(5, 10, 2)) + list(range(6, 10, 2)))
 @pytest.mark.parametrize('size3', list(range(5, 10, 2)) + list(range(6, 10, 2)))
-def test_rank_4_tensor(style, dtype, size0, size1, size2, size3):
-    a = np.random.rand(size0, size1, size2, size3).astype(dtype)
+def test_rank_4_tensor(style, layout, dtype, size0, size1, size2, size3):
+    a = layout(np.random.rand(size0, size1, size2, size3).astype(dtype))
+    b = a[..., ::-1]
+    c = a[::-1, ...]
+
     np.testing.assert_array_equal(a, style.pass_(a))
+    np.testing.assert_array_equal(b, style.pass_(b))
+    np.testing.assert_array_equal(c, style.pass_(c))
 
 
 @pytest.mark.parametrize('style', styles)
+@pytest.mark.parametrize('layout', layouts)
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
 @pytest.mark.parametrize('size0', list(range(0, 10, 2)) + list(range(1, 10, 2)))
 @pytest.mark.parametrize('size1', list(range(0, 10, 2)) + list(range(1, 10, 2)))
 @pytest.mark.parametrize('size2', list(range(5, 10, 2)) + list(range(6, 10, 2)))
 @pytest.mark.parametrize('size3', list(range(5, 10, 2)) + list(range(6, 10, 2)))
 @pytest.mark.parametrize('size4', list(range(5, 10, 2)) + list(range(6, 10, 2)))
-def test_rank_5_tensor(style, dtype, size0, size1, size2, size3, size4):
-    a = np.random.rand(size0, size1, size2, size3, size4).astype(dtype)
+def test_rank_5_tensor(style, layout, dtype, size0, size1, size2, size3, size4):
+    a = layout(np.random.rand(size0, size1, size2, size3, size4).astype(dtype))
+    b = a[..., ::-1]
+    c = a[::-1, ...]
+
     np.testing.assert_array_equal(a, style.pass_(a))
+    np.testing.assert_array_equal(b, style.pass_(b))
+    np.testing.assert_array_equal(c, style.pass_(c))
 
 
 @pytest.mark.parametrize('style', styles)
