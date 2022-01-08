@@ -219,12 +219,12 @@ private:
 
         // Arrays can be both C-style and Fortran-style contiguous
         // simultaneously. This is evidently true for 1-dimensional arrays, but
-        // can also be true for higher dimensional arrays.
+        // can also be true for higher dimensional arrays. At the same time,
+        // contiguous layout does not necessarily guarantee the strides to be in
+        // the expected order. Therefore, when matching the layout, we need to
+        // ensure that the strides are not arbitrary but sorted in the order
+        // given by the corresponding memory layout.
 
-        // When matching the layout, we need to ensure that the stride is not
-        // arbitrary
-
-        // clang-format on
         if ((a.flags() & style) == style &&
             std::is_sorted(info.strides.begin(), info.strides.end(),
                            ThisComparer{})) {
