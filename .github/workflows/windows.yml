@@ -43,6 +43,7 @@ jobs:
             mingw-w64-${{matrix.env}}-python-numpy
             mingw-w64-${{matrix.env}}-python-pip
             mingw-w64-${{matrix.env}}-python-pytest
+            mingw-w64-${{matrix.env}}-python-pytest-xdist
 
       - name: Setup Dependencies
         run: |
