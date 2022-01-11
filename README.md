@@ -23,6 +23,8 @@ additionally contrast-normalized.
 * Unrestricted input size (e.g., OpenCV as of version 4.5.5 requires the input
   to be a [multiple of the block
   size](https://github.com/opencv/opencv/blob/5f249a3e67bfe3627e184bf5535da64daeaeb1c8/modules/objdetect/src/hog.cpp#L95-L96))
+* Support for arbitrary integer (8 bit to 64 bit, both signed and unsigned) and
+  floating point input (e.g., OpenCV requires 8-bit unsigned integer input)
 * Masking support (i.e., spatial exclusion of gradient magnitudes from
   contributing to features)
 
