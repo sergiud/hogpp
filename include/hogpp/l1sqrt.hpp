@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,7 +49,10 @@ public:
     {
         // L1-sqrt block normalization
         l1_(block);
-        block = block.sqrt();
+        // Due to rounding errors, the L¹ block normalization can produce small
+        // negative values. To avoid NaNs, clamp negative values to zero.
+        block =
+            (block < Scalar{0}).select(block.constant(Scalar{0}), block.sqrt());
     }
 
     [[nodiscard]] constexpr const L1Norm<Scalar>& norm() const noexcept
