@@ -6,7 +6,7 @@ on: [push, pull_request]
 jobs:
   build-mingw:
     name: ${{matrix.sys}}-${{matrix.env}}-${{matrix.build_type}}
-    runs-on: windows-latest
+    runs-on: windows-2022
     defaults:
       run:
         shell: msys2 {0}
@@ -26,7 +26,8 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           msystem: ${{matrix.sys}}
-          path-type: strict
+          # Running Ninja requires cmd.exe to be in the PATH
+          path-type: minimal
           update: true # Currently, necessary for eigen3 3.4.0
           install: >-
             lcov
@@ -65,6 +66,7 @@ jobs:
           CXXFLAGS: -fuse-ld=lld -Wl,-ltbb -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}/ \
+                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
                 -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \

@@ -67,6 +67,7 @@ jobs:
         run: |
           cmake -S eigen-3.4.0 -B build-eigen \
                 -DBUILD_TESTING=OFF \
+                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/eigen \
                 -DEIGEN_BUILD_DOC=OFF \
                 -G Ninja
@@ -88,6 +89,7 @@ jobs:
           Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build_${{matrix.build_type}} \
+                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
                 -G Ninja
