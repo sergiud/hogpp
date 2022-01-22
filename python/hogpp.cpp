@@ -58,7 +58,7 @@ PYBIND11_MODULE(hogpp, m)
         , py::arg("cell_size") = std::nullopt
         , py::arg("block_size") = std::nullopt
         , py::arg("block_stride") = std::nullopt
-        , py::arg("num_bins") = std::nullopt
+        , py::arg("n_bins") = std::nullopt
         , py::arg("magnitude") = std::nullopt
         , py::arg("binning") = std::nullopt
         , py::arg("block_norm") = std::nullopt
@@ -122,7 +122,7 @@ PYBIND11_MODULE(hogpp, m)
     )
     .def_property_readonly
     (
-          "num_bins_"
+          "n_bins_"
         , &IntegralHOGDescriptor::numBins
     )
     .def_property_readonly

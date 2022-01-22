@@ -66,11 +66,11 @@ def test_block_norm_attribute(block_norm):
 
 
 def test_default_attributes():
-    desc = IntegralHOGDescriptor(num_bins=8, cell_size=(
+    desc = IntegralHOGDescriptor(n_bins=8, cell_size=(
         4, 4), block_size=(12, 12), block_stride=(8, 8), binning='unsigned', block_norm='l1')
 
     assert not desc
-    assert desc.num_bins_ == 8
+    assert desc.n_bins_ == 8
     assert desc.histogram_ is None
     assert desc.features_ is None
     assert desc([0, 0, 0, 0]) is None
@@ -106,7 +106,7 @@ def test_unsupported_paramater():
 
 @pytest.mark.xfail(raises=ValueError)
 def test_negative_bins():
-    IntegralHOGDescriptor(num_bins=-1)
+    IntegralHOGDescriptor(n_bins=-1)
 
 
 @pytest.mark.xfail(raises=ValueError)
@@ -150,8 +150,8 @@ def test_vertical_gradient(dtype, block_norm, magnitude):
 
     # Ensure the vote is at the beginning of each block
     np.testing.assert_array_equal(
-        idxs, np.arange(X.size, step=desc.num_bins_))
-    np.testing.assert_array_equal(diff, np.full((3, ), desc.num_bins_))
+        idxs, np.arange(X.size, step=desc.n_bins_))
+    np.testing.assert_array_equal(diff, np.full((3, ), desc.n_bins_))
 
     XX = desc([0, 0, *image.shape[::-1]]).ravel()
     assert XX.dtype == dtype
@@ -187,8 +187,8 @@ def test_horizontal_gradient(dtype, block_norm, magnitude):
 
     # Ensure the vote is in the middle of each block
     np.testing.assert_array_equal(
-        idxs - desc.num_bins_ // 2, np.arange(X.size, step=desc.num_bins_))
-    np.testing.assert_array_equal(diff, np.full((3, ), desc.num_bins_))
+        idxs - desc.n_bins_ // 2, np.arange(X.size, step=desc.n_bins_))
+    np.testing.assert_array_equal(diff, np.full((3, ), desc.n_bins_))
 
     XX = desc([0, 0, *image.shape[::-1]]).ravel()
     assert XX.dtype == dtype
