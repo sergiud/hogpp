@@ -251,6 +251,8 @@ public:
     [[nodiscard]] State state() const;
     [[nodiscard]] static IntegralHOGDescriptor fromState(const State& value);
 
+    [[nodiscard]] std::string repr() const;
+
 private:
     [[nodiscard]] bool isEmpty() const noexcept;
     void update();
@@ -263,12 +265,10 @@ private:
     std::optional<MagnitudeType> magnitudeType_;
     std::optional<BinningType> binningType_;
     std::optional<BlockNormalizerType> blockNormalizerType_;
-
-    DescriptorVariant descriptor_;
-    // clang-format on
-
     std::optional<std::variant<pybind11::int_, pybind11::float_> > clipNorm_;
     std::optional<std::variant<pybind11::int_, pybind11::float_> > epsilon_;
+
+    DescriptorVariant descriptor_;
 };
 
 #endif // PYTHON_HOGPP_INTEGRALHOGDESCRIPTOR_HPP

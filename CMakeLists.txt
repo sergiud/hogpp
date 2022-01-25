@@ -195,5 +195,10 @@ if (BUILD_TESTING)
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -n auto
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
+
+    add_test (NAME python_repr COMMAND
+      ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
+      ${Python_EXECUTABLE} -m pytest -n auto
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_repr.py)
   endif (pybind11_FOUND AND Python_Interpreter_FOUND)
 endif (BUILD_TESTING)

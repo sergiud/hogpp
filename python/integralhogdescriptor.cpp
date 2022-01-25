@@ -18,6 +18,7 @@
 //
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <vector>
 
@@ -29,8 +30,10 @@
 
 #include <fmt/format.h>
 
+#include <pybind11/cast.h>
 #include <pybind11/eigen.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include "formatter.hpp"
 #include "integralhogdescriptor.hpp"
@@ -174,6 +177,17 @@ void bufferToTensor(const RankNTensorPair<Ranks...>& p,
 
     // Assume [dys, dxs] ordering
     bufferToTensor(p.buf2.buf, info, convert, types);
+}
+
+template<class T>
+[[nodiscard]] pybind11::object asTuple(const std::optional<T>& value)
+{
+    if (value) {
+        pybind11::object tmp = pybind11::cast(value);
+        return pybind11::tuple(tmp);
+    }
+
+    return pybind11::none{};
 }
 
 } // namespace
@@ -754,4 +768,45 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
     }
 
     return result;
+}
+
+std::string IntegralHOGDescriptor::repr() const
+{
+    auto val = [](const auto& v) -> pybind11::object { return v; };
+
+    pybind11::object clipNorm;
+    pybind11::object epsilon;
+
+    if (clipNorm_) {
+        clipNorm = std::visit(val, *clipNorm_);
+    }
+
+    if (epsilon_) {
+        epsilon = std::visit(val, *epsilon_);
+    }
+
+    constexpr std::size_t NumCtorArgs = 9;
+    const std::array<std::pair<std::string_view, pybind11::object>, NumCtorArgs>
+        args{{
+            {"cell_size", asTuple(cellSize_)},
+            {"block_size", asTuple(blockSize_)},
+            {"block_stride", asTuple(blockStride_)},
+            {"n_bins", pybind11::cast(numBins_)},
+            {"magnitude", pybind11::cast(magnitudeType_)},
+            {"binning", pybind11::cast(binningType_)},
+            {"block_norm", pybind11::cast(blockNormalizerType_)},
+            {"clip_norm", pybind11::cast(clipNorm_)},
+            {"epsilon", pybind11::cast(epsilon_)},
+        }};
+
+    std::vector<std::string> argvals;
+    argvals.reserve(args.size());
+
+    for (auto [name, value] : args) {
+        if (!value.is_none()) {
+            argvals.push_back(fmt::format("{}={}", name, value));
+        }
+    }
+
+    return fmt::format("IntegralHOGDescriptor({})", fmt::join(argvals, ", "));
 }

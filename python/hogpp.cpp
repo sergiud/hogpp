@@ -100,6 +100,11 @@ PYBIND11_MODULE(hogpp, m)
           "__bool__"
         , &IntegralHOGDescriptor::operator bool
     )
+    .def
+    (
+          "__repr__"
+        , &IntegralHOGDescriptor::repr
+    )
     .def_property_readonly
     (
           "features_"
