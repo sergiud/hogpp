@@ -49,18 +49,19 @@ test:
   script:
     # Run unit tests
     - cd build
-    - ctest -C Debug -j$(nproc) --output-on-failure
+    - ctest -C Debug -j$(nproc)
+      --output-on-failure
+      --output-junit ctest.xml
     # Run coverage
     - mkdir coverage
-    - gcovr -r ..
-      -j$(nproc)
-      -s
-      --filter ../include
-      --filter ../src
-      --filter ../python
-      --html --html-title HOGpp --html-details
-      -o coverage/report.html
+    - gcovr -r .. -s
+      --html -o coverage/report.html
+      --xml-pretty --xml cobertura.xml
   coverage: '/lines:\s+(\d+\.\d+|\d+)%/'
   artifacts:
+    when: always
     paths:
       - build/coverage
+    reports:
+      cobertura: build/cobertura.xml
+      junit: build/ctest.xml
