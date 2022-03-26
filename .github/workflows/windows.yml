@@ -110,7 +110,6 @@ jobs:
         shell: powershell
     env:
       CL: /MP
-      CXXFLAGS: /WX
     strategy:
       fail-fast: true
       matrix:
@@ -304,6 +303,7 @@ jobs:
 
       - name: Configure
         env:
+          CXXFLAGS: /WX
           Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}/ `
