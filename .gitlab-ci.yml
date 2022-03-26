@@ -48,11 +48,13 @@ test:
   stage: test
   script:
     # Run unit tests
-    - cd build
-    - ctest -C Debug -j$(nproc)
+    - ctest --test-dir build/
+      -C Debug -j$(nproc)
       --output-on-failure
       --output-junit ctest.xml
+  after_script:
     # Run coverage
+    - cd build/
     - mkdir coverage
     - gcovr -r .. -s
       --html -o coverage/report.html
