@@ -78,18 +78,18 @@ jobs:
         uses: actions/cache@v2
         with:
           path: fmt/
-          key: ${{runner.os}}-fmt-8.0.1-${{matrix.build_type}}
+          key: ${{runner.os}}-fmt-8.1.1-${{matrix.build_type}}
 
       - name: Download fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/fmtlib/fmt/releases/download/8.0.1/fmt-8.0.1.zip
-          unzip fmt-8.0.1.zip
+          wget https://github.com/fmtlib/fmt/releases/download/8.1.1/fmt-8.1.1.zip
+          unzip fmt-8.1.1.zip
 
       - name: Setup fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          cmake -S fmt-8.0.1 -B build-fmt \
+          cmake -S fmt-8.1.1 -B build-fmt \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt \
                 -DFMT_TEST=OFF \
@@ -103,18 +103,18 @@ jobs:
         uses: actions/cache@v2
         with:
           path: opencv/
-          key: ${{runner.os}}-opencv-4.5.4
+          key: ${{runner.os}}-opencv-4.5.5
 
       - name: Download OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/opencv/opencv/archive/refs/tags/4.5.4.zip
-          unzip 4.5.4.zip
+          wget https://github.com/opencv/opencv/archive/refs/tags/4.5.5.zip
+          unzip 4.5.5.zip
 
       - name: Setup OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          cmake -S opencv-4.5.4 -B build-opencv \
+          cmake -S opencv-4.5.5 -B build-opencv \
                 -DBUILD_LIST=core,imgproc \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv \
