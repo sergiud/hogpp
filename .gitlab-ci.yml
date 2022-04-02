@@ -43,16 +43,41 @@ build:
       -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb
       -GNinja
     - cmake --build build/
-    - cmake --build build/ --target sphinx
   cache:
     key: "$CI_PROJECT_ID"
     paths:
       - .cache/
   artifacts:
-    untracked: true
+    paths:
+      - build/
+    exclude:
+      - build/**/*.o
+
+docs:
+  stage: build
+  needs:
+    - build
+  before_script:
+    - pacman -Syu --noconfirm
+      fmt
+      intel-tbb
+      python-sphinx
+      python-sphinxcontrib-bibtex
+  script:
+    - PYTHONPATH=${CI_PROJECT_DIR}/build/
+      VERSION=${CI_PROJECT_DIR}/build/version.txt
+      sphinx-build -M html
+      ${CI_PROJECT_DIR}/docs/
+      ${CI_PROJECT_DIR}/build/docs/_build/
+      -W --keep-going
+  artifacts:
+    paths:
+      - build/docs/
 
 test:
   stage: test
+  needs:
+    - build
   before_script:
     - *min_packages_definition
     - pacman -Sy --noconfirm
