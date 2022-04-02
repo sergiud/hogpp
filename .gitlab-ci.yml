@@ -3,7 +3,7 @@ default:
   tags:
     - docker
 
-before_script:
+.min_packages_template: &min_packages_definition
   - pacman -Syu --noconfirm
     boost
     boost-libs
@@ -12,14 +12,11 @@ before_script:
     eigen
     fmt
     gcc
-    gcovr
     ninja
     opencv
     pybind11
     python
     python-numpy
-    python-pytest
-    python-pytest-xdist
 
 stages:
   - build
@@ -27,6 +24,8 @@ stages:
 
 build:
   stage: build
+  before_script:
+    - *min_packages_definition
   script:
     - export CCACHE_BASEDIR=$(pwd)
     - export CCACHE_DIR=$(pwd)/.cache/
@@ -46,6 +45,15 @@ build:
 
 test:
   stage: test
+  before_script:
+    - *min_packages_definition
+    - pacman -Sy --noconfirm
+      python-pip
+      python-pytest
+      python-pytest-xdist
+    - pip install
+      'gcovr==5.0'
+      'jinja2<3.1'
   script:
     # Run unit tests
     - ctest --test-dir build/
@@ -56,9 +64,9 @@ test:
     # Run coverage
     - cd build/
     - mkdir coverage
-    - gcovr -r .. -s
+    - gcovr -r .. . -s
       --html -o coverage/report.html
-      --xml-pretty --xml cobertura.xml
+      --xml cobertura.xml
   coverage: '/lines:\s+(\d+\.\d+|\d+)%/'
   artifacts:
     when: always
