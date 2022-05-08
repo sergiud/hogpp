@@ -158,8 +158,7 @@ def test_vertical_gradient(dtype, block_norm, magnitude):
 
     np.testing.assert_array_equal(X, XX)
 
-    # TODO Add pickle support
-    desc1 = IntegralHOGDescriptor(block_norm=block_norm, magnitude=magnitude)
+    desc1 = copy.deepcopy(desc)
     desc1.compute(np.gradient(image, axis=(0, 1)))
 
     np.testing.assert_array_almost_equal(X, desc1.features_.ravel())
