@@ -66,12 +66,14 @@ test:
     - mkdir coverage
     - gcovr -r .. . -s
       --html -o coverage/report.html
-      --xml cobertura.xml
+      --xml coverage.xml
   coverage: '/lines:\s+(\d+\.\d+|\d+)%/'
   artifacts:
     when: always
     paths:
       - build/coverage
     reports:
-      cobertura: build/cobertura.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
       junit: build/ctest.xml
