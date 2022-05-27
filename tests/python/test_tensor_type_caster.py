@@ -23,10 +23,10 @@ if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
     if path:
         os.add_dll_directory(path)
 
-import type_caster_test.tensor.f_style as ttt_f
-import type_caster_test.tensor.c_style as ttt_c
 import numpy as np
 import pytest
+import type_caster_test.tensor.c_style as ttt_c
+import type_caster_test.tensor.f_style as ttt_f
 
 styles = [ttt_f, ttt_c]
 layouts = [np.ascontiguousarray, np.asfortranarray]

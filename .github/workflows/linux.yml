@@ -19,7 +19,6 @@ jobs:
           - ubuntu-20.04
           - ubuntu-22.04
         python:
-          - '3.7'
           - '3.8'
           - '3.9'
           - '3.10'
@@ -34,7 +33,9 @@ jobs:
           python-version: ${{matrix.python}}
           architecture: ${{matrix.arch}}
           cache: 'pip'
-          cache-dependency-path: requirements_dev.txt
+          cache-dependency-path: |
+            requirements_dev.txt
+            requirements_lint.txt
 
       - name: Setup Dependencies
         env:
@@ -51,7 +52,15 @@ jobs:
             libtbb-dev \
             ninja-build
 
-          pip install -r requirements_dev.txt
+          pip install \
+            -r requirements_dev.txt \
+            -r requirements_lint.txt
+
+      - name: Lint
+        run: |
+          autopep8 --exit-code --diff -r .
+          flake8 .
+          isort --check-only --diff .
 
       - name: Cache Eigen
         id: cache-eigen

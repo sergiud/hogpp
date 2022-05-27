@@ -9,8 +9,11 @@ project (hogpp
 set (CMAKE_CXX_VISIBILITY_PRESET hidden)
 set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
+include (CheckCXXCompilerFlag)
 include (CheckCXXSymbolExists)
 include (CTest)
+
+check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework)
 find_package (Eigen3 3.4.0 REQUIRED NO_MODULE)
@@ -78,6 +81,10 @@ if (pybind11_FOUND)
     python/magnitude.cpp
     python/magnitude.hpp
   )
+
+  if (HAVE_MBIG_OBJ)
+    set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
+  endif (HAVE_MBIG_OBJ)
 
   if (HAVE_EXECUTION)
     target_compile_definitions (pyhogpp PRIVATE HAVE_EXECUTION)

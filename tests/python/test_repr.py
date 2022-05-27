@@ -26,7 +26,6 @@ if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
 from hogpp import IntegralHOGDescriptor
 import pytest
 
-
 all_args = [
     dict(),
     dict(block_norm='l1-hys', clip_norm=1),

@@ -315,7 +315,7 @@ def test_compute_mask_ndarray(dtype, channels, horizontal_gradient_image):
 
     i = image.shape[0] // 2
     mask = np.zeros_like(image, dtype=dtype)
-    mask[i-1:i+1, ...] = True
+    mask[i - 1:i + 1, ...] = True
 
     if channels > 0:
         image = np.repeat(np.atleast_3d(image), channels, axis=-1)
