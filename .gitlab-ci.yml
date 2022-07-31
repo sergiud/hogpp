@@ -75,5 +75,5 @@ test:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
+        path: build/coverage.xml
       junit: build/ctest.xml
