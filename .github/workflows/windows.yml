@@ -141,26 +141,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # Extracting Boost using Expand-Archive is very slow taking more than 20
-      # min. whereas 7z takes less than a 1 min.
-      - name: Cache 7-Zip
-        id: cache-7z
-        uses: actions/cache@v2
-        with:
-          path: 7zip/
-          key: ${{runner.os}}-7z-21.06
-
-      - name: Download 7-Zip
-        if: steps.cache-7z.outputs.cache-hit != 'true'
-        run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://www.7-zip.org/a/7za920.zip", "7za920.zip");
-          (New-Object System.Net.WebClient).DownloadFile("https://www.7-zip.org/a/7z2106.exe", "7z2106.exe");
-          Expand-Archive 7za920.zip .;
-          ./7za x 7z2106.exe -o7zip;
-
-      - name: Setup 7-Zip
-        run: |
-          echo "${{github.workspace}}/7zip" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      # NOTE Extracting Boost using Expand-Archive is very slow taking more than
+      # 20 min. whereas 7z takes less than a 1 min.
 
       - name: Cache Boost
         id: cache-boost
