@@ -66,7 +66,7 @@ template<class T, std::size_t N>
     std::array<Eigen::DenseIndex, N> reversed;
     std::reverse_copy(values.begin(), values.end(), reversed.begin());
 
-    std::array<Eigen::DenseIndex, N> tmp = f_strides<T>(reversed);
+    const std::array<Eigen::DenseIndex, N> tmp = f_strides<T>(reversed);
 
     std::array<Eigen::DenseIndex, N> result;
     std::reverse_copy(tmp.begin(), tmp.end(), result.begin());
