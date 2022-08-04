@@ -57,8 +57,8 @@ Computing feature descriptors involves two stages:
    :class:`IntegralHOGDescriptor` instance, i.e., using
    :meth:`IntegralHOGDescriptor.__call__`.
 
-Notes
------
+Note
+----
 To ensure maximum performance when extracting features, do not compute the
 feature descriptor on individual images patches of a larger image. Instead, the
 initial computation should be performed on the original image first. After that,
@@ -67,9 +67,9 @@ efficiently than using the naive approach.
 
 Parameters
 ----------
-n_bins : int
+n_bins : int, optional
     Number of histogram bins.
-binning : str
+binning : str, optional
     Gradient orientation binning method. Possible choices are:
 
     'unsigned'
@@ -118,13 +118,13 @@ binning : str
                 \enspace .
             \end{cases}
 
-cell_size : tuple (2, )
+cell_size : tuple (2, ), optional
     The size of a single block cell in pixels.
-block_size : tuple (2, )
+block_size : tuple (2, ), optional
     The size of a single block in pixels.
-block_stride : tuple (2, )
+block_stride : tuple (2, ), optional
     The shift amount between neighboring blocks in pixels.
-magnitude : str
+magnitude : str, optional
     Function of the image gradient :math:`\vec g=(g_x,g_y)^\top` that computes
     the value voted into each orientation bin. Possible choices are:
 
@@ -137,7 +137,7 @@ magnitude : str
         Computes the magnitude in terms of a squared :math:`\ell^2` norm, i.e.,
         as :math:`\lVert\vec g\rVert_2^2`.
 
-block_norm : str
+block_norm : str, optional
     Contrast normalization applied to individual blocks :math:`\vec v`. Possible
     choices are:
 
@@ -166,10 +166,10 @@ block_norm : str
         Similar to `l2` normalization but additionally followed by clipping of
         values larger than `clip_norm`.
 
-clip_norm : float
+clip_norm : float, optional
     Maximum block norm. Applicable only to 'l1-hys' and 'l2-hys' block
     normalization.
-epsilon : float
+epsilon : float, optional
     The regularization amount.
 
 
@@ -237,7 +237,7 @@ Parameters
 image : array_like (m, n, (3, ))
     2-D or 3-D tensor representing the image whose feature descriptor shall be
     computed.
-mask : collections.abc.Callable or array_like (m, n, (3, ))
+mask : collections.abc.Callable, array_like (m, n, (3, ))
     A callable that indicates whether the pixel at the coordinate passed to the
     callable as a tuple is masked or not. Alternatively, the mask can be specified
     in terms of a tensor with the same rank and dimensions as the specified `image`.

@@ -54,11 +54,12 @@ napoleon_numpy_docstring = True
 napoleon_use_ivar = False
 
 intersphinx_mapping = {
+    'numpy': ('https://numpy.org/doc/stable', None),
     'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy', None),
 }
 
 bibtex_bibfiles = ['references.bib']
+bibtex_bibliography_header = '.. rubric:: References'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -87,7 +88,7 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
+html_static_path = ['_static']
 
 mathjax3_config = {
     'loader': {'load': ['[tex]/mathtools']},
