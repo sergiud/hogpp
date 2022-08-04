@@ -1,3 +1,4 @@
 *.orig
 /build*/
+/docs/_build/
 __pycache__/
