@@ -12,6 +12,7 @@ default:
     eigen
     fmt
     gcc
+    mold
     ninja
     opencv
     pybind11
@@ -29,7 +30,7 @@ build:
   script:
     - export CCACHE_BASEDIR=$(pwd)
     - export CCACHE_DIR=$(pwd)/.cache/
-    - export CXXFLAGS='-fdiagnostics-color --coverage'
+    - export CXXFLAGS='-fdiagnostics-color --coverage -fuse-ld=mold'
     - cmake . -B build/
       -DCMAKE_BUILD_TYPE=Debug
       -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
