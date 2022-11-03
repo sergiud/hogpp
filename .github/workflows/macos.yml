@@ -22,7 +22,7 @@ jobs:
           - '3.10'
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Setup Ninja
         uses: ashutoshvarma/setup-ninja@master
@@ -31,7 +31,7 @@ jobs:
 
       - name: Cache Boost
         id: cache-boost
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: boost/
           key: ${{runner.os}}-boost-1.79
@@ -51,7 +51,7 @@ jobs:
 
       - name: Cache Eigen
         id: cache-eigen
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: eigen/
           key: ${{runner.os}}-eigen-3.4.0
@@ -75,7 +75,7 @@ jobs:
 
       - name: Cache fmt
         id: cache-fmt
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: fmt/
           key: ${{runner.os}}-fmt-8.1.1-${{matrix.build_type}}
@@ -100,7 +100,7 @@ jobs:
 
       - name: Cache OpenCV
         id: cache-opencv
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: opencv/
           key: ${{runner.os}}-opencv-4.5.5
@@ -124,7 +124,7 @@ jobs:
                 --target install
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{matrix.python}}
           architecture: ${{matrix.arch}}
@@ -188,7 +188,7 @@ jobs:
 
       - name: Upload Coverage to Codecov
         if: ${{matrix.build_type == 'Debug'}}
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
