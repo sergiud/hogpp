@@ -36,23 +36,17 @@ jobs:
             mingw-w64-${{matrix.env}}-eigen3
             mingw-w64-${{matrix.env}}-fmt
             mingw-w64-${{matrix.env}}-gcc
-            mingw-w64-${{matrix.env}}-intel-tbb
             mingw-w64-${{matrix.env}}-lld
             mingw-w64-${{matrix.env}}-ninja
             mingw-w64-${{matrix.env}}-opencv
+            mingw-w64-${{matrix.env}}-pybind11
             mingw-w64-${{matrix.env}}-python
             mingw-w64-${{matrix.env}}-python-numpy
-            mingw-w64-${{matrix.env}}-python-pip
             mingw-w64-${{matrix.env}}-python-pytest
             mingw-w64-${{matrix.env}}-python-pytest-xdist
 
-      - name: Setup Dependencies
-        run: |
-          pip install -r requirements_dev.txt
-
       - name: Setup Environment
         run: |
-          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
           echo "Python_ROOT=$(dirname $(dirname $(which python)))" >> $GITHUB_ENV
 
       - name: Setup Debug Environment
@@ -63,12 +57,11 @@ jobs:
       - name: Configure
         env:
           CXX: ${{matrix.env}}-w64-mingw32-g++
-          CXXFLAGS: -fuse-ld=lld -Wl,-ltbb -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}
+          CXXFLAGS: -fuse-ld=lld -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}/ \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
-                -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
                 -G Ninja
 
