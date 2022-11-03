@@ -34,18 +34,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: boost/
-          key: ${{runner.os}}-boost-1.79
+          key: ${{runner.os}}-boost-1.80
 
       - name: Download Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          wget https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.zip
-          unzip boost_1_79_0.zip;
+          wget https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.zip
+          unzip boost_1_80_0.zip;
 
       - name: Setup Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          cd boost_1_79_0
+          cd boost_1_80_0
           ./bootstrap.sh
           ./b2 --prefix=${{github.workspace}}/boost --with-test install
 
@@ -78,18 +78,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: fmt/
-          key: ${{runner.os}}-fmt-8.1.1-${{matrix.build_type}}
+          key: ${{runner.os}}-fmt-9.1.0-${{matrix.build_type}}
 
       - name: Download fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/fmtlib/fmt/releases/download/8.1.1/fmt-8.1.1.zip
-          unzip fmt-8.1.1.zip
+          wget https://github.com/fmtlib/fmt/releases/download/9.1.0/fmt-9.1.0.zip
+          unzip fmt-9.1.0.zip
 
       - name: Setup fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          cmake -S fmt-8.1.1 -B build-fmt \
+          cmake -S fmt-9.1.0 -B build-fmt \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt \
                 -DFMT_TEST=OFF \
@@ -103,18 +103,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: opencv/
-          key: ${{runner.os}}-opencv-4.5.5
+          key: ${{runner.os}}-opencv-4.6.0
 
       - name: Download OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/opencv/opencv/archive/refs/tags/4.5.5.zip
-          unzip 4.5.5.zip
+          wget https://github.com/opencv/opencv/archive/refs/tags/4.6.0.zip
+          unzip 4.6.0.zip
 
       - name: Setup OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          cmake -S opencv-4.5.5 -B build-opencv \
+          cmake -S opencv-4.6.0 -B build-opencv \
                 -DBUILD_LIST=core,imgproc \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv \

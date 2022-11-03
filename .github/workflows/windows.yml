@@ -142,18 +142,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: boost/
-          key: ${{runner.os}}-boost-1.79-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-boost-1.80-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.7z", "boost_1_79_0.7z");
-          7z x boost_1_79_0.7z;
+          (New-Object System.Net.WebClient).DownloadFile("https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.7z", "boost_1_80_0.7z");
+          7z x boost_1_80_0.7z;
 
       - name: Setup Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          cd boost_1_79_0
+          cd boost_1_80_0
           ./bootstrap.bat
           ./b2 address-model=${{matrix.address_model}} `
                variant=$('${{matrix.build_type}}'.ToLower()) `
@@ -189,18 +189,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: fmt/
-          key: ${{runner.os}}-fmt-8.1.1-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-fmt-9.1.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/8.1.1/fmt-8.1.1.zip", "fmt-8.1.1.zip");
-          7z x fmt-8.1.1.zip;
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/9.1.0/fmt-9.1.0.zip", "fmt-9.1.0.zip");
+          7z x fmt-9.1.0.zip;
 
       - name: Setup fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          cmake -S fmt-8.1.1 -B build-fmt `
+          cmake -S fmt-9.1.0 -B build-fmt `
                 -A ${{matrix.arch}} `
                 -DFMT_TEST=OFF `
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt
@@ -213,18 +213,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: opencv/
-          key: ${{runner.os}}-opencv-4.5.5-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-opencv-4.6.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://github.com/opencv/opencv/archive/refs/tags/4.5.5.zip", "4.5.5.zip");
-          7z x 4.5.5.zip;
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/opencv/opencv/archive/refs/tags/4.6.0.zip", "4.6.0.zip");
+          7z x 4.6.0.zip;
 
       - name: Setup OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          cmake -S opencv-4.5.5 -B build-opencv `
+          cmake -S opencv-4.6.0 -B build-opencv `
                 -A ${{matrix.arch}} `
                 -DBUILD_LIST="core,imgproc" `
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv
