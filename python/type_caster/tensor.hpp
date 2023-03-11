@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2023 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,13 +63,11 @@ template<class T, std::size_t N>
 [[nodiscard]] constexpr decltype(auto)
     c_strides(const std::array<Eigen::DenseIndex, N>& values) noexcept
 {
-    std::array<Eigen::DenseIndex, N> reversed;
-    std::reverse_copy(values.begin(), values.end(), reversed.begin());
+    std::array<Eigen::DenseIndex, N> reversed = values;
+    std::reverse(reversed.begin(), reversed.end());
 
-    const std::array<Eigen::DenseIndex, N> tmp = f_strides<T>(reversed);
-
-    std::array<Eigen::DenseIndex, N> result;
-    std::reverse_copy(tmp.begin(), tmp.end(), result.begin());
+    std::array<Eigen::DenseIndex, N> result = f_strides<T>(reversed);
+    std::reverse(result.begin(), result.end());
 
     return result;
 }
