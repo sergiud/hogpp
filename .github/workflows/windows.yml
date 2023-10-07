@@ -14,10 +14,8 @@ jobs:
       fail-fast: true
       matrix:
         build_type: [Release, Debug]
-        sys: [mingw32, mingw64]
+        sys: [mingw64]
         include:
-          - sys: mingw32
-            env: i686
           - sys: mingw64
             env: x86_64
 
@@ -30,7 +28,6 @@ jobs:
           path-type: minimal
           update: true # Currently, necessary for eigen3 3.4.0
           install: >-
-            lcov
             mingw-w64-${{matrix.env}}-boost
             mingw-w64-${{matrix.env}}-cmake
             mingw-w64-${{matrix.env}}-eigen3
@@ -41,9 +38,18 @@ jobs:
             mingw-w64-${{matrix.env}}-opencv
             mingw-w64-${{matrix.env}}-pybind11
             mingw-w64-${{matrix.env}}-python
+            mingw-w64-${{matrix.env}}-python-jinja
+            mingw-w64-${{matrix.env}}-python-lxml
             mingw-w64-${{matrix.env}}-python-numpy
+            mingw-w64-${{matrix.env}}-python-pip
+            mingw-w64-${{matrix.env}}-python-pygments
             mingw-w64-${{matrix.env}}-python-pytest
             mingw-w64-${{matrix.env}}-python-pytest-xdist
+
+      - name: Setup Coverage Dependencies
+        if: matrix.build_type == 'Debug'
+        run: |
+          pip install 'gcovr==6.0'
 
       - name: Setup Environment
         run: |
@@ -77,21 +83,17 @@ jobs:
                 --output-on-failure
 
       - name: Generate Coverage
-        if: ${{matrix.build_type == 'Debug'}}
+        if: matrix.build_type == 'Debug'
         run: |
-          lcov --directory . --capture --output-file coverage.info
-          lcov --remove coverage.info \
-              '*/mingw32/*' \
-              '*/mingw64/*' \
-              '*/tests/cpp/*' \
-              --output-file coverage.info
-          lcov --list coverage.info
+          cd build_${{matrix.build_type}}
+          gcovr -r .. . -s --cobertura coverage.xml
 
       - name: Upload Coverage to Codecov
         if: ${{matrix.build_type == 'Debug'}}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: build_${{matrix.build_type}}/coverage.xml
           fail_ci_if_error: true
           verbose: true
 
@@ -143,18 +145,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: boost/
-          key: ${{runner.os}}-boost-1.80-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-boost-1.84-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.7z", "boost_1_80_0.7z");
-          7z x boost_1_80_0.7z;
+          (New-Object System.Net.WebClient).DownloadFile("https://boostorg.jfrog.io/artifactory/main/release/1.84.0/source/boost_1_84_0.7z", "boost_1_84_0.7z");
+          7z x boost_1_84_0.7z;
 
       - name: Setup Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          cd boost_1_80_0
+          cd boost_1_84_0
           ./bootstrap.bat
           ./b2 address-model=${{matrix.address_model}} `
                variant=$('${{matrix.build_type}}'.ToLower()) `
@@ -190,18 +192,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: fmt/
-          key: ${{runner.os}}-fmt-9.1.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-fmt-10.2.1-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/9.1.0/fmt-9.1.0.zip", "fmt-9.1.0.zip");
-          7z x fmt-9.1.0.zip;
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/10.2.1/fmt-10.2.1.zip", "fmt-10.2.1.zip");
+          7z x fmt-10.2.1.zip;
 
       - name: Setup fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          cmake -S fmt-9.1.0 -B build-fmt `
+          cmake -S fmt-10.2.1 -B build-fmt `
                 -A ${{matrix.arch}} `
                 -DFMT_TEST=OFF `
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt
@@ -214,18 +216,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: opencv/
-          key: ${{runner.os}}-opencv-4.6.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-opencv-4.9.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://github.com/opencv/opencv/archive/refs/tags/4.6.0.zip", "4.6.0.zip");
-          7z x 4.6.0.zip;
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/opencv/opencv/archive/refs/tags/4.9.0.zip", "4.9.0.zip");
+          7z x 4.9.0.zip;
 
       - name: Setup OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          cmake -S opencv-4.6.0 -B build-opencv `
+          cmake -S opencv-4.9.0 -B build-opencv `
                 -A ${{matrix.arch}} `
                 -DBUILD_LIST="core,imgproc" `
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv

@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build:
     name: AppleClang-${{matrix.build_type}}-Python-${{matrix.python}}
-    runs-on: macos-11
+    runs-on: macos-13
     defaults:
       run:
         shell: bash
@@ -25,28 +25,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Ninja
-        uses: ashutoshvarma/setup-ninja@master
-        with:
-          version: 1.10.0
+      - name: Setup Dependencies
+        run: |
+          brew install ninja
+
+      - name: Setup Coverage Dependencies
+        if: matrix.build_type == 'Debug'
+        run: |
+          brew install gcovr
 
       - name: Cache Boost
         id: cache-boost
         uses: actions/cache@v3
         with:
           path: boost/
-          key: ${{runner.os}}-boost-1.80
+          key: ${{runner.os}}-boost-1.83
 
       - name: Download Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          wget https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.zip
-          unzip boost_1_80_0.zip;
+          wget https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.zip
+          unzip boost_1_83_0.zip;
 
       - name: Setup Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          cd boost_1_80_0
+          cd boost_1_83_0
           ./bootstrap.sh
           ./b2 --prefix=${{github.workspace}}/boost --with-test install
 
@@ -79,18 +83,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: fmt/
-          key: ${{runner.os}}-fmt-9.1.0-${{matrix.build_type}}
+          key: ${{runner.os}}-fmt-10.2.1-${{matrix.build_type}}
 
       - name: Download fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/fmtlib/fmt/releases/download/9.1.0/fmt-9.1.0.zip
-          unzip fmt-9.1.0.zip
+          wget https://github.com/fmtlib/fmt/releases/download/10.2.1/fmt-10.2.1.zip
+          unzip fmt-10.2.1.zip
 
       - name: Setup fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          cmake -S fmt-9.1.0 -B build-fmt \
+          cmake -S fmt-10.2.1 -B build-fmt \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt \
                 -DFMT_TEST=OFF \
@@ -104,18 +108,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: opencv/
-          key: ${{runner.os}}-opencv-4.6.0
+          key: ${{runner.os}}-opencv-4.9.0
 
       - name: Download OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/opencv/opencv/archive/refs/tags/4.6.0.zip
-          unzip 4.6.0.zip
+          wget https://github.com/opencv/opencv/archive/refs/tags/4.9.0.zip
+          unzip 4.9.0.zip
 
       - name: Setup OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          cmake -S opencv-4.6.0 -B build-opencv \
+          cmake -S opencv-4.9.0 -B build-opencv \
                 -DBUILD_LIST=core,imgproc \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv \
@@ -135,7 +139,6 @@ jobs:
       - name: Setup Dependencies
         run: |
           pip install -r requirements_dev.txt
-          brew install lcov
 
       - name: Setup Debug Environment
         if: ${{matrix.build_type == 'Debug'}}
@@ -174,24 +177,16 @@ jobs:
                 --output-on-failure
 
       - name: Generate Coverage
-        if: ${{matrix.build_type == 'Debug'}}
+        if: matrix.build_type == 'Debug'
         run: |
-          lcov --ignore-errors inconsistent,unused --directory . --capture --output-file coverage.info
-          lcov --ignore-errors inconsistent,unused --remove coverage.info \
-              '${{env.pythonLocation}}/*' \
-              '${{github.workspace}}/boost/*' \
-              '${{github.workspace}}/eigen/*' \
-              '${{github.workspace}}/fmt/*' \
-              '${{github.workspace}}/opencv/*' \
-              '${{github.workspace}}/tests/*' \
-              '*/usr/include/*' \
-              --output-file coverage.info
-          lcov --ignore-errors inconsistent,unused --list coverage.info
+          cd build_${{matrix.build_type}}
+          gcovr -r .. . -s --cobertura coverage.xml
 
       - name: Upload Coverage to Codecov
         if: ${{matrix.build_type == 'Debug'}}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: build_${{matrix.build_type}}/coverage.xml
           fail_ci_if_error: true
           verbose: true
