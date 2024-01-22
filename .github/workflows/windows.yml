@@ -142,7 +142,7 @@ jobs:
 
       - name: Cache Boost
         id: cache-boost
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: boost/
           key: ${{runner.os}}-boost-1.84-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
@@ -165,7 +165,7 @@ jobs:
 
       - name: Cache Eigen
         id: cache-eigen
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: eigen/
           key: ${{runner.os}}-eigen-3.4.0
@@ -189,7 +189,7 @@ jobs:
 
       - name: Cache fmt
         id: cache-fmt
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: fmt/
           key: ${{runner.os}}-fmt-10.2.1-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
@@ -213,7 +213,7 @@ jobs:
 
       - name: Cache OpenCV
         id: cache-opencv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: opencv/
           key: ${{runner.os}}-opencv-4.9.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}

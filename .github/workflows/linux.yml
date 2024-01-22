@@ -65,7 +65,7 @@ jobs:
 
       - name: Cache Eigen
         id: cache-eigen
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: eigen/
           key: ${{runner.os}}-eigen-3.4.0
