@@ -39,18 +39,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: boost/
-          key: ${{runner.os}}-boost-1.83
+          key: ${{runner.os}}-boost-1.84
 
       - name: Download Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          wget https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.zip
-          unzip boost_1_83_0.zip;
+          wget https://boostorg.jfrog.io/artifactory/main/release/1.84.0/source/boost_1_84_0.zip
+          unzip boost_1_84_0.zip;
 
       - name: Setup Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          cd boost_1_83_0
+          cd boost_1_84_0
           ./bootstrap.sh
           ./b2 --prefix=${{github.workspace}}/boost --with-test install
 
