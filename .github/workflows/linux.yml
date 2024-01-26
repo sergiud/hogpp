@@ -55,7 +55,7 @@ jobs:
           pip install \
             -r requirements_dev.txt \
             -r requirements_lint.txt \
-            'gcovr==6.0'
+            'gcovr==7.0'
 
       - name: Lint
         run: |
