@@ -85,8 +85,9 @@ lint:
   allow_failure: true
   before_script:
     - pacman -Sy --noconfirm
-      python-pip
-    - pip install -r requirements_lint.txt
+      autopep8
+      flake8
+      python-isort
   script:
     - autopep8 --exit-code --diff -r .
     - flake8 .
