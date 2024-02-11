@@ -4,6 +4,8 @@ default:
     - docker
 
 .min_packages_template: &min_packages_definition
+  - |
+    [[ -z $PACMAN_SERVER_URL ]] || cat >/etc/pacman.d/mirrorlist <<<"Server = $PACMAN_SERVER_URL/\$repo/os/\$arch"
   - pacman -Syu --noconfirm
     boost
     boost-libs
