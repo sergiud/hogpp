@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build:
     name: AppleClang-${{matrix.build_type}}-Python-${{matrix.python}}
-    runs-on: macos-13
+    runs-on: macos-14
     defaults:
       run:
         shell: bash
