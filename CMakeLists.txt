@@ -15,7 +15,7 @@ include (CTest)
 
 check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 
-find_package (Boost 1.70 COMPONENTS unit_test_framework)
+find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (Eigen3 3.4.0 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 REQUIRED)
