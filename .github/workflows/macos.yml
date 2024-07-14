@@ -103,18 +103,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: opencv/
-          key: ${{runner.os}}-opencv-4.9.0
+          key: ${{runner.os}}-opencv-4.10.0
 
       - name: Download OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/opencv/opencv/archive/refs/tags/4.9.0.zip
-          unzip 4.9.0.zip
+          wget https://github.com/opencv/opencv/archive/refs/tags/4.10.0.zip
+          unzip 4.10.0.zip
 
       - name: Setup OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          cmake -S opencv-4.9.0 -B build-opencv \
+          cmake -S opencv-4.10.0 -B build-opencv \
                 -DBUILD_LIST=core,imgproc \
                 -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv \
