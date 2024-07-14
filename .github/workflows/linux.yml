@@ -116,7 +116,7 @@ jobs:
       - name: Test
         run: |
           ctest --test-dir build_${{matrix.build_type}} \
-                --config ${{matrix.build_type}} \
+                --build-config ${{matrix.build_type}} \
                 -j$(nproc) \
                 --output-on-failure
 
