@@ -1,42 +1,24 @@
 default:
-  image: archlinux:latest
   tags:
     - docker
-
-.min_packages_template: &min_packages_definition
-  - |
-    [[ -z $PACMAN_SERVER_URL ]] || cat >/etc/pacman.d/mirrorlist <<<"Server = $PACMAN_SERVER_URL/\$repo/os/\$arch"
-  - pacman -Syu --noconfirm
-    boost
-    boost-libs
-    ccache
-    cmake
-    eigen
-    fmt
-    gcc
-    mold
-    ninja
-    opencv
-    pybind11
-    python
-    python-numpy
 
 stages:
   - build
   - test
 
-build:
+.build_template: &build_definition
+
   stage: build
-  before_script:
-    - *min_packages_definition
   script:
     - export CCACHE_BASEDIR=$(pwd)
     - export CCACHE_DIR=$(pwd)/.cache/
     - export CXXFLAGS='-fdiagnostics-color --coverage -fuse-ld=mold'
+    - export pybind11_DIR=$(pybind11-config --cmakedir)
     - cmake . -B build/
       -DCMAKE_BUILD_TYPE=Debug
       -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
       -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb
+      -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON
       -GNinja
     - cmake --build build/
   cache:
@@ -46,14 +28,8 @@ build:
   artifacts:
     untracked: true
 
-test:
+.test_template: &test_definition
   stage: test
-  before_script:
-    - *min_packages_definition
-    - pacman -Sy --noconfirm
-      gcovr
-      python-pytest
-      python-pytest-xdist
   script:
     # Run unit tests
     - ctest --test-dir build/
@@ -67,8 +43,6 @@ test:
     - gcovr -r .. . -s
       --html -o coverage/report.html
       --xml coverage.xml
-  needs:
-    - build
   coverage: '/lines:\s+(\d+\.\d+|\d+)%/'
   artifacts:
     when: always
@@ -80,17 +54,58 @@ test:
         path: build/coverage.xml
       junit: build/ctest.xml
 
-lint:
+.lint_template: &lint_definition
   stage: test
-  needs:
-    - build
   allow_failure: true
-  before_script:
-    - pacman -Sy --noconfirm
-      autopep8
-      flake8
-      python-isort
   script:
     - autopep8 --exit-code --diff -r .
     - flake8 .
     - isort --check-only --diff .
+
+build:python3.10:
+  image: sergiud/hogpp:python3.10
+  <<: *build_definition
+
+test:python3.10:
+  image: sergiud/hogpp:python3.10
+  <<: *test_definition
+  needs:
+    - build:python3.10
+
+lint:python3.10:
+  image: sergiud/hogpp:python3.10
+  <<: *lint_definition
+  needs:
+    - build:python3.10
+
+build:python3.11:
+  image: sergiud/hogpp:python3.11
+  <<: *build_definition
+
+test:python3.11:
+  image: sergiud/hogpp:python3.11
+  <<: *test_definition
+  needs:
+    - build:python3.11
+
+lint:python3.11:
+  image: sergiud/hogpp:python3.11
+  <<: *lint_definition
+  needs:
+    - build:python3.11
+
+build:python3.12:
+  image: sergiud/hogpp:python3.12
+  <<: *build_definition
+
+test:python3.12:
+  image: sergiud/hogpp:python3.12
+  <<: *test_definition
+  needs:
+    - build:python3.12
+
+lint:python3.12:
+  image: sergiud/hogpp:python3.12
+  <<: *lint_definition
+  needs:
+    - build:python3.12
