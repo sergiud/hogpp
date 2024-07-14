@@ -393,7 +393,7 @@ def test_decay_to_double(dtype, horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
     desc.compute(horizontal_gradient_image.astype(dtype))
 
-    assert desc.features_.dtype == np.float_
+    assert desc.features_.dtype == np.float64
 
 
 def test_empty_multiple_bounds(horizontal_gradient_image):
