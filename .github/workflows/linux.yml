@@ -35,8 +35,7 @@ jobs:
           architecture: ${{matrix.arch}}
           cache: 'pip'
           cache-dependency-path: |
-            requirements_dev.txt
-            requirements_lint.txt
+            requirements.txt
 
       - name: Setup Dependencies
         env:
@@ -53,9 +52,7 @@ jobs:
             ninja-build
 
           pip install \
-            -r requirements_dev.txt \
-            -r requirements_lint.txt \
-            'gcovr==7.0'
+            -r requirements.txt
 
       - name: Lint
         run: |

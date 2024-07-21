@@ -129,16 +129,11 @@ jobs:
           python-version: ${{matrix.python}}
           architecture: ${{matrix.arch}}
           cache: 'pip'
-          cache-dependency-path: requirements_dev.txt
+          cache-dependency-path: requirements.txt
 
       - name: Setup Dependencies
         run: |
-          pip install -r requirements_dev.txt
-
-      - name: Setup Coverage Dependencies
-        if: matrix.build_type == 'Debug'
-        run: |
-          pip install 'gcovr==7.0.0'
+          pip install -r requirements.txt
 
       - name: Setup Debug Environment
         if: ${{matrix.build_type == 'Debug'}}
