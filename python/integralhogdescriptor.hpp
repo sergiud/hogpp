@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@
 #include <Eigen/Core>
 
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
@@ -31,6 +30,7 @@
 #include <pybind11/cast.h>
 #include <pybind11/pybind11.h>
 
+#include <hogpp/bounds.hpp>
 #include <hogpp/integralhogdescriptor.hpp>
 
 #include "binning.hpp"
@@ -233,7 +233,7 @@ public:
     void compute(const Rank2Or3TensorPair& dydx, const pybind11::handle& mask);
 
     [[nodiscard]] pybind11::object features() const;
-    [[nodiscard]] pybind11::object featuresROI(const cv::Rect& rect) const;
+    [[nodiscard]] pybind11::object featuresROI(const hogpp::Bounds& rect) const;
     [[nodiscard]] pybind11::object featuresROIs(
         const pybind11::iterable& rects) const;
     [[nodiscard]] std::tuple<int, int> cellSize() const;

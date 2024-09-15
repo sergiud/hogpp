@@ -29,8 +29,7 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
-#include <opencv2/core/core.hpp>
-
+#include <hogpp/bounds.hpp>
 #include <hogpp/gradient.hpp>
 #include <hogpp/gradientmagnitude.hpp>
 #include <hogpp/l2hys.hpp>
@@ -356,12 +355,12 @@ public:
             return Tensor5{};
         }
 
-        return features(
-            cv::Rect{0, 0, static_cast<int>(histogram_.dimension(1) - 1),
-                     static_cast<int>(histogram_.dimension(0) - 1)});
+        return features(Bounds{0, 0,
+                               static_cast<int>(histogram_.dimension(1) - 1),
+                               static_cast<int>(histogram_.dimension(0) - 1)});
     }
 
-    [[nodiscard]] Tensor5 features(const cv::Rect& roi) const
+    [[nodiscard]] Tensor5 features(const Bounds& roi) const
     {
         if (roi.area() == 0) {
             return Tensor5{};

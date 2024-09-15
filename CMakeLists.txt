@@ -18,7 +18,7 @@ check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
-find_package (OpenCV 4.0 REQUIRED)
+find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
 find_package (Python 3.0 COMPONENTS Development Interpreter)
 
 if (NOT Boost_FOUND)
@@ -46,23 +46,30 @@ target_compile_features (hogpp INTERFACE cxx_std_17)
 target_link_libraries (hogpp INTERFACE
   Eigen3::Eigen
   fmt::fmt
-  opencv_core
 )
 
 if (pybind11_FOUND)
   add_library (python_type_caster STATIC
+    python/type_caster/bounds.cpp
+    python/type_caster/bounds.hpp
     python/type_caster/cartesianproduct.hpp
-    python/type_caster/opencv.cpp
-    python/type_caster/opencv.hpp
     python/type_caster/stride.hpp
     python/type_caster/tensor.hpp
     python/type_caster/typesequence.hpp
   )
 
+  if (OpenCV_FOUND)
+    target_sources (python_type_caster PRIVATE
+      python/type_caster/opencv.cpp
+      python/type_caster/opencv.hpp
+    )
+    target_link_libraries (python_type_caster PUBLIC opencv_core)
+  endif (OpenCV_FOUND)
+
   target_compile_features (python_type_caster PUBLIC cxx_std_17)
   target_link_libraries (python_type_caster PUBLIC
     Eigen3::Eigen
-    opencv_core
+    hogpp::hogpp
     pybind11::pybind11
   )
 
@@ -86,6 +93,10 @@ if (pybind11_FOUND)
     set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
   endif (HAVE_MBIG_OBJ)
 
+  if (OpenCV_FOUND)
+    target_compile_definitions (pyhogpp PRIVATE HAVE_OPENCV)
+  endif (OpenCV_FOUND)
+
   if (HAVE_EXECUTION)
     target_compile_definitions (pyhogpp PRIVATE HAVE_EXECUTION)
   endif (HAVE_EXECUTION)
@@ -104,6 +115,10 @@ if (pybind11_FOUND)
     python_type_caster
     Eigen3::Eigen
   )
+
+  if (OpenCV_FOUND)
+    target_compile_definitions (type_caster_test PRIVATE HAVE_OPENCV)
+  endif (OpenCV_FOUND)
 
   set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
 endif (pybind11_FOUND)
@@ -198,10 +213,12 @@ if (BUILD_TESTING)
       ${Python_EXECUTABLE} -m pytest -n auto
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
 
-    add_test (NAME python_opencv_type_caster COMMAND
-      ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -n auto
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
+    if (OpenCV_FOUND)
+      add_test (NAME python_opencv_type_caster COMMAND
+        ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
+        ${Python_EXECUTABLE} -m pytest -n auto
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
+    endif (OpenCV_FOUND)
 
     add_test (NAME python_repr COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>

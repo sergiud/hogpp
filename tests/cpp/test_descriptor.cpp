@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,9 +30,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(empty, Scalar, Scalars)
 {
     BOOST_TEST(hogpp::IntegralHOGDescriptor<Scalar>{}.isEmpty());
     BOOST_TEST(hogpp::IntegralHOGDescriptor<Scalar>{}.features().size() == 0);
-    BOOST_TEST(
-        hogpp::IntegralHOGDescriptor<Scalar>{}.features(cv::Rect{}).size() ==
-        0);
+    BOOST_TEST(hogpp::IntegralHOGDescriptor<Scalar>{}
+                   .features(hogpp::Bounds{})
+                   .size() == 0);
     BOOST_TEST(hogpp::IntegralHOGDescriptor<Scalar>{}.histogram().size() == 0);
 }
 

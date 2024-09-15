@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,10 @@
 
 #include "formatter.hpp"
 #include "integralhogdescriptor.hpp"
+#include "type_caster/bounds.hpp"
+#if defined(HAVE_OPENCV)
 #include "type_caster/opencv.hpp"
+#endif // defined(HAVE_OPENCV)
 #include "type_caster/tensor.hpp"
 
 namespace {
@@ -77,6 +80,7 @@ struct NativeScalar<pybind11::int_>
 template<class T>
 using NativeScalar_t = typename NativeScalar<T>::type;
 
+#if defined(HAVE_OPENCV)
 template<class Function>
 [[maybe_unused]] constexpr void matToTensorRank2(
     [[maybe_unused]] const cv::Mat& image, [[maybe_unused]] Function&& func,
@@ -125,6 +129,8 @@ template<class Function, class Arg, class... Args>
                  .shuffle(std::array<int, 3>{{2, 1, 0}}));
     }
 }
+
+#endif // defined(HAVE_OPENCV)
 
 template<class Function>
 void bufferToTensor( // LCOV_EXCL_LINE
@@ -433,7 +439,8 @@ pybind11::object IntegralHOGDescriptor::features() const
                      descriptor_);
 }
 
-pybind11::object IntegralHOGDescriptor::featuresROI(const cv::Rect& rect) const
+pybind11::object IntegralHOGDescriptor::featuresROI(
+    const hogpp::Bounds& rect) const
 {
     return isEmpty() ? pybind11::none{}
            : rect.area() == 0
@@ -452,8 +459,8 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
 {
     auto extract = [&rects](auto& descriptor) {
         using Scalar = typename std::decay_t<decltype(descriptor)>::Scalar;
-        using Tensor = std::decay_t<decltype(
-            descriptor.features(std::declval<cv::Rect>()))>;
+        using Tensor = std::decay_t<decltype(descriptor.features(
+            std::declval<hogpp::Bounds>()))>;
         constexpr auto NumDimensions = Tensor::NumDimensions;
 
         const std::size_t n = pybind11::len(rects);
@@ -461,15 +468,15 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
 
         // Greedily convert bounds to be able to release the GIL for
         // multithreaded processing
-        std::vector<cv::Rect> bounds;
+        std::vector<hogpp::Bounds> bounds;
         bounds.resize(n);
 
         std::transform(rects.begin(), rects.end(), bounds.begin(),
                        [](const pybind11::handle& rect) {
-                           return pybind11::cast<cv::Rect>(rect);
+                           return pybind11::cast<hogpp::Bounds>(rect);
                        });
 
-        cv::Rect firstBounds;
+        hogpp::Bounds firstBounds;
 
         // Check for compatible bounds upfront. We cannot perform the check in
         // the for_each lambda because throwing an exception from the lambda
@@ -479,7 +486,7 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
             firstBounds = bounds.front();
 
             auto pos = std::find_if_not(std::next(bounds.begin()), bounds.end(),
-                                        [&bounds](const cv::Rect& value) {
+                                        [&bounds](const hogpp::Bounds& value) {
                                             return bounds.front().size() ==
                                                    value.size();
                                         });
