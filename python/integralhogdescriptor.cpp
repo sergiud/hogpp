@@ -20,13 +20,12 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 #ifdef HAVE_EXECUTION
 #include <execution>
 #endif // HAVE_EXECUTION
-
-#include <boost/range/adaptor/indexed.hpp>
 
 #include <fmt/format.h>
 
@@ -504,12 +503,16 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
             }
         }
 
-        // TODO Replace by C++20 ranges
-        auto tmp = std::as_const(bounds) | boost::adaptors::indexed();
         // Unfortunately, we also need to greedily evaluate the indexed sequence
         // because std::for_each will not run in parallel with a forward
         // iterator.
-        const std::vector idxs(tmp.begin(), tmp.end());
+        std::vector<std::pair<std::size_t, hogpp::Bounds>> idxs;
+        idxs.reserve(bounds.size());
+
+        // TODO Replace by C++20 ranges
+        for (std::size_t i = 0; i != bounds.size(); ++i) {
+            idxs.emplace_back(i, bounds[i]);
+        }
 
         auto first = idxs.cbegin();
 
@@ -531,16 +534,16 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
 
             features.resize(dims);
             features.template chip<0>(
-                static_cast<Eigen::DenseIndex>(first->index())) = X;
+                static_cast<Eigen::DenseIndex>(first->first)) = X;
 
             ++first;
         }
 
         auto assign = [&features, &descriptor](auto value) {
-            auto X = descriptor.features(value.value());
+            auto X = descriptor.features(value.second);
 
             features.template chip<0>(
-                static_cast<Eigen::DenseIndex>(value.index())) = X;
+                static_cast<Eigen::DenseIndex>(value.first)) = X;
         };
 
         {
