@@ -109,3 +109,19 @@ lint:python3.12:
   <<: *lint_definition
   needs:
     - build:python3.12
+
+build:python3.13:
+  image: sergiud/hogpp:python3.13
+  <<: *build_definition
+
+test:python3.13:
+  image: sergiud/hogpp:python3.13
+  <<: *test_definition
+  needs:
+    - build:python3.13
+
+lint:python3.13:
+  image: sergiud/hogpp:python3.13
+  <<: *lint_definition
+  needs:
+    - build:python3.13
