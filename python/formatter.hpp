@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,12 +24,18 @@
 
 #include <pybind11/cast.h>
 
+#if defined(FMT_VERSION) && FMT_VERSION >= 110000
+#define HOGPP_FORMATTER_FORMAT_CONST const
+#else // !(defined(FMT_VERSION) && FMT_VERSION >= 110000)
+#define HOGPP_FORMATTER_FORMAT_CONST
+#endif // defined(FMT_VERSION) && FMT_VERSION >= 110000
+
 template<>
 struct fmt::formatter<pybind11::str> : formatter<string_view>
 {
     template<class FormatContext>
-    [[nodiscard]] constexpr auto format(const pybind11::str& s,
-                                        FormatContext& ctx)
+    [[nodiscard]] constexpr auto format(
+        const pybind11::str& s, FormatContext& ctx) HOGPP_FORMATTER_FORMAT_CONST
     {
         return formatter<string_view>::format(std::string{s}, ctx);
     }
@@ -41,6 +47,7 @@ struct fmt::formatter<pybind11::handle> : formatter<pybind11::str>
     template<class FormatContext>
     [[nodiscard]] constexpr auto format(const pybind11::handle& o,
                                         FormatContext& ctx)
+        HOGPP_FORMATTER_FORMAT_CONST
     {
         return formatter<pybind11::str>::format(pybind11::repr(o), ctx);
     }
@@ -49,34 +56,18 @@ struct fmt::formatter<pybind11::handle> : formatter<pybind11::str>
 template<>
 struct fmt::formatter<pybind11::object> : formatter<pybind11::handle>
 {
-    template<class FormatContext>
-    [[nodiscard]] constexpr auto format(const pybind11::object& o,
-                                        FormatContext& ctx)
-    {
-        return formatter<pybind11::handle>::format(o, ctx);
-    }
 };
 
 template<>
 struct fmt::formatter<pybind11::float_> : formatter<pybind11::object>
 {
-    template<class FormatContext>
-    [[nodiscard]] constexpr auto format(const pybind11::object& o,
-                                        FormatContext& ctx)
-    {
-        return formatter<pybind11::object>::format(o, ctx);
-    }
 };
 
 template<>
 struct fmt::formatter<pybind11::int_> : formatter<pybind11::object>
 {
-    template<class FormatContext>
-    [[nodiscard]] constexpr auto format(const pybind11::object& o,
-                                        FormatContext& ctx)
-    {
-        return formatter<pybind11::object>::format(o, ctx);
-    }
 };
+
+#undef HOGPP_FORMATTER_FORMAT_CONST
 
 #endif // PYTHON_HOGPP_FORMATTER_HPP
