@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: If you use HOGpp in your work, please reference it as below.
+title: HOGpp
+abstract: Fast computation of rectangular histogram of oriented gradients (R-HOG) features using integral histogram
+authors:
+- family-names: Deitsch
+  given-names: Sergiu
+  orcid: https://orcid.org/0000-0001-8865-8066
+version: 0.1.0
+date-released: 2021-08-14
+license: Apache-2.0
+repository-code: https://github.com/sergiud/hogpp
