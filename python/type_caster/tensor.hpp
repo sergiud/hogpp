@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2023 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -266,7 +266,13 @@ private:
             std::conditional_t<std::is_const_v<std::remove_pointer_t<Ptr> >,
                                std::add_const_t<MappedTensor>, MappedTensor>;
 
-        return Eigen::TensorMap<T>{p, shape[Indices]...};
+        return Eigen::TensorMap<T>{
+#if EIGEN_VERSION_AT_LEAST(3, 4, 0)
+            p,
+#else  // !EIGEN_VERSION_AT_LEAST(3, 4, 0)
+            const_cast<std::remove_const_t<std::remove_pointer_t<Ptr>>*>(p),
+#endif // EIGEN_VERSION_AT_LEAST(3, 4, 0)
+            shape[Indices]...};
     }
 
     template<class MappedTensor = Tensor, class Ptr>
@@ -278,7 +284,12 @@ private:
     }
 
     template<class MappedTensor, class Ptr, std::size_t... Indices>
-    [[nodiscard]] constexpr static decltype(auto)
+    [[nodiscard]] constexpr static
+#if EIGEN_VERSION_AT_LEAST(3, 4, 0)
+        decltype(auto)
+#else  // !EIGEN_VERSION_AT_LEAST(3, 4, 0)
+        Tensor // Avoid assertion in lazy assignment
+#endif // EIGEN_VERSION_AT_LEAST(3, 4, 0)
         reverseMap(Ptr p, const std::vector<pybind11::ssize_t>& shape,
                    std::index_sequence<Indices...> /*unused*/) noexcept
     {
