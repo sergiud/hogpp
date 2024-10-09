@@ -15,6 +15,7 @@ include (CTest)
 
 check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
+check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
@@ -29,6 +30,14 @@ else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
 endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
 
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
+
+if (WIN32)
+  add_compile_definitions (WIN32_LEAN_AND_MEAN)
+endif (WIN32)
+
+if (HAVE_ZC_PREPROCESSOR)
+  add_compile_options (/Zc:preprocessor)
+endif (HAVE_ZC_PREPROCESSOR)
 
 add_library (hogpp INTERFACE)
 add_library (hogpp::hogpp ALIAS hogpp)
@@ -81,6 +90,7 @@ if (pybind11_FOUND AND Python_Development_FOUND)
     python/blocknormalizer.hpp
     python/formatter.hpp
     python/hogpp.cpp
+    python/hogpp.hpp
     python/integralhogdescriptor.cpp
     python/integralhogdescriptor.hpp
     python/magnitude.cpp
