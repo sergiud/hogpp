@@ -26,11 +26,19 @@
 
 #include "binning.hpp"
 #include "blocknormalizer.hpp"
+#include "hogpp.hpp"
 #include "integralhogdescriptor.hpp"
 #include "magnitude.hpp"
 #include "type_caster/bounds.hpp"
 
-PYBIND11_MODULE(hogpp, m)
+#if defined(HOGPP_GIL_DISABLED)
+#define HOGPP_MODULE(name, module, ...) \
+    PYBIND11_MODULE(name, module, pybind11::mod_gil_not_used())
+#else // !defined(HOGPP_GIL_DISABLED)
+#define HOGPP_MODULE PYBIND11_MODULE
+#endif // defined(HOGPP_GIL_DISABLED)
+
+HOGPP_MODULE(hogpp, m)
 {
     namespace py = pybind11;
 

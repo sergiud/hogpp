@@ -40,6 +40,7 @@
 #if defined(HAVE_OPENCV)
 #include "type_caster/opencv.hpp"
 #endif // defined(HAVE_OPENCV)
+#include "hogpp.hpp"
 #include "type_caster/tensor.hpp"
 
 namespace {
@@ -547,7 +548,9 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
         };
 
         {
+#if !defined(HOGPP_GIL_DISABLED)
             pybind11::gil_scoped_release release;
+#endif // !defined(HOGPP_GIL_DISABLED)
 
             // Process the remaining bounds
             std::for_each(
