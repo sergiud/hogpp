@@ -49,7 +49,7 @@ jobs:
       - name: Setup Coverage Dependencies
         if: matrix.build_type == 'Debug'
         run: |
-          pip install 'gcovr==7.2'
+          pip install 'gcovr==8.0'
 
       - name: Setup Environment
         run: |
