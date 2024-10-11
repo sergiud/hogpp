@@ -340,16 +340,17 @@ public:
 
                 HOGPP_ASSUME(bin1 <= bin2);
 
+                // Distribute weighted values to neighboring bins.
+                Eigen::TensorRef<Eigen::Tensor<Scalar, 1, DataLayout>> bins =
+                    histogram_.template chip<0>(i + 1).template chip<0>(j + 1);
+                Scalar& value1 = bins.coeffRef(bin1);
+                Scalar& value2 = bins.coeffRef(bin2);
+
+                using std::fma;
                 // The bin closest to the target orientation obtains
                 // proportionally a higher magnitude.
-                Scalar weightedMag = alpha * mag;
-                // Use an expansion of (1 - alpha) * mag to avoid numerical
-                // inaccuracy.
-                Scalar value1 = mag - weightedMag;
-                Scalar value2 = weightedMag;
-                // Distribute weighted values to neighboring bins.
-                histogram_(i + 1, j + 1, bin1) += value1;
-                histogram_(i + 1, j + 1, bin2) += value2;
+                value1 = fma(1 - alpha, mag, value1);
+                value2 = fma(alpha, mag, value2);
             }
         }
     }
