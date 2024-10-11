@@ -536,16 +536,16 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
                 static_cast<Eigen::DenseIndex>(value.index())) = X;
         };
 
-        pybind11::gil_scoped_release release;
+        {
+            pybind11::gil_scoped_release release;
 
-        // Process the remaining bounds
-        std::for_each(
+            // Process the remaining bounds
+            std::for_each(
 #ifdef HAVE_EXECUTION
-            std::execution::par,
+                std::execution::par,
 #endif // HAVE_EXECUTION
-            first, idxs.cend(), assign);
-
-        pybind11::gil_scoped_acquire acquire;
+                first, idxs.cend(), assign);
+        }
 
         return pybind11::cast(std::move(features));
     };
