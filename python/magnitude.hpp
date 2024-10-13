@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 #ifndef PYTHON_HOGPP_MAGNITUDE_HPP
 #define PYTHON_HOGPP_MAGNITUDE_HPP
 
-#include <pybind11/cast.h>
+#include <pybind11/pybind11.h>
 
 #include <type_traits>
 #include <variant>

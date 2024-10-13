@@ -20,7 +20,7 @@
 #ifndef PYTHON_TYPE_CASTER_BOUNDS_HPP
 #define PYTHON_TYPE_CASTER_BOUNDS_HPP
 
-#include <pybind11/cast.h>
+#include <pybind11/pybind11.h>
 
 #include <hogpp/bounds.hpp>
 

@@ -14,12 +14,13 @@ include (CheckCXXSymbolExists)
 include (CTest)
 
 check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
+check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
-find_package (Python 3.0 COMPONENTS Development Interpreter)
+find_package (Python 3.0 COMPONENTS Development OPTIONAL_COMPONENTS Interpreter)
 
 if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
   find_package (pybind11 2.9.0 NO_MODULE)
@@ -44,7 +45,7 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (pybind11_FOUND)
+if (pybind11_FOUND AND Python_Development_FOUND)
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
@@ -66,13 +67,14 @@ if (pybind11_FOUND)
   target_link_libraries (python_type_caster PUBLIC
     Eigen3::Eigen
     hogpp::hogpp
-    pybind11::pybind11
+    pybind11::headers
+    PRIVATE Python::Module
   )
 
   set_target_properties (python_type_caster PROPERTIES
     POSITION_INDEPENDENT_CODE ON)
 
-  pybind11_add_module (pyhogpp
+  python_add_library (pyhogpp WITH_SOABI
     python/binning.cpp
     python/binning.hpp
     python/blocknormalizer.cpp
@@ -87,6 +89,8 @@ if (pybind11_FOUND)
 
   if (HAVE_MBIG_OBJ)
     set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
+  elseif (HAVE_BIGOBJ)
+    set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS /bigobj)
   endif (HAVE_MBIG_OBJ)
 
   if (OpenCV_FOUND)
@@ -102,7 +106,7 @@ if (pybind11_FOUND)
     python_type_caster
   )
 
-  pybind11_add_module (type_caster_test
+  python_add_library (type_caster_test WITH_SOABI
     python/type_caster_test.cpp
   )
 
@@ -116,7 +120,7 @@ if (pybind11_FOUND)
   endif (OpenCV_FOUND)
 
   set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
-endif (pybind11_FOUND)
+endif (pybind11_FOUND AND Python_Development_FOUND)
 
 if (BUILD_TESTING)
   if (Boost_unit_test_framework_FOUND)

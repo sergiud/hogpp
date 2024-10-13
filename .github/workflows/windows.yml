@@ -280,6 +280,8 @@ jobs:
                 -G "${{matrix.generator}}"
 
       - name: Build
+        env:
+          CL: /MP
         run: |
           cmake --build build_${{matrix.build_type}}/ `
                 --config ${{matrix.build_type}}
