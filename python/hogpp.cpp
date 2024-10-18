@@ -171,6 +171,15 @@ PYBIND11_MODULE(hogpp, m)
             , &IntegralHOGDescriptor::fromState
         )
     )
+    .def
+    (
+        "__deepcopy__"
+        , [] (const IntegralHOGDescriptor& d, py::object /*memo*/)
+        {
+            return IntegralHOGDescriptor{d};
+        }
+        , py::arg("memo")
+    )
     ;
     // clang-format off
 }

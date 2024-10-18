@@ -2,7 +2,7 @@
 # HOGpp - Fast histogram of oriented gradients computation using integral
 # histograms
 #
-# Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+# Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import os
+import pickle
 
 if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
     path = os.getenv('HOGPPPATH')
@@ -454,7 +456,12 @@ def test_pickle_descriptor(block_norm, magnitude, clip_norm, epsilon, horizontal
         block_norm=block_norm, magnitude=magnitude, clip_norm=clip_norm, epsilon=epsilon)
     desc.compute(horizontal_gradient_image)
 
-    desc1 = copy.deepcopy(desc)
+    with io.BytesIO() as f:
+        pickle.dump(desc, f)
+        b = bytes(f.getbuffer())
+
+    with io.BytesIO(b) as f:
+        desc1 = pickle.load(f)
 
     assert desc
     assert desc.block_norm_ == desc1.block_norm_
