@@ -204,24 +204,24 @@ if (BUILD_TESTING)
   if (pybind11_FOUND AND Python_Interpreter_FOUND)
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -n auto
+      ${Python_EXECUTABLE} -m pytest -W error -n auto
       ${hogpp_SOURCE_DIR}/tests/python/test_hogpp.py)
 
     add_test (NAME python_tensor_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -n auto
+      ${Python_EXECUTABLE} -m pytest -W error -n auto
       ${hogpp_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
 
     if (OpenCV_FOUND)
       add_test (NAME python_opencv_type_caster COMMAND
         ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-        ${Python_EXECUTABLE} -m pytest -n auto
+        ${Python_EXECUTABLE} -m pytest -W error -n auto
         ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
     endif (OpenCV_FOUND)
 
     add_test (NAME python_repr COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -n auto
+      ${Python_EXECUTABLE} -m pytest -W error -n auto
       ${hogpp_SOURCE_DIR}/tests/python/test_repr.py)
   endif (pybind11_FOUND AND Python_Interpreter_FOUND)
 endif (BUILD_TESTING)
