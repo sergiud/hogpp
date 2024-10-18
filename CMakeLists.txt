@@ -201,7 +201,7 @@ if (BUILD_TESTING)
     add_test (NAME block_norm_positive_near_zero_l2norm_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<long double*")
   endif (Boost_unit_test_framework_FOUND)
 
-  if (pybind11_FOUND AND Python_Interpreter_FOUND)
+  if (TARGET pyhogpp)
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -W error -n auto
@@ -212,16 +212,16 @@ if (BUILD_TESTING)
       ${Python_EXECUTABLE} -m pytest -W error -n auto
       ${hogpp_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
 
-    if (OpenCV_FOUND)
-      add_test (NAME python_opencv_type_caster COMMAND
-        ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-        ${Python_EXECUTABLE} -m pytest -W error -n auto
-        ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
-    endif (OpenCV_FOUND)
-
     add_test (NAME python_repr COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -W error -n auto
       ${hogpp_SOURCE_DIR}/tests/python/test_repr.py)
-  endif (pybind11_FOUND AND Python_Interpreter_FOUND)
+  endif (TARGET pyhogpp)
+
+  if (TARGET type_caster_test AND OpenCV_FOUND)
+    add_test (NAME python_opencv_type_caster COMMAND
+      ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:type_caster_test>
+      ${Python_EXECUTABLE} -m pytest -W error -n auto
+      ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
+  endif (TARGET type_caster_test AND OpenCV_FOUND)
 endif (BUILD_TESTING)
