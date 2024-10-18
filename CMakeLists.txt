@@ -34,8 +34,8 @@ add_library (hogpp INTERFACE)
 add_library (hogpp::hogpp ALIAS hogpp)
 
 target_include_directories (hogpp INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<BUILD_INTERFACE:${hogpp_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${hogpp_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLURDIR}>
 )
 
@@ -205,23 +205,23 @@ if (BUILD_TESTING)
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -n auto
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_hogpp.py)
+      ${hogpp_SOURCE_DIR}/tests/python/test_hogpp.py)
 
     add_test (NAME python_tensor_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -n auto
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
+      ${hogpp_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
 
     if (OpenCV_FOUND)
       add_test (NAME python_opencv_type_caster COMMAND
         ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
         ${Python_EXECUTABLE} -m pytest -n auto
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
+        ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
     endif (OpenCV_FOUND)
 
     add_test (NAME python_repr COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -n auto
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_repr.py)
+      ${hogpp_SOURCE_DIR}/tests/python/test_repr.py)
   endif (pybind11_FOUND AND Python_Interpreter_FOUND)
 endif (BUILD_TESTING)
