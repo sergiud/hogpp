@@ -27,7 +27,7 @@
 #include <utility>
 #include <variant>
 
-#include <pybind11/cast.h>
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
 #include <hogpp/bounds.hpp>
@@ -116,7 +116,7 @@ public:
             auto info = a.request();
 
             bool supported = ((info.ndim == Ranks) || ...) &&
-                             compatible(info, SupportedTypes{});
+                             compatible(dtype{info}, SupportedTypes{});
 
             if (supported) {
                 value.buf = a;
@@ -140,11 +140,9 @@ public:
 private:
     template<class... T>
     [[nodiscard]] static constexpr bool compatible(
-        const pybind11::buffer_info& info,
-        TypeSequence<T...> /*unused*/) noexcept
+        const dtype& dt, TypeSequence<T...> /*unused*/) noexcept
     {
-        return ((info.format == pybind11::format_descriptor<T>::format()) ||
-                ...);
+        return (dt.equal(dtype::of<T>()) || ...);
     }
 };
 
@@ -256,7 +254,7 @@ public:
 private:
     [[nodiscard]] bool isEmpty() const noexcept;
     void update();
-    void update(const pybind11::buffer_info& info);
+    void update(const pybind11::dtype& dt);
 
     std::optional<Eigen::Array2i> cellSize_;
     std::optional<Eigen::Array2i> blockSize_;

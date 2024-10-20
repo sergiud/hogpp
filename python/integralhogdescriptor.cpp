@@ -29,9 +29,7 @@
 
 #include <fmt/format.h>
 
-#include <pybind11/cast.h>
 #include <pybind11/eigen.h>
-#include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
 #include "formatter.hpp"
@@ -162,7 +160,7 @@ void bufferToTensor(const pybind11::buffer& image,
                     const pybind11::buffer_info& info, Function&& func,
                     TypeSequence<Arg, Args...> /*unused*/)
 {
-    if (info.format != pybind11::format_descriptor<Arg>::format()) {
+    if (!pybind11::dtype{info}.equal(pybind11::dtype::of<Arg>())) {
         bufferToTensor(image, info, std::forward<Function>(func),
                        TypeSequence<Args...>{});
     }
@@ -284,9 +282,9 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
 
 template<class... Args>
 [[nodiscard]] DescriptorVariant makeDescriptor(
-    [[maybe_unused]] const pybind11::buffer_info& info,
-    TypeSequence<> /*unused*/, Args&&... args)
-    noexcept(std::is_nothrow_constructible_v<Descriptor<double>, Args...>)
+    [[maybe_unused]] const pybind11::dtype& dt, TypeSequence<> /*unused*/,
+    Args&&... args) noexcept(std::is_nothrow_constructible_v<Descriptor<double>,
+                                                             Args...>)
 {
     // Default descriptor instance if floating point was not matched against
     // supported types.
@@ -295,14 +293,14 @@ template<class... Args>
 
 template<class Scalar, class... Scalars, class... Args>
 [[nodiscard]] DescriptorVariant makeDescriptor(
-    const pybind11::buffer_info& info,
-    TypeSequence<Scalar, Scalars...> /*unused*/, Args&&... args)
+    const pybind11::dtype& dt, TypeSequence<Scalar, Scalars...> /*unused*/,
+    Args&&... args)
 {
-    if (info.format == pybind11::format_descriptor<Scalar>::format()) {
+    if (dt.equal(pybind11::dtype::of<Scalar>())) {
         return Descriptor<Scalar>(std::forward<Args>(args)...);
     }
 
-    return makeDescriptor(info, TypeSequence<Scalars...>{},
+    return makeDescriptor(dt, TypeSequence<Scalars...>{},
                           std::forward<Args>(args)...);
 }
 
@@ -314,7 +312,7 @@ void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
     pybind11::buffer image = t.buf;
     pybind11::buffer_info info = image.request();
 
-    update(info);
+    update(pybind11::dtype{info});
 
     std::visit(
         [&image, &info, &mask](auto& descriptor) {
@@ -368,7 +366,7 @@ void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
 {
     pybind11::buffer_info info = dydx.buf1.buf.request();
 
-    update(info);
+    update(pybind11::dtype{info});
 
     std::visit(
         [&dydx, &info, &mask](auto& descriptor) {
@@ -665,9 +663,9 @@ void IntegralHOGDescriptor::update()
         descriptor_);
 }
 
-void IntegralHOGDescriptor::update(const pybind11::buffer_info& info)
+void IntegralHOGDescriptor::update(const pybind11::dtype& dt)
 {
-    descriptor_ = makeDescriptor(info, PrecisionTypes{});
+    descriptor_ = makeDescriptor(dt, PrecisionTypes{});
     update();
 }
 
@@ -770,7 +768,7 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
         const pybind11::buffer_info& info = X.request();
 
         // Histogram floating point type defines descriptor's working precision
-        result.update(info);
+        result.update(pybind11::dtype{info});
 
         std::visit(
             [&X](auto& descriptor) {

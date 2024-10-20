@@ -122,6 +122,7 @@ jobs:
           - '3.11'
           - '3.12'
           - '3.13'
+          - 'pypy3.10'
         include:
           - msvc: VS-16-2019
             os: windows-2019

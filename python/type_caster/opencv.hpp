@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -231,7 +231,7 @@ private:
     template<class T>
     bool convert(const buffer_info& info)
     {
-        if (info.format == format_descriptor<T>::format()) {
+        if (dtype{info}.equal(dtype::of<T>())) {
             if (info.ndim == 1) {
                 cv::Mat_<T> in{1, static_cast<int>(info.shape[0]),
                                static_cast<T*>(info.ptr)};

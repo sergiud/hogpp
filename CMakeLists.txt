@@ -23,6 +23,18 @@ find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
 find_package (Python 3.0 COMPONENTS Development OPTIONAL_COMPONENTS Interpreter)
 
+if (Python_INTERPRETER_ID STREQUAL "PyPy")
+  # Correct SOABI which is missing the platform tag. See
+  # https://github.com/pypy/pypy/issues/3815.
+  execute_process (COMMAND
+    ${Python_EXECUTABLE} -c
+    "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX').split('.')[1])"
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    OUTPUT_VARIABLE Python_SOABI
+    # FIXME: Use COMMAND_ERROR_IS_FATAL ANY when CMake >= 3.19
+  )
+endif (Python_INTERPRETER_ID STREQUAL "PyPy")
+
 if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
   find_package (pybind11 2.9.0 NO_MODULE)
 else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
@@ -211,27 +223,35 @@ if (BUILD_TESTING)
     add_test (NAME block_norm_positive_near_zero_l2norm_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<long double*")
   endif (Boost_unit_test_framework_FOUND)
 
+  # pytest-xdist running on PyPy with extension modules compiled using MSVC runs
+  # extremely slow. Avoid using xdist.
+  if (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
+    set (_pytest_xdist_ARGS)
+  else (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
+    set (_pytest_xdist_ARGS -n auto)
+  endif (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
+
   if (TARGET pyhogpp)
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -W error -n auto
+      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
       ${hogpp_SOURCE_DIR}/tests/python/test_hogpp.py)
 
     add_test (NAME python_tensor_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -W error -n auto
+      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
       ${hogpp_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
 
     add_test (NAME python_repr COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -W error -n auto
+      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
       ${hogpp_SOURCE_DIR}/tests/python/test_repr.py)
   endif (TARGET pyhogpp)
 
   if (TARGET type_caster_test AND OpenCV_FOUND)
     add_test (NAME python_opencv_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:type_caster_test>
-      ${Python_EXECUTABLE} -m pytest -W error -n auto
+      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
       ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
   endif (TARGET type_caster_test AND OpenCV_FOUND)
 endif (BUILD_TESTING)

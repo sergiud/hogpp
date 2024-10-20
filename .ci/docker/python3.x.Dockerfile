@@ -1,6 +1,6 @@
-ARG Python_VERSION=3.12
+ARG Python_VERSION=python:3.12-slim-bookworm
 
-FROM python:${Python_VERSION}-slim-bookworm
+FROM ${Python_VERSION}
 
 RUN --mount=type=cache,target=/var/cache/apt \
 apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \

@@ -125,3 +125,19 @@ lint:python3.13:
   <<: *lint_definition
   needs:
     - build:python3.13
+
+build:pypy3.10:
+  image: sergiud/hogpp:pypy3.10
+  <<: *build_definition
+
+test:pypy3.10:
+  image: sergiud/hogpp:pypy3.10
+  <<: *test_definition
+  needs:
+    - build:pypy3.10
+
+lint:pypy3.10:
+  image: sergiud/hogpp:pypy3.10
+  <<: *lint_definition
+  needs:
+    - build:pypy3.10

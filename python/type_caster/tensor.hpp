@@ -127,10 +127,10 @@ public:
             value(0) = pybind11::cast<Scalar>(in);
         }
         else {
-            auto a = reinterpret_borrow<array>(in);
+            auto a = reinterpret_borrow<buffer>(in);
             auto info = a.request();
 
-            if (info.format != format_descriptor<Scalar>::format()) {
+            if (!dtype{info}.equal(dtype::of<Scalar>())) {
                 return false;
             }
 
