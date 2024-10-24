@@ -152,7 +152,7 @@ def test_vertical_gradient(dtype, block_norm, magnitude):
 
     # Ensure the vote is at the beginning of each block
     np.testing.assert_array_equal(
-        idxs, np.arange(X.size, step=desc.n_bins_))
+        idxs - desc.n_bins_ // 2, np.arange(X.size, step=desc.n_bins_))
     np.testing.assert_array_equal(diff, desc.n_bins_)
 
     XX = desc([0, 0, *image.shape[::-1]]).ravel()
@@ -188,7 +188,7 @@ def test_horizontal_gradient(dtype, block_norm, magnitude):
 
     # Ensure the vote is in the middle of each block
     np.testing.assert_array_equal(
-        idxs - desc.n_bins_ // 2, np.arange(X.size, step=desc.n_bins_))
+        idxs, np.arange(X.size, step=desc.n_bins_))
     np.testing.assert_array_equal(diff, desc.n_bins_)
 
     XX = desc([0, 0, *image.shape[::-1]]).ravel()

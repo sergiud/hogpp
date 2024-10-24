@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,11 +43,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient, Scalar, Scalars)
 
     hogpp::SignedGradient<Scalar> binning;
 
-    BOOST_TEST(fpclassify(binning(+1, 0)) == FP_ZERO);
-    BOOST_TEST(binning(-1, 0) == Scalar(0.5));
-    BOOST_TEST(fpclassify(binning(0, 0)) == FP_ZERO);
-    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == Scalar{1});
-    BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == Scalar(0.5));
+    BOOST_TEST(binning(+1, 0) == Scalar(0.5));
+    BOOST_TEST(binning(-1, 0) == Scalar{1});
+    BOOST_TEST(binning(0, +1) == Scalar(0.75));
+    BOOST_TEST(binning(0, -1) == Scalar{0.25});
+    BOOST_TEST(binning(0, 0) == Scalar(0.5));
+    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == Scalar(0.5));
+    BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == Scalar{1});
 }
 
 // clang-format off
@@ -64,11 +66,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient, Scalar, Scalars)
 
     hogpp::UnsignedGradient<Scalar> binning;
 
-    BOOST_TEST(fpclassify(binning(+1, 0)) == FP_ZERO);
-    BOOST_TEST(fpclassify(binning(-1, 0)) == FP_ZERO);
-    BOOST_TEST(binning(0, +1) == Scalar(0.5));
-    BOOST_TEST(binning(0, -1) == Scalar(0.5));
-    BOOST_TEST(fpclassify(binning(0, 0)) == FP_ZERO);
-    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == Scalar{1});
-    BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == Scalar{1});
+    BOOST_TEST(binning(+1, 0) == Scalar(0.5));
+    BOOST_TEST(binning(-1, 0) == Scalar(0.5));
+    BOOST_TEST(binning(0, +1) == Scalar{1});
+    BOOST_TEST(fpclassify(binning(0, -1)) == FP_ZERO);
+    BOOST_TEST(binning(0, 0) == Scalar(0.5));
+    BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == Scalar(0.5));
+    BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == Scalar(0.5));
 }

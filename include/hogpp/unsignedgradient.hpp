@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,12 +42,8 @@ struct UnsignedGradient
                            ? atan(dy / dx)
                            : copysign(constants::half_pi<Scalar>, dy);
 
-        // Map [-π/2, +π/2) to [0, π)
-        if (angle < 0) {
-            angle += constants::pi<Scalar>;
-        }
-
-        return angle / constants::pi<Scalar>;
+        // Map [-π/2, +π/2) to [0, 1)
+        return (angle + constants::half_pi<Scalar>) / constants::pi<Scalar>;
     }
 };
 
