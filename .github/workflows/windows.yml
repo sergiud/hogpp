@@ -41,6 +41,7 @@ jobs:
             mingw-w64-${{matrix.env}}-python-jinja
             mingw-w64-${{matrix.env}}-python-lxml
             mingw-w64-${{matrix.env}}-python-numpy
+            mingw-w64-${{matrix.env}}-python-pillow
             mingw-w64-${{matrix.env}}-python-pip
             mingw-w64-${{matrix.env}}-python-pygments
             mingw-w64-${{matrix.env}}-python-pytest

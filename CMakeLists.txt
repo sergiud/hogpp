@@ -235,7 +235,9 @@ if (BUILD_TESTING)
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/test_hogpp.py)
+      ${hogpp_SOURCE_DIR}/tests/python/test_hogpp.py
+      WORKING_DIRECTORY ${hogpp_SOURCE_DIR}
+    )
 
     add_test (NAME python_tensor_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>

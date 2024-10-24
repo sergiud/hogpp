@@ -1,3 +1,4 @@
 *.orig
+/.snakemake/
 /build*/
 __pycache__/

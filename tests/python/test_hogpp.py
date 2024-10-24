@@ -26,9 +26,16 @@ if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
         os.add_dll_directory(path)
 
 from hogpp import IntegralHOGDescriptor
+from PIL import Image
 import copy
 import numpy as np
 import pytest
+
+
+@pytest.fixture(params=['gray', 'color'])
+def circle_image(request):
+    with Image.open(os.path.join('data', f'circle-{request.param}.png'), 'r') as im:
+        return np.asarray(im)
 
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
@@ -471,3 +478,19 @@ def test_pickle_descriptor(block_norm, magnitude, clip_norm, epsilon, horizontal
 
     np.testing.assert_array_equal(desc.features_, desc1.features_)
     np.testing.assert_array_equal(desc.histogram_, desc1.histogram_)
+
+
+def test_uniform_gradients(circle_image):
+    size = circle_image.shape[:2][::-1]
+
+    desc = IntegralHOGDescriptor(
+        block_size=size, block_stride=size, cell_size=size,
+        binning='unsigned',
+        block_norm='l2-hys',
+        magnitude='identity',
+        n_bins=9)
+    desc.compute(circle_image)
+
+    diff = np.diff(desc.features_.ravel())
+
+    np.testing.assert_array_equal(diff, 0)
