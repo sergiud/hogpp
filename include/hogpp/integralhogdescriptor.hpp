@@ -29,6 +29,7 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
+#include <hogpp/assume.hpp>
 #include <hogpp/bounds.hpp>
 #include <hogpp/gradient.hpp>
 #include <hogpp/gradientmagnitude.hpp>
@@ -298,12 +299,16 @@ public:
                 Eigen::DenseIndex kk = k(i, j);
                 Scalar mag = mags(i, j, kk);
 
-                assert(mag >= 0);
+                using std::fpclassify;
 
-                if (!(mag > 0)) {
+                if (fpclassify(mag) == FP_ZERO) {
                     // No gradient; take a shortcut
                     continue;
                 }
+
+                // The gradient magnitude cannot be negative (or zero at this
+                // point)
+                HOGPP_ASSUME(mag > 0);
 
                 Scalar dx = dxs(i, j, kk);
                 Scalar dy = dys(i, j, kk);
@@ -311,7 +316,7 @@ public:
                 // Gradient binning
                 Scalar weight = this->binning_(dx, dy);
 
-                assert(weight >= 0 && weight <= 1);
+                HOGPP_ASSUME(weight >= 0 && weight <= 1);
 
                 using std::floor;
                 using std::min;
@@ -328,12 +333,12 @@ public:
                 // proportionally to the gradient distance to each center.
                 Scalar alpha = center - lower;
 
-                assert(alpha >= 0 && alpha <= 1);
+                HOGPP_ASSUME(alpha >= 0 && alpha <= 1);
 
                 const auto bin1 = static_cast<Eigen::DenseIndex>(lower);
                 const auto bin2 = static_cast<Eigen::DenseIndex>(upper);
 
-                assert(bin1 <= bin2);
+                HOGPP_ASSUME(bin1 <= bin2);
 
                 // The bin closest to the target orientation obtains
                 // proportionally a higher magnitude.
