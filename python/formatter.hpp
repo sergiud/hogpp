@@ -25,9 +25,9 @@
 #include <pybind11/cast.h>
 
 #if defined(FMT_VERSION) && FMT_VERSION >= 110000
-#define HOGPP_FORMATTER_FORMAT_CONST const
+#    define HOGPP_FORMATTER_FORMAT_CONST const
 #else // !(defined(FMT_VERSION) && FMT_VERSION >= 110000)
-#define HOGPP_FORMATTER_FORMAT_CONST
+#    define HOGPP_FORMATTER_FORMAT_CONST
 #endif // defined(FMT_VERSION) && FMT_VERSION >= 110000
 
 template<>

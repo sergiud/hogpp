@@ -24,7 +24,7 @@
 #include <vector>
 
 #ifdef HAVE_EXECUTION
-#include <execution>
+#    include <execution>
 #endif // HAVE_EXECUTION
 
 #include <fmt/format.h>
@@ -36,7 +36,7 @@
 #include "integralhogdescriptor.hpp"
 #include "type_caster/bounds.hpp"
 #if defined(HAVE_OPENCV)
-#include "type_caster/opencv.hpp"
+#    include "type_caster/opencv.hpp"
 #endif // defined(HAVE_OPENCV)
 #include "hogpp.hpp"
 #include "type_caster/tensor.hpp"
@@ -44,22 +44,21 @@
 namespace {
 
 template<class... Elements, std::size_t... Indices>
-[[nodiscard]] constexpr decltype(auto)
-    tuple_head(const std::tuple<Elements...>& t,
-               std::index_sequence<Indices...>)
+[[nodiscard]] constexpr decltype(auto) tuple_head(
+    const std::tuple<Elements...>& t, std::index_sequence<Indices...>)
 {
     return std::forward_as_tuple(std::get<Indices>(t)...);
 }
 
 template<std::size_t N, class... Elements>
-[[nodiscard]] constexpr decltype(auto)
-    tuple_head(const std::tuple<Elements...>& t)
+[[nodiscard]] constexpr decltype(auto) tuple_head(
+    const std::tuple<Elements...>& t)
 {
     return tuple_head(t, std::make_index_sequence<N>{});
 }
 
 template<class T>
-struct NativeScalar : NativeScalar<std::decay_t<T> >
+struct NativeScalar : NativeScalar<std::decay_t<T>>
 {
 };
 
@@ -95,7 +94,7 @@ template<class Function, class Arg, class... Args>
                          TypeSequence<Args...>{});
     }
     else {
-        Eigen::TensorMap<const Eigen::Tensor<Arg, 2, Eigen::RowMajor> > t{
+        Eigen::TensorMap<const Eigen::Tensor<Arg, 2, Eigen::RowMajor>> t{
             image.ptr<Arg>(), image.rows, image.cols};
         func(t.reshape(std::array<long, 3>{{image.rows, image.cols, 1}})
                  .swap_layout()
@@ -119,7 +118,7 @@ template<class Function, class Arg, class... Args>
                          TypeSequence<Args...>{});
     }
     else {
-        Eigen::TensorMap<const Eigen::Tensor<Arg, 3, Eigen::RowMajor> > t{
+        Eigen::TensorMap<const Eigen::Tensor<Arg, 3, Eigen::RowMajor>> t{
             image.ptr<Arg>(), 1, 1, image.rows * image.cols * image.channels()};
         func(t.reshape(std::array<int, 3>{
                            {image.rows, image.cols, image.channels()}})
@@ -204,9 +203,9 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     const std::optional<MagnitudeType>& magnitude,
     const std::optional<BinningType>& binning,
     const std::optional<BlockNormalizerType>& blockNorm,
-    const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+    const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
         clipNorm,
-    const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+    const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
         epsilon)
     : cellSize_{cellSize}
     , blockSize_{blockSize}
@@ -709,10 +708,10 @@ pybind11::object IntegralHOGDescriptor::clipNorm() const noexcept
 
     return !result.is_none() ? result
            : clipNorm_       ? std::visit(
-                                   [](const auto& value) {
+                             [](const auto& value) {
                                  return pybind11::cast<pybind11::object>(value);
-                                   },
-                                   *clipNorm_)
+                             },
+                             *clipNorm_)
                        : pybind11::none{};
 }
 

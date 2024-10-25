@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 
 namespace hogpp {
 
-template<class T, class TraitsType = NormTraits<T> >
+template<class T, class TraitsType = NormTraits<T>>
 class L2Hys
 {
 public:
@@ -36,10 +36,12 @@ public:
 
     [[nodiscard]] constexpr explicit L2Hys(
         Scalar clip = TraitsType::clip(),
-        Scalar regularization = TraitsType::regularization())
-        noexcept(
-            std::is_nothrow_constructible_v<Scalar, Scalar>&&
-                std::is_nothrow_constructible_v<L2Norm<Scalar, TraitsType> >)
+        Scalar regularization =
+            TraitsType::regularization()) noexcept(std::is_nothrow_constructible_v<Scalar,
+                                                                                   Scalar> &&
+                                                   std::is_nothrow_constructible_v<
+                                                       L2Norm<Scalar,
+                                                              TraitsType>>)
         : clip_{clip}
         , l2_{regularization}
     {
@@ -76,7 +78,7 @@ template<class T>
 explicit L2Hys(T) -> L2Hys<T>;
 
 template<class T1, class T2>
-explicit L2Hys(T1, T2) -> L2Hys<std::common_type_t<T1, T2> >;
+explicit L2Hys(T1, T2) -> L2Hys<std::common_type_t<T1, T2>>;
 
 } // namespace hogpp
 

@@ -79,14 +79,14 @@ public:
 private:
     struct BinningVisitor
     {
-        [[nodiscard]] constexpr BinningType
-        operator()(const hogpp::SignedGradient<T>& /*unused*/) const noexcept
+        [[nodiscard]] constexpr BinningType operator()(
+            const hogpp::SignedGradient<T>& /*unused*/) const noexcept
         {
             return BinningType::Signed;
         }
 
-        [[nodiscard]] constexpr BinningType
-        operator()(const hogpp::UnsignedGradient<T>& /*unused*/) const noexcept
+        [[nodiscard]] constexpr BinningType operator()(
+            const hogpp::UnsignedGradient<T>& /*unused*/) const noexcept
         {
             return BinningType::Unsigned;
         }

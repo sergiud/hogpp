@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,17 +29,15 @@
 
 namespace hogpp {
 
-template<class T, class TraitsType = NormTraits<T> >
+template<class T, class TraitsType = NormTraits<T>>
 class L1Sqrt
 {
 public:
     using Scalar = T;
     using Traits = TraitsType;
 
-    [[nodiscard]] constexpr explicit L1Sqrt(
-        Scalar regularization = TraitsType::regularization())
-        noexcept(
-            std::is_nothrow_constructible_v<L1Norm<Scalar, TraitsType>, Scalar>)
+    [[nodiscard]] constexpr explicit L1Sqrt(Scalar regularization = TraitsType::regularization()) noexcept(
+        std::is_nothrow_constructible_v<L1Norm<Scalar, TraitsType>, Scalar>)
         : l1_{regularization}
     {
     }

@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,8 +42,8 @@ public:
     [[nodiscard]] constexpr decltype(auto) operator()(
         const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
         const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
-        noexcept(noexcept(
-            std::declval<GradientSquareMagnitude<T> >()(dx, dy).sqrt()))
+        noexcept(
+            noexcept(std::declval<GradientSquareMagnitude<T>>()(dx, dy).sqrt()))
     {
         return vote_(dx, dy).sqrt();
     }

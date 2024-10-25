@@ -3,9 +3,26 @@ name: Linux
 on: [push, pull_request]
 
 jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    container: sergiud/hogpp:lint
+    defaults:
+      run:
+        shell: bash -e -o pipefail {0}
+    strategy:
+      fail-fast: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check code style
+        run: |
+          fdfind -g '*.[ch]pp' -x clang-format-19 --dry-run --Werror
+
   build:
     name: ${{matrix.os}}-GCC-${{matrix.build_type}}-Python-${{matrix.python}}
     runs-on: ${{matrix.os}}
+    needs: lint
     defaults:
       run:
         shell: bash

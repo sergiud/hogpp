@@ -46,9 +46,9 @@
 }
 
 template<class Type, class... Types>
-[[nodiscard]] constexpr auto depthToFormat(
-    int depth, TypeSequence<Type, Types...> /*unused*/)
-    noexcept(noexcept(depthToFormat(depth, TypeSequence<Types...>{})))
+[[nodiscard]] constexpr auto
+depthToFormat(int depth, TypeSequence<Type, Types...> /*unused*/) noexcept(
+    noexcept(depthToFormat(depth, TypeSequence<Types...>{})))
 {
     if (depth == cv::DataDepth<Type>::value) {
         return pybind11::format_descriptor<Type>::format();
@@ -143,8 +143,9 @@ private:
 
                     cartesianProduct(
                         std::make_tuple(shape[0], shape[1]),
-                        [&in, p, strides](const auto& i)
-                            constexpr { assign<T>(in, p, i, strides); });
+                        [&in, p, strides](const auto& i) constexpr {
+                            assign<T>(in, p, i, strides);
+                        });
                 }
             } break;
             case 3: {
@@ -158,10 +159,11 @@ private:
                         std::vector<int> sizes;
                         sizes.resize(shape.size());
 
-                        std::transform(
-                            shape.begin(), shape.end(), sizes.begin(),
-                            [](pybind11::ssize_t value)
-                                constexpr { return static_cast<int>(value); });
+                        std::transform(shape.begin(), shape.end(),
+                                       sizes.begin(),
+                                       [](pybind11::ssize_t value) constexpr {
+                                           return static_cast<int>(value);
+                                       });
                         std::vector<std::size_t> steps{strides.begin(),
                                                        strides.end()};
 
@@ -177,8 +179,9 @@ private:
 
                         cartesianProduct(
                             std::make_tuple(shape[0], shape[1], shape[2]),
-                            [&in, p, strides](const auto& i)
-                                constexpr { assign<T>(in, p, i, strides); });
+                            [&in, p, strides](const auto& i) constexpr {
+                                assign<T>(in, p, i, strides);
+                            });
                     }
                 }
             } break;
@@ -265,12 +268,12 @@ private:
 };
 
 template<class T>
-class type_caster<cv::Mat_<T> > : public type_caster<cv::Mat>
+class type_caster<cv::Mat_<T>> : public type_caster<cv::Mat>
 {
 };
 
 template<class T>
-class type_caster<cv::Rect_<T> >
+class type_caster<cv::Rect_<T>>
 {
 public:
     PYBIND11_TYPE_CASTER(cv::Rect_<T>, _("Rect"));
@@ -279,7 +282,7 @@ public:
     {
         try {
             std::tie(value.y, value.x, value.height, value.width) =
-                pybind11::cast<std::tuple<T, T, T, T> >(src);
+                pybind11::cast<std::tuple<T, T, T, T>>(src);
         }
         catch (const pybind11::builtin_exception&) {
             return false;

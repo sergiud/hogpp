@@ -92,8 +92,8 @@ public:
 private:
     struct MagnitudeVisitor
     {
-        [[nodiscard]] constexpr MagnitudeType
-        operator()(const hogpp::GradientMagnitude<T>& /*unused*/) const noexcept
+        [[nodiscard]] constexpr MagnitudeType operator()(
+            const hogpp::GradientMagnitude<T>& /*unused*/) const noexcept
         {
             return MagnitudeType::Identity;
         }

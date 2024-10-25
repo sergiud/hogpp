@@ -141,3 +141,11 @@ lint:pypy3.10:
   <<: *lint_definition
   needs:
     - build:pypy3.10
+
+lint:cpp:
+  image: sergiud/hogpp:lint
+  stage: test
+  allow_failure: true
+  script:
+    - fdfind -g '*.[ch]pp' -x clang-format-19 --dry-run --Werror
+  needs: []

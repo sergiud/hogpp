@@ -127,32 +127,32 @@ public:
 private:
     struct BlockNormalizerVisitor
     {
-        [[nodiscard]] constexpr BlockNormalizerType
-        operator()(const L1& /*unused*/) const noexcept
+        [[nodiscard]] constexpr BlockNormalizerType operator()(
+            const L1& /*unused*/) const noexcept
         {
             return BlockNormalizerType::L1;
         }
 
-        [[nodiscard]] constexpr BlockNormalizerType
-        operator()(const L1Hys& /*unused*/) const noexcept
+        [[nodiscard]] constexpr BlockNormalizerType operator()(
+            const L1Hys& /*unused*/) const noexcept
         {
             return BlockNormalizerType::L1Hys;
         }
 
-        [[nodiscard]] constexpr BlockNormalizerType
-        operator()(const L2& /*unused*/) const noexcept
+        [[nodiscard]] constexpr BlockNormalizerType operator()(
+            const L2& /*unused*/) const noexcept
         {
             return BlockNormalizerType::L2;
         }
 
-        [[nodiscard]] constexpr BlockNormalizerType
-        operator()(const L2Hys& /*unused*/) const noexcept
+        [[nodiscard]] constexpr BlockNormalizerType operator()(
+            const L2Hys& /*unused*/) const noexcept
         {
             return BlockNormalizerType::L2Hys;
         }
 
-        [[nodiscard]] constexpr BlockNormalizerType
-        operator()(const L1Sqrt& /*unused*/) const noexcept
+        [[nodiscard]] constexpr BlockNormalizerType operator()(
+            const L1Sqrt& /*unused*/) const noexcept
         {
             return BlockNormalizerType::L1sqrt;
         }
@@ -170,7 +170,7 @@ private:
 
     struct ClipVisitor
     {
-        template<class Norm, std::enable_if_t<HasClip_v<Norm> >* = nullptr>
+        template<class Norm, std::enable_if_t<HasClip_v<Norm>>* = nullptr>
         [[nodiscard]] pybind11::object operator()(
             const Norm& norm) const noexcept
         {
@@ -178,7 +178,7 @@ private:
             return pybind11::float_{Scalar(norm.clip())};
         }
 
-        template<class Norm, std::enable_if_t<!HasClip_v<Norm> >* = nullptr>
+        template<class Norm, std::enable_if_t<!HasClip_v<Norm>>* = nullptr>
         [[nodiscard]] pybind11::object operator()(
             [[maybe_unused]] const Norm& norm) const noexcept
         {
@@ -188,7 +188,7 @@ private:
 
     struct RegularizationVisitor
     {
-        template<class Norm, std::enable_if_t<HasNorm_v<Norm> >* = nullptr>
+        template<class Norm, std::enable_if_t<HasNorm_v<Norm>>* = nullptr>
         [[nodiscard]] pybind11::object operator()(
             const Norm& norm) const noexcept
         {
@@ -196,7 +196,7 @@ private:
         }
 
         template<class Norm,
-                 std::enable_if_t<HasRegularization_v<Norm> >* = nullptr>
+                 std::enable_if_t<HasRegularization_v<Norm>>* = nullptr>
         [[nodiscard]] pybind11::object operator()(
             [[maybe_unused]] const Norm& norm) const noexcept
         {
@@ -206,7 +206,7 @@ private:
 
         template<class Norm,
                  std::enable_if_t<!HasNorm_v<Norm> &&
-                                  !HasRegularization_v<Norm> >* = nullptr>
+                                  !HasRegularization_v<Norm>>* = nullptr>
         [[nodiscard]] pybind11::object operator()(
             [[maybe_unused]] const Norm& norm) const noexcept
         {

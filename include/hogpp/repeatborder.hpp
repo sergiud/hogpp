@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,12 +30,12 @@ namespace hogpp {
 struct RepeatBorder
 {
     template<std::size_t Axis, class Scalar, int DataLayout, class... Elements>
-    [[nodiscard]] constexpr Scalar
-    clamp(const Eigen::Tensor<Scalar, sizeof...(Elements), DataLayout>& image,
-          std::tuple<Elements...> idxs) const
+    [[nodiscard]] constexpr Scalar clamp(
+        const Eigen::Tensor<Scalar, sizeof...(Elements), DataLayout>& image,
+        std::tuple<Elements...> idxs) const
     {
         using std::clamp;
-        using Index = std::tuple_element_t<Axis, std::tuple<Elements...> >;
+        using Index = std::tuple_element_t<Axis, std::tuple<Elements...>>;
 
         auto& i = std::get<Axis>(idxs);
 

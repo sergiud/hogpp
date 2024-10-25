@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ struct ConditionalBorder
         AtUpperBorder&& atUpperBorder, std::tuple<Elements...> idxs) const
     {
         using Index =
-            std::tuple_element_t<Axis::value, std::tuple<Elements...> >;
+            std::tuple_element_t<Axis::value, std::tuple<Elements...>>;
 
         auto& i = std::get<Axis::value>(idxs);
         auto&& args = std::tuple_cat(std::forward_as_tuple(image), idxs);
@@ -67,10 +67,10 @@ struct ConditionalBorder
 
     template<class Axis, class Scalar, int DataLayout, class Interior,
              class AtLowerBorder, class AtUpperBorder, class... Args>
-    constexpr decltype(auto)
-        compute(const Eigen::Tensor<Scalar, Size_v<Args...>, DataLayout>& image,
-                Interior&& interior, AtLowerBorder&& atLowerBorder,
-                AtUpperBorder&& atUpperBorder, Args&&... args) const
+    constexpr decltype(auto) compute(
+        const Eigen::Tensor<Scalar, Size_v<Args...>, DataLayout>& image,
+        Interior&& interior, AtLowerBorder&& atLowerBorder,
+        AtUpperBorder&& atUpperBorder, Args&&... args) const
     {
         return select<Axis>(image, std::forward<Interior>(interior),
                             std::forward<AtLowerBorder>(atLowerBorder),

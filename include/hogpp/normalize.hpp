@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,8 +33,8 @@ namespace hogpp {
  * each coefficient of the block tensor is divided by this value.
  */
 template<class Tensor>
-constexpr void normalize(Tensor& block, typename Tensor::Scalar den)
-    noexcept(noexcept(block = block / den))
+constexpr void normalize(Tensor& block, typename Tensor::Scalar den) noexcept(
+    noexcept(block = block / den))
 {
     using std::fpclassify;
 

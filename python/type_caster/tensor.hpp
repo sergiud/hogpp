@@ -44,24 +44,24 @@ template<class T, std::size_t N, std::size_t... Indices>
 }
 
 template<class T, std::size_t N, std::size_t... Indices>
-[[nodiscard]] constexpr decltype(auto)
-    f_strides(const std::array<Eigen::DenseIndex, N>& values,
-              std::index_sequence<Indices...> /*unused*/) noexcept
+[[nodiscard]] constexpr decltype(auto) f_strides(
+    const std::array<Eigen::DenseIndex, N>& values,
+    std::index_sequence<Indices...> /*unused*/) noexcept
 {
     return std::array<Eigen::DenseIndex, N>{
         prod<T>(values, std::make_index_sequence<Indices>{})...};
 }
 
 template<class T, std::size_t N>
-[[nodiscard]] constexpr decltype(auto)
-    f_strides(const std::array<Eigen::DenseIndex, N>& values) noexcept
+[[nodiscard]] constexpr decltype(auto) f_strides(
+    const std::array<Eigen::DenseIndex, N>& values) noexcept
 {
     return f_strides<T>(values, std::make_index_sequence<N>{});
 }
 
 template<class T, std::size_t N>
-[[nodiscard]] constexpr decltype(auto)
-    c_strides(const std::array<Eigen::DenseIndex, N>& values) noexcept
+[[nodiscard]] constexpr decltype(auto) c_strides(
+    const std::array<Eigen::DenseIndex, N>& values) noexcept
 {
     std::array<Eigen::DenseIndex, N> reversed = values;
     std::reverse(reversed.begin(), reversed.end());
@@ -198,22 +198,22 @@ private:
 
     template<bool RowMajor>
     using Comparer_t =
-        std::conditional_t<RowMajor, std::greater<>, std::less<> >;
+        std::conditional_t<RowMajor, std::greater<>, std::less<>>;
 
     [[nodiscard]] bool contiguous(const pybind11::buffer_info& info,
                                   const pybind11::array& a) noexcept
     {
         using Scalar = typename Tensor::Scalar;
 
-        constexpr auto style = Style_v<RowMajor_v<Tensor::Options> >;
-        constexpr auto otherStyle = Style_v<ColMajor_v<Tensor::Options> >;
+        constexpr auto style = Style_v<RowMajor_v<Tensor::Options>>;
+        constexpr auto otherStyle = Style_v<ColMajor_v<Tensor::Options>>;
 
         // Contiguous layout of C-style arrays implies strides in descending
         // order
-        using ThisComparer = Comparer_t<RowMajor_v<Tensor::Options> >;
+        using ThisComparer = Comparer_t<RowMajor_v<Tensor::Options>>;
         // Contiguous layout of F-style arrays implies strides in ascending
         // order
-        using OtherComparer = Comparer_t<ColMajor_v<Tensor::Options> >;
+        using OtherComparer = Comparer_t<ColMajor_v<Tensor::Options>>;
 
         // Arrays can be both C-style and Fortran-style contiguous
         // simultaneously. This is evidently true for 1-dimensional arrays, but
@@ -238,7 +238,7 @@ private:
             using OtherOptions_t = std::conditional_t<
                 ColMajor_v<Tensor::Options>,
                 std::integral_constant<int, Eigen::RowMajor>,
-                std::integral_constant<int, Eigen::ColMajor> >;
+                std::integral_constant<int, Eigen::ColMajor>>;
 
             using MappedTensor = Eigen::Tensor<Scalar, Tensor::NumDimensions,
                                                OtherOptions_t::value>;
@@ -256,14 +256,14 @@ private:
     }
 
     template<class MappedTensor, class Ptr, std::size_t... Indices>
-    [[nodiscard]] constexpr static decltype(auto)
-        map(Ptr p, const std::vector<pybind11::ssize_t>& shape,
-            std::index_sequence<Indices...> /*unused*/) noexcept
+    [[nodiscard]] constexpr static decltype(auto) map(
+        Ptr p, const std::vector<pybind11::ssize_t>& shape,
+        std::index_sequence<Indices...> /*unused*/) noexcept
     {
         static_assert(std::is_pointer_v<Ptr>, "Ptr must be a pointer");
 
         using T =
-            std::conditional_t<std::is_const_v<std::remove_pointer_t<Ptr> >,
+            std::conditional_t<std::is_const_v<std::remove_pointer_t<Ptr>>,
                                std::add_const_t<MappedTensor>, MappedTensor>;
 
         return Eigen::TensorMap<T>{
@@ -276,8 +276,8 @@ private:
     }
 
     template<class MappedTensor = Tensor, class Ptr>
-    [[nodiscard]] constexpr static decltype(auto)
-        map(Ptr p, const std::vector<pybind11::ssize_t>& shape) noexcept
+    [[nodiscard]] constexpr static decltype(auto) map(
+        Ptr p, const std::vector<pybind11::ssize_t>& shape) noexcept
     {
         return map<MappedTensor>(
             p, shape, std::make_index_sequence<Tensor::NumDimensions>{});
@@ -299,8 +299,8 @@ private:
     }
 
     template<class MappedTensor = Tensor, class Ptr>
-    [[nodiscard]] constexpr static decltype(auto)
-        reverseMap(Ptr p, const std::vector<pybind11::ssize_t>& shape) noexcept
+    [[nodiscard]] constexpr static decltype(auto) reverseMap(
+        Ptr p, const std::vector<pybind11::ssize_t>& shape) noexcept
     {
         return reverseMap<MappedTensor>(
             p, shape, std::make_index_sequence<Tensor::NumDimensions>{});
@@ -346,17 +346,17 @@ private:
     }
 
     template<class Scalar, std::size_t N, int Options,
-             std::enable_if_t<RowMajor_v<Options> >* = nullptr>
-    [[nodiscard]] constexpr static decltype(auto)
-        strides(const std::array<Eigen::DenseIndex, N>& dimensions) noexcept
+             std::enable_if_t<RowMajor_v<Options>>* = nullptr>
+    [[nodiscard]] constexpr static decltype(auto) strides(
+        const std::array<Eigen::DenseIndex, N>& dimensions) noexcept
     {
         return ::c_strides<Scalar>(dimensions);
     }
 
     template<class Scalar, std::size_t N, int Options,
-             std::enable_if_t<ColMajor_v<Options> >* = nullptr>
-    [[nodiscard]] constexpr static decltype(auto)
-        strides(const std::array<Eigen::DenseIndex, N>& dimensions) noexcept
+             std::enable_if_t<ColMajor_v<Options>>* = nullptr>
+    [[nodiscard]] constexpr static decltype(auto) strides(
+        const std::array<Eigen::DenseIndex, N>& dimensions) noexcept
     {
         return ::f_strides<Scalar>(dimensions);
     }

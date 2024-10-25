@@ -23,7 +23,7 @@
 
 #include "type_caster/bounds.hpp"
 #if defined(HAVE_OPENCV)
-#include "type_caster/opencv.hpp"
+#    include "type_caster/opencv.hpp"
 #endif // defined(HAVE_OPENCV)
 #include "type_caster/tensor.hpp"
 

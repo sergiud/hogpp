@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ struct ForwardDifferences<T, Vertical_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -53,7 +53,7 @@ struct ForwardDifferences<T, Horizontal_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -72,7 +72,7 @@ struct BackwardDifferences<T, Vertical_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -88,7 +88,7 @@ struct BackwardDifferences<T, Horizontal_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -107,7 +107,7 @@ struct CentralDifferences<T, Vertical_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -123,7 +123,7 @@ struct CentralDifferences<T, Horizontal_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -144,7 +144,7 @@ struct DiscretePointDifferences<T, Vertical_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -160,7 +160,7 @@ struct DiscretePointDifferences<T, Horizontal_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor> >
+    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
     [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
                                                       Eigen::DenseIndex i,
                                                       Eigen::DenseIndex j,
@@ -209,7 +209,7 @@ using MakeHorizontalSampler_t = typename MakeSampler<T, Horizontal_t>::type;
 
 template<class T, class InteriorSampler = DiscretePointDifferences<T>,
          class LowerBoundSampler = ForwardDifferences<T>,
-         class UpperBoundSampler = BackwardDifferences<T> >
+         class UpperBoundSampler = BackwardDifferences<T>>
 class Gradient
 {
 public:

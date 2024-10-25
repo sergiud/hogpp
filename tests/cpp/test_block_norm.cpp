@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2022 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,12 +45,12 @@ using Norms = boost::mp11::mp_list
 using PrecisionNorms =
     boost::mp11::mp_product<boost::mp11::mp_invoke_q, Norms, Scalars>;
 
-BOOST_TEST_DECORATOR(* boost::unit_test::label("zero"))
+BOOST_TEST_DECORATOR(*boost::unit_test::label("zero"))
 BOOST_AUTO_TEST_CASE_TEMPLATE(zero, Norm, PrecisionNorms)
 {
     using Scalar = typename Norm::Scalar;
 
-    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<8, 8> > block;
+    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<8, 8>> block;
     block.setZero();
 
     Norm{}(block);
@@ -59,12 +59,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(zero, Norm, PrecisionNorms)
     BOOST_TEST(s(0) == 0);
 }
 
-BOOST_TEST_DECORATOR(* boost::unit_test::label("negative_near_zero"))
+BOOST_TEST_DECORATOR(*boost::unit_test::label("negative_near_zero"))
 BOOST_AUTO_TEST_CASE_TEMPLATE(negative_near_zero, Norm, PrecisionNorms)
 {
     using Scalar = typename Norm::Scalar;
 
-    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<8, 8> > block;
+    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<8, 8>> block;
     block.setConstant(-Eigen::NumTraits<Scalar>::dummy_precision());
 
     Norm{}(block);
@@ -73,12 +73,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(negative_near_zero, Norm, PrecisionNorms)
     BOOST_TEST(s(0) >= 0);
 }
 
-BOOST_TEST_DECORATOR(* boost::unit_test::label("positive_near_zero"))
+BOOST_TEST_DECORATOR(*boost::unit_test::label("positive_near_zero"))
 BOOST_AUTO_TEST_CASE_TEMPLATE(positive_near_zero, Norm, PrecisionNorms)
 {
     using Scalar = typename Norm::Scalar;
 
-    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<8, 8> > block;
+    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<8, 8>> block;
     block.setConstant(+Eigen::NumTraits<Scalar>::dummy_precision());
 
     Norm{}(block);

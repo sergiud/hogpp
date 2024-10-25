@@ -41,7 +41,7 @@
 template<class T>
 using Descriptor =
     hogpp::IntegralHOGDescriptor<T, hogpp::Gradient<T>, Magnitude<T>,
-                                 Binning<T>, BlockNormalizer<T> >;
+                                 Binning<T>, BlockNormalizer<T>>;
 
 template<class... T>
 struct MakeDescriptorVariant_t
@@ -50,7 +50,7 @@ struct MakeDescriptorVariant_t
 };
 
 template<class... T>
-struct MakeDescriptorVariant_t<TypeSequence<T...> >
+struct MakeDescriptorVariant_t<TypeSequence<T...>>
 {
     using type = std::variant<Descriptor<T>...>;
 };
@@ -104,7 +104,7 @@ struct RankNTensorPair
 };
 
 template<long... Ranks>
-class pybind11::detail::type_caster<RankNTensor<Ranks...> >
+class pybind11::detail::type_caster<RankNTensor<Ranks...>>
 {
 public:
     PYBIND11_TYPE_CASTER(RankNTensor<Ranks...>, _("numpy.ndarray[n, m[, o]]"));
@@ -147,7 +147,7 @@ private:
 };
 
 template<long... Ranks>
-class pybind11::detail::type_caster<RankNTensorPair<Ranks...> >
+class pybind11::detail::type_caster<RankNTensorPair<Ranks...>>
 {
 public:
     PYBIND11_TYPE_CASTER(
@@ -158,7 +158,7 @@ public:
     {
         try {
             auto [buf1, buf2] = pybind11::cast<
-                std::tuple<RankNTensor<Ranks...>, RankNTensor<Ranks...> > >(in);
+                std::tuple<RankNTensor<Ranks...>, RankNTensor<Ranks...>>>(in);
             auto info1 = buf1.buf.request();
             auto info2 = buf2.buf.request();
 
@@ -222,9 +222,9 @@ public:
         const std::optional<MagnitudeType>& magnitude,
         const std::optional<BinningType>& binning,
         const std::optional<BlockNormalizerType>& blockNorm,
-        const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+        const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
             clipNorm,
-        const std::optional<std::variant<pybind11::int_, pybind11::float_> >&
+        const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
             epsilon);
 
     void compute(const Rank2Or3Tensor& image, const pybind11::handle& mask);
@@ -263,8 +263,8 @@ private:
     std::optional<MagnitudeType> magnitudeType_;
     std::optional<BinningType> binningType_;
     std::optional<BlockNormalizerType> blockNormalizerType_;
-    std::optional<std::variant<pybind11::int_, pybind11::float_> > clipNorm_;
-    std::optional<std::variant<pybind11::int_, pybind11::float_> > epsilon_;
+    std::optional<std::variant<pybind11::int_, pybind11::float_>> clipNorm_;
+    std::optional<std::variant<pybind11::int_, pybind11::float_>> epsilon_;
 
     DescriptorVariant descriptor_;
 };

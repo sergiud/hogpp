@@ -1,4 +1,4 @@
-ARG Python_VERSION=python:3.12-slim-bookworm
+ARG Python_VERSION=python:3.13-slim-bookworm
 
 FROM ${Python_VERSION}
 
