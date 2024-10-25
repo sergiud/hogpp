@@ -17,6 +17,8 @@ check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
 check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 
+set (PYBIND11_NOPYTHON ON)
+
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
