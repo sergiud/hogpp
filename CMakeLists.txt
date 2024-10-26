@@ -12,6 +12,7 @@ set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 include (CheckCXXCompilerFlag)
 include (CheckCXXSymbolExists)
 include (CTest)
+include (GNUInstallDirs)
 
 check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
@@ -59,7 +60,7 @@ add_library (hogpp::hogpp ALIAS hogpp)
 target_include_directories (hogpp INTERFACE
   $<BUILD_INTERFACE:${hogpp_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${hogpp_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLURDIR}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_compile_features (hogpp INTERFACE cxx_std_17)
