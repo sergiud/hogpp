@@ -1,0 +1,4 @@
+Further Reading
+===============
+
+.. bibliography::

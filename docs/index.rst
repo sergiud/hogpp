@@ -6,66 +6,54 @@
 HOGpp
 =====
 
-Overview
---------
-
 HOGpp implements the rectangular histogram of oriented gradients feature
 descriptor (R-HOG) using integral histograms. The integral histogram
 representation allows to quickly compute HOG features in subregions of an image
 in constant time. This is particularly useful if the features in an image must
 be computed repeatedly, e.g., in a sliding window manner.
 
+HOG features may be seen as a special case of the Scale-invariant Feature
+Transform (SIFT) computed over a dense grid of keypoints where each block is
+additionally contrast-normalized.
+
 Features
 --------
 
-* C++ templated implementation
-* Python support with 32 and 64 bit floating point precision
-* Unrestricted input size (e.g., OpenCV requires the input to be a `multiple of
-  the block size <https://github.com/opencv/opencv/blob/d24befa0bc7ef5e73bf8b1402fa1facbdbf9febb/modules/objdetect/src/hog.cpp#L93-L96>`__)
-* Masking support
+-  C++ templated implementation
+-  Python support for 32, 64, and 80 bit floating point precision
+-  Unrestricted input size (e.g., OpenCV as of version 4.10.0 requires
+   the input to be a `multiple of the block
+   size <https://github.com/opencv/opencv/blob/71d3237a093b60a27601c20e9ee6c3e52154e8b1/modules/objdetect/src/hog.cpp#L94-L95>`__)
+-  Support for arbitrary integer (8 bit to 64 bit, both signed and
+   unsigned) and floating point input (e.g., OpenCV requires 8-bit
+   unsigned integer input)
+-  Masking support (i.e., spatial exclusion of gradient magnitudes from
+   contributing to features)
 
-Getting Started
----------------
+Comparison to Existing Libraries
+--------------------------------
 
-1. Load the module and instantiate the descriptor:
+The following feature matrix summarizes the differences between existing
+implementations.
 
-   .. code-block:: python
-
-        from hogpp import IntegralHOGDescriptor
-
-        desc = IntegralHOGDescriptor()
-
-
-2. Load the `image` and precompute its integral histogram R-HOG representation.
-   This needs to be done only once per image:
-
-   .. code-block:: python
-
-        desc.compute(image)
-
-3. Extract the feature descriptor of a region of interest using a function call
-   on a :class:`hogpp.IntegralHOGDescriptor` instance, i.e., by invoking
-   :meth:`hogpp.IntegralHOGDescriptor.__call__`. The method can be called
-   multiple times for different subregions of the image whose integral histogram
-   representation was previously precomputed.
-
-   .. code-block:: python
-
-        # top left (row, column) size (height, width)
-        roi = (0, 0, 128, 64)
-        X = desc(roi)
-
-   .. note::
-
-      :class:`hogpp.IntegralHOGDescriptor` uses matrix indexing along each axis
-      as opposed to Cartesian coordinates, i.e., the first index corresponds to
-      the vertical (:math:`y`) coordinate, the second index to the horizontal
-      (:math:`x`) coordinate, etc.
+============= =================== ================ ======= ==================== ==============
+ Library      Signed Orientations Custom Gradients Masking Arbitrary Input Size Implementation
+============= =================== ================ ======= ==================== ==============
+ HOGpp        ✔️                   ✔️                ✔️       ✔️                    C++
+ OpenCV       ✔️                   ✖                ✖       ✖                    C++
+ scikit-image ✖                   ✖                ✖       ✔️                    Cython/Python
+============= =================== ================ ======= ==================== ==============
 
 .. toctree::
    :hidden:
 
+   quickstart
+   build
    usage
+   differences
+   inria
+   bibliography
+   license
 
 
 Indices and tables
