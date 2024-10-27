@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient, Scalar, Scalars)
     BOOST_TEST(binning(+1, 0) == Scalar(0.5));
     BOOST_TEST(binning(-1, 0) == Scalar{1});
     BOOST_TEST(binning(0, +1) == Scalar(0.75));
-    BOOST_TEST(binning(0, -1) == Scalar{0.25});
+    BOOST_TEST(binning(0, -1) == Scalar(0.25));
     BOOST_TEST(binning(0, 0) == Scalar(0.5));
     BOOST_TEST(binning(+1, nextafter(Scalar{0}, Scalar{-1})) == Scalar(0.5));
     BOOST_TEST(binning(-1, nextafter(Scalar{0}, Scalar{+1})) == Scalar{1});

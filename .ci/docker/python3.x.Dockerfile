@@ -8,10 +8,8 @@ apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 ccache \
 cmake \
 g++ \
-libboost-test-dev \
 libeigen3-dev \
 libfmt-dev \
-libopencv-dev \
 mold \
 ninja-build
 

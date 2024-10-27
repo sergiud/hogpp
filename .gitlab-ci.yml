@@ -9,14 +9,13 @@ stages:
 .build_template: &build_definition
   stage: build
   script:
-    - export CCACHE_BASEDIR=$(pwd)
-    - export CCACHE_DIR=$(pwd)/.cache/
+    - export CCACHE_BASEDIR=$PWD
+    - export CCACHE_DIR=$PWD/.cache/
     - export CXXFLAGS='-fdiagnostics-color --coverage -fuse-ld=mold'
     - export pybind11_DIR=$(pybind11-config --cmakedir)
     - cmake . -B build/
       -DCMAKE_BUILD_TYPE=Debug
       -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
-      -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb
       -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON
       -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON
       -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON
@@ -32,11 +31,36 @@ stages:
     exclude:
       - build/**/*.o
 
+.skbuild_template: &skbuild_definition
+  stage: build
+  before_script:
+    - python -m venv .env/
+  script:
+    - source .env/bin/activate
+    - export CCACHE_BASEDIR=$PWD
+    - export CCACHE_DIR=$PWD/.cache/
+    - export CMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
+    - export CXXFLAGS='--coverage -fuse-ld=mold'
+    - export pybind11_DIR=$(pybind11-config --cmakedir)
+    - pip install -r requirements.txt
+    - pip install --no-build-isolation
+      --config-settings build-dir=build/
+      --config-settings cmake.build-type=Debug
+      --verbose
+      --editable .
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .cache/
+  artifacts:
+    paths:
+      - .env/
+      - build/
+
 .docs_template: &docs_definition
   stage: build
   script:
     - PYTHONPATH=${CI_PROJECT_DIR}/build/
-      VERSION=${CI_PROJECT_DIR}/build/version.txt
       sphinx-build -M html
       ${CI_PROJECT_DIR}/docs/
       ${CI_PROJECT_DIR}/build/docs/_build/
@@ -44,6 +68,18 @@ stages:
   artifacts:
     paths:
       - build/docs/
+
+.skdocs_template: &skdocs_definition
+  stage: build
+  script:
+    - source .env/bin/activate
+    - sphinx-build -M html
+      ${CI_PROJECT_DIR}/docs/
+      ${CI_PROJECT_DIR}/docs/_build
+      -W --keep-going
+  artifacts:
+    paths:
+      - docs/_build/html/
 
 .test_template: &test_definition
   stage: test
@@ -73,6 +109,22 @@ stages:
         path: build/coverage.xml
       junit: build/ctest.xml
 
+.pytest_template: &pytest_definition
+  stage: test
+  script:
+    - source .env/bin/activate
+    - coverage run -m pytest --junit-xml=report.xml
+    - coverage report
+    - coverage xml
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: report.xml
+
 .lint_template: &lint_definition
   stage: test
   allow_failure: true
@@ -81,115 +133,126 @@ stages:
     - flake8 .
     - isort --check-only --diff .
 
+build:python3.9:
+  image: sergiud/hogpp:python3.9
+  <<: *skbuild_definition
+
+docs:python3.9:
+  image: sergiud/hogpp:python3.9
+  <<: *skdocs_definition
+  needs:
+    - build:python3.9
+
+test:python3.9:
+  image: sergiud/hogpp:python3.9
+  <<: *pytest_definition
+  needs:
+    - build:python3.9
+
 build:python3.10:
   image: sergiud/hogpp:python3.10
-  <<: *build_definition
+  <<: *skbuild_definition
 
 docs:python3.10:
   image: sergiud/hogpp:python3.10
-  <<: *docs_definition
+  <<: *skdocs_definition
   needs:
     - build:python3.10
 
 test:python3.10:
   image: sergiud/hogpp:python3.10
-  <<: *test_definition
+  <<: *pytest_definition
   needs:
     - build:python3.10
 
 lint:python3.10:
   image: sergiud/hogpp:python3.10
   <<: *lint_definition
-  needs:
-    - build:python3.10
+  needs: []
 
 build:python3.11:
   image: sergiud/hogpp:python3.11
-  <<: *build_definition
+  <<: *skbuild_definition
 
 docs:python3.11:
   image: sergiud/hogpp:python3.11
-  <<: *docs_definition
+  <<: *skdocs_definition
   needs:
     - build:python3.11
 
 test:python3.11:
   image: sergiud/hogpp:python3.11
-  <<: *test_definition
+  <<: *pytest_definition
   needs:
     - build:python3.11
 
 lint:python3.11:
   image: sergiud/hogpp:python3.11
   <<: *lint_definition
-  needs:
-    - build:python3.11
+  needs: []
 
 build:python3.12:
   image: sergiud/hogpp:python3.12
-  <<: *build_definition
+  <<: *skbuild_definition
 
 docs:python3.12:
   image: sergiud/hogpp:python3.12
-  <<: *docs_definition
+  <<: *skdocs_definition
   needs:
     - build:python3.12
 
 test:python3.12:
   image: sergiud/hogpp:python3.12
-  <<: *test_definition
+  <<: *pytest_definition
   needs:
     - build:python3.12
 
 lint:python3.12:
   image: sergiud/hogpp:python3.12
   <<: *lint_definition
-  needs:
-    - build:python3.12
+  needs: []
 
 build:python3.13:
   image: sergiud/hogpp:python3.13
-  <<: *build_definition
+  <<: *skbuild_definition
 
 docs:python3.13:
   image: sergiud/hogpp:python3.13
-  <<: *docs_definition
+  <<: *skdocs_definition
   needs:
     - build:python3.13
 
 test:python3.13:
   image: sergiud/hogpp:python3.13
-  <<: *test_definition
+  <<: *pytest_definition
   needs:
     - build:python3.13
 
 lint:python3.13:
   image: sergiud/hogpp:python3.13
   <<: *lint_definition
-  needs:
-    - build:python3.13
+  needs: []
 
 build:pypy3.10:
   image: sergiud/hogpp:pypy3.10
-  <<: *build_definition
+  <<: *skbuild_definition
 
 docs:pypy3.10:
   image: sergiud/hogpp:pypy3.10
-  <<: *docs_definition
+  <<: *skdocs_definition
   needs:
     - build:pypy3.10
 
 test:pypy3.10:
   image: sergiud/hogpp:pypy3.10
-  <<: *test_definition
+  <<: *pytest_definition
   needs:
     - build:pypy3.10
 
 lint:pypy3.10:
   image: sergiud/hogpp:pypy3.10
   <<: *lint_definition
-  needs:
-    - build:pypy3.10
+  needs: []
 
 lint:cpp:
   image: sergiud/hogpp:lint
@@ -198,3 +261,19 @@ lint:cpp:
   script:
     - fdfind -g '*.[ch]pp' -x clang-format-19 --dry-run --Werror
   needs: []
+
+build:bookworm:
+  image: sergiud/hogpp:bookworm
+  <<: *build_definition
+
+docs:bookworm:
+  image: sergiud/hogpp:bookworm
+  <<: *docs_definition
+  needs:
+    - build:bookworm
+
+test:bookworm:
+  image: sergiud/hogpp:bookworm
+  <<: *test_definition
+  needs:
+    - build:bookworm

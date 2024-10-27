@@ -19,8 +19,8 @@ jobs:
         run: |
           fdfind -g '*.[ch]pp' -x clang-format-19 --dry-run --Werror
 
-  build:
-    name: ${{matrix.os}}-GCC-${{matrix.build_type}}-Python-${{matrix.python}}
+  build-native:
+    name: ${{matrix.os}}-GCC-${{matrix.build_type}}
     runs-on: ${{matrix.os}}
     needs: lint
     defaults:
@@ -33,28 +33,10 @@ jobs:
           - Release
           - Debug
         os:
-          - ubuntu-20.04
-          - ubuntu-22.04
           - ubuntu-24.04
-        python:
-          - '3.9'
-          - '3.10'
-          - '3.11'
-          - '3.12'
-          - '3.13'
-          - 'pypy3.10'
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{matrix.python}}
-          architecture: ${{matrix.arch}}
-          cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
 
       - name: Setup Dependencies
         env:
@@ -62,51 +44,25 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential \
+            --no-install-recommends --no-install-suggests \
             cmake \
+            furo \
+            g++ \
+            gcovr \
             libboost-test-dev \
+            libeigen3-dev \
             libfmt-dev \
             libopencv-dev \
-            libtbb-dev \
-            ninja-build
-
-          pip install \
-            -r requirements.txt
-
-      - name: Lint
-        run: |
-          autopep8 --exit-code --diff -r .
-          flake8 .
-          isort --check-only --diff .
-
-      - name: Cache Eigen
-        id: cache-eigen
-        uses: actions/cache@v4
-        with:
-          path: eigen/
-          key: ${{runner.os}}-eigen-3.4.0
-
-      - name: Download Eigen
-        if: steps.cache-eigen.outputs.cache-hit != 'true'
-        run: |
-          wget 'https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip'
-          unzip eigen-3.4.0.zip
-
-      - name: Setup Eigen
-        if: steps.cache-eigen.outputs.cache-hit != 'true'
-        run: |
-          cmake -S eigen-3.4.0 -B build-eigen \
-                -DBUILD_TESTING=OFF \
-                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/eigen \
-                -DEIGEN_BUILD_DOC=OFF \
-                -G Ninja
-          cmake --build build-eigen --target install
-
-      - name: Setup Environment
-        run: |
-          echo 'Eigen3_ROOT=${{github.workspace}}/eigen' >> $GITHUB_ENV
-          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
+            mold \
+            ninja-build \
+            python3-dev \
+            python3-numpy \
+            python3-pillow \
+            python3-pybind11 \
+            python3-pytest \
+            python3-pytest-xdist \
+            python3-sphinx \
+            python3-sphinxcontrib.bibtex
 
       - name: Setup Debug Environment
         if: ${{matrix.build_type == 'Debug'}}
@@ -118,8 +74,7 @@ jobs:
           CXXFLAGS: -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Wno-attributes -Werror -Wl,-ltbb ${{env.CXXFLAGS}}
           Python_ROOT: ${{env.pythonLocation}}
         run: |
-          cmake -S . -B build_${{matrix.build_type}} \
-                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+          cmake -S . -B build/ \
                 -DCMAKE_MODULE_LINKER_FLAGS_DEBUG=-ltbb \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON \
@@ -128,26 +83,26 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build build_${{matrix.build_type}} \
+          cmake --build build/ \
                 --config ${{matrix.build_type}}
 
       - name: Test
         run: |
-          ctest --test-dir build_${{matrix.build_type}} \
+          ctest --test-dir build/ \
                 --build-config ${{matrix.build_type}} \
                 -j$(nproc) \
                 --output-on-failure
 
       - name: Generate Documentation
         run: |
-          cmake --build build_${{matrix.build_type}} \
+          cmake --build build/ \
                 --config ${{matrix.build_type}} \
                 --target sphinx
 
       - name: Generate Coverage
         if: matrix.build_type == 'Debug'
         run: |
-          cd build_${{matrix.build_type}}
+          cd build/
           gcovr -r .. . -s --cobertura coverage.xml
 
       - name: Upload Coverage to Codecov
@@ -155,6 +110,90 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: build_${{matrix.build_type}}/coverage.xml
+          files: build/coverage.xml
+          fail_ci_if_error: true
+          verbose: true
+
+  build-wheel:
+    name: Python-${{matrix.python}}-${{matrix.build_type}}-wheel
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: true
+      matrix:
+        build_type:
+          - Release
+          - Debug
+        python:
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - 'pypy3.10'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            --no-install-recommends --no-install-suggests \
+            cmake \
+            g++ \
+            libeigen3-dev \
+            libfmt-dev \
+            mold \
+            ninja-build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python}}
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Setup Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Setup Environment
+        run: |
+          echo 'CXXFLAGS=-fuse-ld=mold' >> $GITHUB_ENV
+          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
+
+      - name: Build
+        env:
+          CXXFLAGS: -Weverything -Wno-c++98-compat -Wno-padded -Wno-c++98-compat-pedantic -Wno-disabled-macro-expansion -Wno-shadow -Wno-used-but-marked-unused -Wno-global-constructors -Wno-shorten-64-to-32 -Wno-documentation -Wno-poison-system-directories -Werror ${{env.CXXFLAGS}}
+        run: |
+          pip install --no-build-isolation \
+            --config-settings build-dir=build/ \
+            --config-settings cmake.build-type=${{matrix.build_type}} \
+            --verbose \
+            --editable .
+
+      - name: Test
+        run: |
+          coverage run -m pytest --junit-xml=report.xml
+
+      - name: Generate Documentation
+        run: |
+          sphinx-build -M html docs/ docs/_build -W --keep-going
+
+      - name: Generate Coverage
+        run: |
+          coverage report
+          coverage xml
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
           fail_ci_if_error: true
           verbose: true

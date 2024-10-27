@@ -29,17 +29,21 @@ find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
 find_package (Python 3.0 COMPONENTS Development.Module OPTIONAL_COMPONENTS Interpreter)
 find_package (Sphinx 4.0)
 
-if (Python_INTERPRETER_ID STREQUAL "PyPy")
-  # Correct SOABI which is missing the platform tag. See
-  # https://github.com/pypy/pypy/issues/3815.
-  execute_process (COMMAND
-    ${Python_EXECUTABLE} -c
-    "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX').split('.')[1])"
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    OUTPUT_VARIABLE Python_SOABI
-    # FIXME: Use COMMAND_ERROR_IS_FATAL ANY when CMake >= 3.19
-  )
-endif (Python_INTERPRETER_ID STREQUAL "PyPy")
+if (SKBUILD_SOABI)
+  set (Python_SOABI ${SKBUILD_SOABI})
+else (SKBUILD_SOABI)
+  if (Python_INTERPRETER_ID STREQUAL "PyPy")
+    # Correct SOABI which is missing the platform tag. See
+    # https://github.com/pypy/pypy/issues/3815.
+    execute_process (COMMAND
+      ${Python_EXECUTABLE} -c
+      "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX').split('.')[1])"
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      OUTPUT_VARIABLE Python_SOABI
+      # FIXME: Use COMMAND_ERROR_IS_FATAL ANY when CMake >= 3.19
+    )
+  endif (Python_INTERPRETER_ID STREQUAL "PyPy")
+endif (SKBUILD_SOABI)
 
 if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
   find_package (pybind11 2.9.0 NO_MODULE)
@@ -147,7 +151,12 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     target_compile_definitions (type_caster_test PRIVATE HAVE_OPENCV)
   endif (OpenCV_FOUND)
 
-  set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
+  if (SKBUILD)
+    set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME _hogpp)
+    set_property (SOURCE python/hogpp.cpp APPEND PROPERTY COMPILE_DEFINITIONS HOGPP_SKBUILD)
+  else (SKBUILD)
+    set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
+  endif (SKBUILD)
 endif (pybind11_FOUND AND Python_Development.Module_FOUND)
 
 if (BUILD_TESTING)
@@ -241,26 +250,26 @@ if (BUILD_TESTING)
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/test_hogpp.py
+      ${hogpp_SOURCE_DIR}/tests/python/module/test_hogpp.py
       WORKING_DIRECTORY ${hogpp_SOURCE_DIR}
     )
 
     add_test (NAME python_tensor_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/test_tensor_type_caster.py)
+      ${hogpp_SOURCE_DIR}/tests/python/internal/test_tensor_type_caster.py)
 
     add_test (NAME python_repr COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/test_repr.py)
+      ${hogpp_SOURCE_DIR}/tests/python/module/test_repr.py)
   endif (TARGET pyhogpp)
 
   if (TARGET type_caster_test AND OpenCV_FOUND)
     add_test (NAME python_opencv_type_caster COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:type_caster_test>
       ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/test_opencv_type_caster.py)
+      ${hogpp_SOURCE_DIR}/tests/python/internal/test_opencv_type_caster.py)
   endif (TARGET type_caster_test AND OpenCV_FOUND)
 endif (BUILD_TESTING)
 
@@ -280,3 +289,12 @@ if (TARGET pyhogpp AND Sphinx_FOUND)
 
   set_property (DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES docs/_build)
 endif (TARGET pyhogpp AND Sphinx_FOUND)
+
+if (TARGET pyhogpp)
+  if (SKBUILD)
+    install (TARGETS pyhogpp
+      LIBRARY DESTINATION ${PROJECT_NAME} COMPONENT Runtime
+      RUNTIME DESTINATION ${PROJECT_NAME} COMPONENT Runtime
+    )
+  endif (SKBUILD)
+endif (TARGET pyhogpp)

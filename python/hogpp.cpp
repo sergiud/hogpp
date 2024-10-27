@@ -38,7 +38,13 @@
 #    define HOGPP_MODULE PYBIND11_MODULE
 #endif // defined(HOGPP_GIL_DISABLED)
 
-HOGPP_MODULE(hogpp, m)
+#if defined(HOGPP_SKBUILD)
+#    define HOGPP_MODULE_NAME _hogpp
+#else // !defined(HOGPP_SKBUILD)
+#    define HOGPP_MODULE_NAME hogpp
+#endif // defined(HOGPP_SKBUILD)
+
+HOGPP_MODULE(HOGPP_MODULE_NAME, m)
 {
     namespace py = pybind11;
 

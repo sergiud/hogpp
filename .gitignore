@@ -1,4 +1,6 @@
 *.orig
+/.coverage
+/.env/
 /.snakemake/
 /build*/
 /dist/
