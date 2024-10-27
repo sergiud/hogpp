@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.18...3.30)
+cmake_minimum_required (VERSION 3.26...3.30)
 project (hogpp
   VERSION 0.3.0
   LANGUAGES CXX
@@ -30,7 +30,7 @@ set (PYBIND11_NOPYTHON ON)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
-find_package (Python 3.0 COMPONENTS Development.Module OPTIONAL_COMPONENTS Interpreter)
+find_package (Python 3.0 COMPONENTS Development.Module Development.SABIModule OPTIONAL_COMPONENTS Interpreter)
 find_package (Sphinx 4.0)
 
 if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
@@ -73,6 +73,9 @@ if (SKBUILD_SOABI)
   set (Python_SOABI ${SKBUILD_SOABI})
 else (SKBUILD_SOABI)
   if (Python_INTERPRETER_ID STREQUAL "PyPy")
+    # FIXME Do we need this here? Python_SOABI also requires CMake 3.17 which
+    # was not considered previously.
+
     # Correct SOABI which is missing the platform tag. See
     # https://github.com/pypy/pypy/issues/3815.
     execute_process (COMMAND
@@ -80,7 +83,7 @@ else (SKBUILD_SOABI)
       "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX').split('.')[1])"
       OUTPUT_STRIP_TRAILING_WHITESPACE
       OUTPUT_VARIABLE Python_SOABI
-      # FIXME: Use COMMAND_ERROR_IS_FATAL ANY when CMake >= 3.19
+      COMMAND_ERROR_IS_FATAL ANY
     )
   endif (Python_INTERPRETER_ID STREQUAL "PyPy")
 endif (SKBUILD_SOABI)
@@ -116,7 +119,7 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (pybind11_FOUND AND Python_Development.Module_FOUND)
+if (pybind11_FOUND AND Python_Development.SABIModule_FOUND)
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
@@ -137,7 +140,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     Eigen3::Eigen
     hogpp::hogpp
     pybind11::headers
-    PRIVATE Python::Module
+    PRIVATE Python::SABIModule
   )
 
   python_add_library (pyhogpp WITH_SOABI
@@ -192,7 +195,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   else (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
   endif (SKBUILD)
-endif (pybind11_FOUND AND Python_Development.Module_FOUND)
+endif (pybind11_FOUND AND Python_Development.SABIModule_FOUND)
 
 if (BUILD_TESTING)
   if (Boost_unit_test_framework_FOUND)
