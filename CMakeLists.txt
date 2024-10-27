@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.15)
+cmake_minimum_required (VERSION 3.18...3.30)
 project (hogpp
   VERSION 0.1.0
   LANGUAGES CXX
@@ -26,7 +26,7 @@ find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package (fmt 6.0 REQUIRED)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
-find_package (Python 3.0 COMPONENTS Development OPTIONAL_COMPONENTS Interpreter)
+find_package (Python 3.0 COMPONENTS Development.Module OPTIONAL_COMPONENTS Interpreter)
 find_package (Sphinx 4.0)
 
 if (Python_INTERPRETER_ID STREQUAL "PyPy")
@@ -72,7 +72,7 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (pybind11_FOUND AND Python_Development_FOUND)
+if (pybind11_FOUND AND Python_Development.Module_FOUND)
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
@@ -148,7 +148,7 @@ if (pybind11_FOUND AND Python_Development_FOUND)
   endif (OpenCV_FOUND)
 
   set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
-endif (pybind11_FOUND AND Python_Development_FOUND)
+endif (pybind11_FOUND AND Python_Development.Module_FOUND)
 
 if (BUILD_TESTING)
   if (Boost_unit_test_framework_FOUND)
