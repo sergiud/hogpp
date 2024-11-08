@@ -40,6 +40,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
+    'sphinx_copybutton',
     'sphinxcontrib.bibtex',
 ]
 

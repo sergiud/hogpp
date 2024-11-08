@@ -21,4 +21,5 @@ python3-pybind11 \
 python3-pytest \
 python3-pytest-xdist \
 python3-sphinx \
+python3-sphinx-copybutton \
 python3-sphinxcontrib.bibtex
