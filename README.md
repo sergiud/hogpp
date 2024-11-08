@@ -13,10 +13,6 @@ subregions of an image in constant time. This is particularly useful if the
 features in an image must be computed repeatedly, e.g., in a sliding window
 manner.
 
-HOG features may be seen as a special case of the Scale-invariant Feature
-Transform (SIFT) computed over a dense grid of keypoints where each block is
-additionally contrast-normalized.
-
 ## Features
 
 * C++ templated implementation
