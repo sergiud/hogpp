@@ -42,7 +42,7 @@ test-command = 'pytest -W error {project}/tests/python/module'
 
 [project]
 name = 'hogpp'
-version = '0.1.0a1.dev3'
+version = '0.1.0a1'
 readme = 'README.md'
 description = 'Fast computation of rectangular histogram of oriented gradients (R-HOG) features using integral histogram'
 authors = [
