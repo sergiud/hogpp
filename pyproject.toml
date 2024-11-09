@@ -42,7 +42,7 @@ test-command = 'pytest -W error {project}/tests/python/module'
 
 [project]
 name = 'hogpp'
-version = '0.1.0a2'
+dynamic = ['version']
 readme = 'README.md'
 description = 'Fast computation of rectangular histogram of oriented gradients (R-HOG) features using integral histogram'
 authors = [
@@ -71,6 +71,10 @@ classifiers = [
 ]
 license = {text = "Apache License (2.0)"}
 requires-python = ">=3.9"
+
+[tool.scikit-build.metadata.version]
+provider = 'scikit_build_core.metadata.regex'
+input = 'python/hogpp/__init__.py'
 
 [project.urls]
 Documentation = "https://hogpp.readthedocs.io"
