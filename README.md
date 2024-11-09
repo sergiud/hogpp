@@ -5,6 +5,7 @@
 ![Windows](https://github.com/sergiud/hogpp/actions/workflows/windows.yml/badge.svg)
 [![codecov](https://codecov.io/gh/sergiud/hogpp/branch/master/graph/badge.svg?token=PQ3WKQGKC4)](https://codecov.io/gh/sergiud/hogpp)
 [![Documentation Status](https://readthedocs.org/projects/hogpp/badge/?version=latest)](https://hogpp.readthedocs.io/en/latest/?badge=latest)
+![PyPI - Version](https://img.shields.io/pypi/v/hogpp)
 
 This repository contains an implementation of the rectangular histogram of
 oriented gradients feature descriptor (R-HOG) using integral histograms. The
