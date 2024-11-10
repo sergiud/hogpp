@@ -22,6 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache cibuildwheel
+        id: cache-cibuildwheel
+        uses: actions/cache@v4
+        with:
+          path: .cibuildwheel/
+          key: ${{matrix.os}}-cibuildwheel
+
       - name: Set up QEMU
         if: runner.os == 'Linux'
         uses: docker/setup-qemu-action@v3
@@ -34,6 +41,7 @@ jobs:
           CIBW_ARCHS_LINUX: auto64 aarch64
           CIBW_ARCHS_MACOS: auto64
           CIBW_ARCHS_WINDOWS: auto64
+          CIBW_CACHE_PATH: ${{github.workspace}}/.cibuildwheel/
           CIBW_ENVIRONMENT_LINUX: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES"
           CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES" MACOSX_DEPLOYMENT_TARGET=10.13
           CIBW_ENVIRONMENT_WINDOWS: CXXFLAGS="/GL /DPYBIND11_DETAILED_ERROR_MESSAGES" LDFLAGS=/LTCG
