@@ -37,21 +37,11 @@ concept Arithmetic = std::is_arithmetic_v<T>;
 
 namespace detail {
 
-template<class T>
-struct IsTuple : std::false_type
-{
-};
-
 template<class... T>
-struct IsTuple<std::tuple<T...>> : std::true_type
-{
+concept TupleOfIntegrals = requires {
+    std::tuple<T...>{};
+    (std::is_integral_v<T> && ...);
 };
-
-template<class T>
-inline constexpr bool IsTuple_v = IsTuple<T>::value;
-
-template<class T>
-concept TupleOfIntegrals = IsTuple_v<std::decay_t<T>>;
 
 template<std::size_t K, class... Types, std::size_t... Indices>
 [[nodiscard]] constexpr decltype(auto) neighbor(
