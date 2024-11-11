@@ -20,11 +20,12 @@
 #ifndef HOGPP_GRADIENT_HPP
 #define HOGPP_GRADIENT_HPP
 
+#include <numeric>
+
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include <hogpp/axis.hpp>
 #include <hogpp/conditionalborder.hpp>
-#include <hogpp/midpoint.hpp>
 #include <hogpp/precision.hpp>
 
 namespace hogpp {
@@ -113,6 +114,7 @@ struct CentralDifferences<T, Vertical_t>
                                                       Eigen::DenseIndex j,
                                                       Eigen::DenseIndex k) const
     {
+        using std::midpoint;
         return Scalar(midpoint(-PrecisionType(image(i - 1, j, k)),
                                +PrecisionType(image(i + 1, j, k))));
     }
@@ -129,6 +131,7 @@ struct CentralDifferences<T, Horizontal_t>
                                                       Eigen::DenseIndex j,
                                                       Eigen::DenseIndex k) const
     {
+        using std::midpoint;
         // Compute the dot product beween the kernel [-1 0 +1] and
         // the corresponding row (neighbor) pixels.
         return Scalar(midpoint(-PrecisionType(image(i, j - 1, k)),
