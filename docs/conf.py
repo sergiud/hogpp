@@ -24,8 +24,8 @@ project = 'HOGpp'
 copyright = '2024, Sergiu Deitsch'
 author = 'Sergiu Deitsch'
 
-version = '0.1'
-release = '0.1.0'
+version = '0.2'
+release = '0.2.0a1.dev1'
 
 # -- General configuration ---------------------------------------------------
 
