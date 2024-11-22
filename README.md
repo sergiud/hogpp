@@ -28,7 +28,7 @@ manner.
 
 For a complete summary of differences between HOGpp and existing
 implementations, refer to the [feature
-matrix](https://hogpp.readthedocs.io/en/latest/index.html#comparison-to-existing-libraries).
+matrix](https://hogpp.readthedocs.io/en/stable/index.html#comparison-to-existing-libraries).
 
 ## Getting Started
 
