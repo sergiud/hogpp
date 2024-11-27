@@ -36,7 +36,7 @@ jobs:
           platforms: all
 
       - name: Build
-        uses: pypa/cibuildwheel@v2.21.3
+        uses: pypa/cibuildwheel@v2.22.0
         env:
           CIBW_ARCHS_LINUX: auto64 aarch64
           CIBW_ARCHS_MACOS: auto64
