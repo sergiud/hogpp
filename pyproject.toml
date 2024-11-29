@@ -33,7 +33,10 @@ CMAKE_DISABLE_FIND_PACKAGE_Sphinx = true
 CMAKE_REQUIRE_FIND_PACKAGE_pybind11 = true
 
 [tool.cibuildwheel]
-free-threaded-support = true
+enable = [
+    'cpython-freethreading',
+    'pypy',
+]
 test-requires = [
     "Pillow>=11.0.0",
     "pytest",

@@ -1,5 +1,5 @@
 autopep8>=2.0.2
-cibuildwheel>=2.21.3
+cibuildwheel>=2.22.0
 coverage>=7.6.4
 flake8>=6.0.0
 gcovr==8.2.0
