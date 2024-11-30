@@ -1,4 +1,3 @@
-
 # HOGpp - Fast histogram of oriented gradients computation using integral
 # histograms
 #

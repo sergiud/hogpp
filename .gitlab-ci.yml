@@ -129,7 +129,7 @@ stages:
   stage: test
   allow_failure: true
   script:
-    - autopep8 --exit-code --diff -r .
+    - black --check --diff .
     - flake8 .
     - isort --check-only --diff .
 

@@ -1,4 +1,4 @@
-autopep8>=2.0.2
+black>=24.10.0
 cibuildwheel>=2.22.0
 coverage>=7.6.4
 flake8>=6.0.0

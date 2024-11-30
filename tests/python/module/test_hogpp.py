@@ -1,4 +1,3 @@
-
 # HOGpp - Fast histogram of oriented gradients computation using integral
 # histograms
 #
@@ -36,8 +35,16 @@ import pytest
 def circle_image(request):
     # Obtain an absolute to the image file to avoid requiring to run pytest from
     # the project root.
-    image_fn = os.path.abspath(os.path.join(os.path.dirname(
-        __file__), '..', '..', '..', 'data', f'circle-{request.param}.png'))
+    image_fn = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            '..',
+            '..',
+            'data',
+            f'circle-{request.param}.png',
+        )
+    )
 
     with Image.open(image_fn, 'r') as im:
         return np.asarray(im)
@@ -80,8 +87,14 @@ def test_block_norm_attribute(block_norm):
 
 
 def test_default_attributes():
-    desc = IntegralHOGDescriptor(n_bins=8, cell_size=(
-        4, 4), block_size=(12, 12), block_stride=(8, 8), binning='unsigned', block_norm='l1')
+    desc = IntegralHOGDescriptor(
+        n_bins=8,
+        cell_size=(4, 4),
+        block_size=(12, 12),
+        block_stride=(8, 8),
+        binning='unsigned',
+        block_norm='l1',
+    )
 
     assert not desc
     assert desc.n_bins_ == 8
@@ -159,12 +172,13 @@ def test_vertical_gradient(dtype, block_norm, magnitude):
     X = desc.features_.ravel()
     assert X.dtype == dtype
 
-    idxs, = np.nonzero(X)
+    (idxs,) = np.nonzero(X)
     diff = np.diff(idxs)
 
     # Ensure the vote is at the beginning of each block
     np.testing.assert_array_equal(
-        idxs - desc.n_bins_ // 2, np.arange(X.size, step=desc.n_bins_))
+        idxs - desc.n_bins_ // 2, np.arange(X.size, step=desc.n_bins_)
+    )
     np.testing.assert_array_equal(diff, desc.n_bins_)
 
     XX = desc([0, 0, *image.shape[::-1]]).ravel()
@@ -195,12 +209,11 @@ def test_horizontal_gradient(dtype, block_norm, magnitude):
     X = desc.features_.ravel()
     assert X.dtype == dtype
 
-    idxs, = np.nonzero(X)
+    (idxs,) = np.nonzero(X)
     diff = np.diff(idxs)
 
     # Ensure the vote is in the middle of each block
-    np.testing.assert_array_equal(
-        idxs, np.arange(X.size, step=desc.n_bins_))
+    np.testing.assert_array_equal(idxs, np.arange(X.size, step=desc.n_bins_))
     np.testing.assert_array_equal(diff, desc.n_bins_)
 
     XX = desc([0, 0, *image.shape[::-1]]).ravel()
@@ -268,7 +281,17 @@ def test_ensure_epsilon(block_norm, epsilon):
     assert desc.block_norm_ == block_norm
 
 
-@pytest.mark.parametrize('bounds', [[0, 0, 129, 2], [0, 0, 128, 65], [-1, 0, 128, 64], [0, -1, 128, 64], [0, 0, -1, 2], [0, 0, 2, -1]])
+@pytest.mark.parametrize(
+    'bounds',
+    [
+        [0, 0, 129, 2],
+        [0, 0, 128, 65],
+        [-1, 0, 128, 64],
+        [0, -1, 128, 64],
+        [0, 0, -1, 2],
+        [0, 0, 2, -1],
+    ],
+)
 @pytest.mark.xfail(raises=ValueError)
 def test_invalid_bounds(bounds):
     desc = IntegralHOGDescriptor()
@@ -329,7 +352,7 @@ def test_compute_mask_ndarray(dtype, channels, horizontal_gradient_image):
 
     i = image.shape[0] // 2
     mask = np.zeros_like(image, dtype=dtype)
-    mask[i - 1:i + 1, ...] = True
+    mask[i - 1 : i + 1, ...] = True
 
     if channels > 0:
         image = np.repeat(np.atleast_3d(image), channels, axis=-1)
@@ -379,8 +402,7 @@ def test_compute_image_mask_invalid(mask, horizontal_gradient_image):
 @pytest.mark.xfail(raises=ValueError)
 def test_compute_gradient_mask_invalid(mask, horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
-    desc.compute(np.gradient(
-        horizontal_gradient_image, axis=(0, 1)), mask=mask)
+    desc.compute(np.gradient(horizontal_gradient_image, axis=(0, 1)), mask=mask)
 
 
 @pytest.mark.xfail(raises=TypeError)
@@ -399,10 +421,23 @@ def test_compute_mask_keyword(horizontal_gradient_image):
 @pytest.mark.parametrize('dims', [0, 1, 4, 5])
 def test_compute_image_invalid_dim(dims):
     desc = IntegralHOGDescriptor()
-    desc.compute(np.empty((0, ) * dims))
+    desc.compute(np.empty((0,) * dims))
 
 
-@pytest.mark.parametrize('dtype', [np.bool_, np.uint8, np.int8, np.uint16, np.int16, np.uintc, np.intc, np.longlong, np.ulonglong])
+@pytest.mark.parametrize(
+    'dtype',
+    [
+        np.bool_,
+        np.uint8,
+        np.int8,
+        np.uint16,
+        np.int16,
+        np.uintc,
+        np.intc,
+        np.longlong,
+        np.ulonglong,
+    ],
+)
 def test_decay_to_double(dtype, horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
     desc.compute(horizontal_gradient_image.astype(dtype))
@@ -445,7 +480,8 @@ def test_multiple_bounds(horizontal_gradient_image):
 @pytest.mark.parametrize('epsilon', [0, 1e-5, 1, None])
 def test_pickle_empty_descriptor(block_norm, magnitude, clip_norm, epsilon):
     desc = IntegralHOGDescriptor(
-        block_norm=block_norm, magnitude=magnitude, clip_norm=clip_norm, epsilon=epsilon)
+        block_norm=block_norm, magnitude=magnitude, clip_norm=clip_norm, epsilon=epsilon
+    )
 
     desc1 = copy.deepcopy(desc)
 
@@ -463,9 +499,12 @@ def test_pickle_empty_descriptor(block_norm, magnitude, clip_norm, epsilon):
 @pytest.mark.parametrize('magnitude', ['identity', 'square', 'sqrt'])
 @pytest.mark.parametrize('clip_norm', [0.2, 0.5, 1, 1e3])
 @pytest.mark.parametrize('epsilon', [0, 1e-5, 1, None])
-def test_pickle_descriptor(block_norm, magnitude, clip_norm, epsilon, horizontal_gradient_image):
+def test_pickle_descriptor(
+    block_norm, magnitude, clip_norm, epsilon, horizontal_gradient_image
+):
     desc = IntegralHOGDescriptor(
-        block_norm=block_norm, magnitude=magnitude, clip_norm=clip_norm, epsilon=epsilon)
+        block_norm=block_norm, magnitude=magnitude, clip_norm=clip_norm, epsilon=epsilon
+    )
     desc.compute(horizontal_gradient_image)
 
     with io.BytesIO() as f:
@@ -489,11 +528,14 @@ def test_uniform_gradients(circle_image):
     size = circle_image.shape[:2][::-1]
 
     desc = IntegralHOGDescriptor(
-        block_size=size, block_stride=size, cell_size=size,
+        block_size=size,
+        block_stride=size,
+        cell_size=size,
         binning='unsigned',
         block_norm='l2-hys',
         magnitude='identity',
-        n_bins=9)
+        n_bins=9,
+    )
     desc.compute(circle_image)
 
     diff = np.diff(desc.features_.ravel())

@@ -1,4 +1,3 @@
-
 # HOGpp - Fast histogram of oriented gradients computation using integral
 # histograms
 #
@@ -29,8 +28,15 @@ import pytest
 import type_caster_test.opencv as ttt
 
 unsupported_dtypes = [np.float16, np.int64, np.uint64, np.object_]
-supported_dtypes = [np.uint8, np.int8, np.int16, np.uint16, np.int32,
-                    np.float32, np.float64]
+supported_dtypes = [
+    np.uint8,
+    np.int8,
+    np.int16,
+    np.uint16,
+    np.int32,
+    np.float32,
+    np.float64,
+]
 
 try:
     unsupported_dtypes += [np.float128]
@@ -115,14 +121,18 @@ def test_rank_3_unsupported(dtype, size):
     ttt.pass_(np.empty((0, 0, size), dtype=dtype))
 
 
-@pytest.mark.parametrize('bounds1', [[1, 2, 3, 4], [1., 2, 3, 4], [1., 2., 3., 4.]])
+@pytest.mark.parametrize(
+    'bounds1', [[1, 2, 3, 4], [1.0, 2, 3, 4], [1.0, 2.0, 3.0, 4.0]]
+)
 def test_bounds(bounds1):
     bounds2 = ttt.pass_bounds_(bounds1)
 
     np.testing.assert_array_equal(bounds1, bounds2)
 
 
-@pytest.mark.parametrize('bounds1', [['f', 2, 3, 4], [1., None, 3, 4], [1., 2., 4.]])
+@pytest.mark.parametrize(
+    'bounds1', [['f', 2, 3, 4], [1.0, None, 3, 4], [1.0, 2.0, 4.0]]
+)
 @pytest.mark.xfail(raises=TypeError)
 def test_invalid_bounds(bounds1):
     ttt.pass_bounds_(bounds1)
