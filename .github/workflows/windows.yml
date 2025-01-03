@@ -162,7 +162,7 @@ jobs:
       - name: Download Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://boostorg.jfrog.io/artifactory/main/release/1.84.0/source/boost_1_84_0.7z", "boost_1_84_0.7z");
+          (New-Object System.Net.WebClient).DownloadFile("https://archives.boost.io/release/1.84.0/source/boost_1_84_0.7z", "boost_1_84_0.7z");
           7z x boost_1_84_0.7z;
 
       - name: Setup Boost
