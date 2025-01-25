@@ -11,12 +11,29 @@ jobs:
   build-wheels:
     name: Build wheels on ${{matrix.os}}
     runs-on: ${{matrix.os}}
+    env:
+      CIBW_ARCHS_LINUX: auto64
+      CIBW_ARCHS_MACOS: auto64
+      CIBW_ARCHS_WINDOWS: auto64
+      CIBW_CACHE_PATH: ${{github.workspace}}/.cibuildwheel/
+      CIBW_ENVIRONMENT_LINUX: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES"
+      CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES" MACOSX_DEPLOYMENT_TARGET=10.13
+      CIBW_ENVIRONMENT_WINDOWS: CXXFLAGS="/GL /DPYBIND11_DETAILED_ERROR_MESSAGES" LDFLAGS=/LTCG
+      # As for Pillow 11.0.0, there is no aarch64 wheel for the
+      # free-threaded variant of Python 3.13 (both many* and musl*). We
+      # therefore skip the tests to avoid compiling Pillow from source which
+      # generally will fail due to missing dependencies.
+      #
+      # Additonally, there is no PyPy 3.9 aarch64 wheel of NumPy which is
+      # then built from source but fails with enabled LTO.
+      CIBW_TEST_SKIP: cp313t-*linux_aarch64 pp39-manylinux_aarch64
     strategy:
       matrix:
         os:
           - macos-13
           - macos-15
           - ubuntu-24.04
+          - ubuntu-24.04-arm
           - windows-2022
 
     steps:
@@ -29,30 +46,13 @@ jobs:
           path: .cibuildwheel/
           key: ${{matrix.os}}-cibuildwheel
 
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-
-      - name: Build
+      - name: Build (x86_64)
         uses: pypa/cibuildwheel@v2.22.0
-        env:
-          CIBW_ARCHS_LINUX: auto64 aarch64
-          CIBW_ARCHS_MACOS: auto64
-          CIBW_ARCHS_WINDOWS: auto64
-          CIBW_CACHE_PATH: ${{github.workspace}}/.cibuildwheel/
-          CIBW_ENVIRONMENT_LINUX: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES"
-          CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES" MACOSX_DEPLOYMENT_TARGET=10.13
-          CIBW_ENVIRONMENT_WINDOWS: CXXFLAGS="/GL /DPYBIND11_DETAILED_ERROR_MESSAGES" LDFLAGS=/LTCG
-          # As for Pillow 11.0.0, there is no aarch64 wheel for the
-          # free-threaded variant of Python 3.13 (both many* and musl*). We
-          # therefore skip the tests to avoid compiling Pillow from source which
-          # generally will fail due to missing dependencies.
-          #
-          # Additonally, there is no PyPy 3.9 aarch64 wheel of NumPy which is
-          # then built from source but fails with enabled LTO.
-          CIBW_TEST_SKIP: cp313t-*linux_aarch64 pp39-manylinux_aarch64
+        if: "!endsWith(matrix.os, '-arm')"
+
+      - name: Build (aarch64)
+        uses: pypa/cibuildwheel@v2.22.0
+        if: endsWith(matrix.os, '-arm')
 
       - uses: actions/upload-artifact@v4
         with:
