@@ -228,18 +228,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: opencv/
-          key: ${{runner.os}}-opencv-4.10.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-opencv-4.11.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://github.com/opencv/opencv/archive/refs/tags/4.10.0.zip", "4.10.0.zip");
-          7z x 4.10.0.zip;
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/opencv/opencv/archive/refs/tags/4.11.0.zip", "4.11.0.zip");
+          7z x 4.11.0.zip;
 
       - name: Setup OpenCV
         if: steps.cache-opencv.outputs.cache-hit != 'true'
         run: |
-          cmake -S opencv-4.10.0 -B build-opencv `
+          cmake -S opencv-4.11.0 -B build-opencv `
                 -A ${{matrix.arch}} `
                 -DBUILD_LIST="core,imgproc" `
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv
