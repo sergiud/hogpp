@@ -26,7 +26,10 @@ jobs:
       #
       # Additonally, there is no PyPy 3.9 aarch64 wheel of NumPy which is
       # then built from source but fails with enabled LTO.
-      CIBW_TEST_SKIP: cp313t-*linux_aarch64 pp39-manylinux_aarch64
+      #
+      # Finally, there are no PyPy 3.11 wheels of Pillow. Skip until these are
+      # provided.
+      CIBW_TEST_SKIP: cp313t-*linux_aarch64 pp39-manylinux_aarch64 pp311-*
     strategy:
       matrix:
         os:
