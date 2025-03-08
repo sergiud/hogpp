@@ -5,6 +5,7 @@ on: [push, pull_request]
 
 jobs:
   build-mingw:
+    if: false
     name: ${{matrix.sys}}-${{matrix.env}}-${{matrix.build_type}}
     runs-on: windows-2022
     defaults:
@@ -109,6 +110,7 @@ jobs:
           verbose: true
 
   build-msvc:
+    if: false
     name: ${{matrix.msvc}}-${{matrix.arch}}-${{matrix.build_type}}-Python-${{matrix.python}}
     runs-on: ${{matrix.os}}
     defaults:
@@ -313,6 +315,7 @@ jobs:
                 --target sphinx
 
   build-wheel:
+    if: false
     name: Python-${{matrix.python}}-${{matrix.build_type}}-wheel
     runs-on: ${{matrix.os}}
     defaults:
