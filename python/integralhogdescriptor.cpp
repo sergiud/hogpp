@@ -342,7 +342,7 @@ void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
                             "of a __getitem__ method that accepts a 2-tuple, "
                             "e.g., a numpy.ndarray instance, but a {} object "
                             "was given"),
-                        mask.get_type())};
+                        pybind11::type::handle_of(mask))};
                 }
 
                 auto masking = [&getitem](Eigen::DenseIndex i,
@@ -401,7 +401,7 @@ void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
                             "of a __getitem__ method that accepts a 2-tuple, "
                             "e.g., a numpy.ndarray instance, but a {} object "
                             "was given"),
-                        mask.get_type())};
+                        pybind11::type::handle_of(mask))};
                 }
 
                 auto masking = [&getitem](Eigen::DenseIndex i,
