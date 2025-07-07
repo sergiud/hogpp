@@ -125,7 +125,6 @@ jobs:
           - Debug
           - Release
         msvc:
-          - VS-16-2019
           - VS-17-2022
         python:
           - '3.9'
@@ -135,12 +134,8 @@ jobs:
           - '3.13'
           - 'pypy3.10'
         include:
-          - msvc: VS-16-2019
-            os: windows-2019
-            generator: 'Visual Studio 16 2019'
-            marker: vc16
           - msvc: VS-17-2022
-            os: windows-2022
+            os: windows-2025
             generator: 'Visual Studio 17 2022'
             marker: vc17
           - arch: x64
