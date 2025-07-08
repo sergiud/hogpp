@@ -52,11 +52,11 @@ jobs:
           key: ${{matrix.os}}-cibuildwheel
 
       - name: Build (x86_64)
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v3.0.1
         if: "!endsWith(matrix.os, '-arm')"
 
       - name: Build (aarch64)
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v3.0.1
         if: endsWith(matrix.os, '-arm')
 
       - uses: actions/upload-artifact@v4
