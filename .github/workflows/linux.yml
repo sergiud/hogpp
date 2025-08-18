@@ -13,7 +13,7 @@ jobs:
       fail-fast: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check code style
         run: |
@@ -35,7 +35,7 @@ jobs:
           - ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Dependencies
         env:
@@ -134,7 +134,7 @@ jobs:
           - 'pypy3.10'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Dependencies
         env:
