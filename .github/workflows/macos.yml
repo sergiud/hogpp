@@ -21,7 +21,7 @@ jobs:
           - Debug
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Dependencies
         run: |
@@ -113,7 +113,7 @@ jobs:
           - 'pypy3.10'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Dependencies
         run: |
