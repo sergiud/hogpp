@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@
 #include <pybind11/numpy.h>
 
 #include <hogpp/cartesianproduct.hpp>
+#include <hogpp/prefix.hpp>
 
 #include "stride.hpp"
 
@@ -419,5 +420,7 @@ private:
 };
 
 } // namespace pybind11::detail
+
+#include <hogpp/suffix.hpp>
 
 #endif // PYTHON_TYPE_CASTER_TENSOR_HPP

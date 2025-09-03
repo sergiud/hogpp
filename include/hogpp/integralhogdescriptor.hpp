@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@
 #include <hogpp/gradientmagnitude.hpp>
 #include <hogpp/integralhistogram.hpp>
 #include <hogpp/l2hys.hpp>
+#include <hogpp/prefix.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
 namespace hogpp {
@@ -617,5 +618,7 @@ struct IntegralHOGDescriptorTraits
 };
 
 } // namespace hogpp
+
+#include <hogpp/suffix.hpp>
 
 #endif // HOGPP_INTEGRALHOGDESCRIPTOR_HPP

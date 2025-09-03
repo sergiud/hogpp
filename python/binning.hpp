@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include <hogpp/prefix.hpp>
 #include <hogpp/signedgradient.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
@@ -106,5 +107,7 @@ private:
 
 extern template class Binning<float>;
 extern template class Binning<double>;
+
+#include <hogpp/suffix.hpp>
 
 #endif // PYTHON_HOGPP_BINNING_HPP

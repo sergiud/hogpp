@@ -33,6 +33,7 @@
 #include <hogpp/l1sqrt.hpp>
 #include <hogpp/l2hys.hpp>
 #include <hogpp/l2norm.hpp>
+#include <hogpp/prefix.hpp>
 
 #include "typetraits.hpp"
 
@@ -231,5 +232,7 @@ private:
 
 extern template class BlockNormalizer<float>;
 extern template class BlockNormalizer<double>;
+
+#include <hogpp/suffix.hpp>
 
 #endif // PYTHON_HOGPP_BLOCKNORMALIZER_HPP

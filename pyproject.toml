@@ -38,7 +38,7 @@ enable = [
     'pypy',
 ]
 test-requires = [
-    "Pillow==11.0.0",
+    "Pillow>=11.0.0",
     "pytest",
 ]
 test-command = 'pytest -W error {project}/tests/python/module'
