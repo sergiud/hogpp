@@ -25,7 +25,7 @@ copyright = '2025, Sergiu Deitsch'
 author = 'Sergiu Deitsch'
 
 version = '0.2'
-release = '0.2.0a1'
+release = '0.2.0a1.dev1'
 
 # -- General configuration ---------------------------------------------------
 
