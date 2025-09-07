@@ -21,11 +21,11 @@ if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
         os.add_dll_directory(path)
 
 project = 'HOGpp'
-copyright = '2024, Sergiu Deitsch'
+copyright = '2025, Sergiu Deitsch'
 author = 'Sergiu Deitsch'
 
 version = '0.2'
-release = '0.2.0a1.dev1'
+release = '0.2.0a1'
 
 # -- General configuration ---------------------------------------------------
 
