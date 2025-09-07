@@ -97,7 +97,6 @@ add_library (hogpp::hogpp ALIAS hogpp)
 
 target_include_directories (hogpp INTERFACE
   $<BUILD_INTERFACE:${hogpp_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${hogpp_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 

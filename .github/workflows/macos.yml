@@ -57,7 +57,7 @@ jobs:
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON \
-                -G Xcode
+                -G Ninja
 
       - name: Build
         run: |
