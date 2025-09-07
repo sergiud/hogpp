@@ -254,26 +254,47 @@ lint:pypy3.10:
   <<: *lint_definition
   needs: []
 
+build:pypy3.11:
+  image: sergiud/hogpp:pypy3.11
+  <<: *skbuild_definition
+
+docs:pypy3.11:
+  image: sergiud/hogpp:pypy3.11
+  <<: *skdocs_definition
+  needs:
+    - build:pypy3.11
+
+test:pypy3.11:
+  image: sergiud/hogpp:pypy3.11
+  <<: *pytest_definition
+  needs:
+    - build:pypy3.11
+
+lint:pypy3.11:
+  image: sergiud/hogpp:pypy3.11
+  <<: *lint_definition
+  needs: []
+
 lint:cpp:
-  image: sergiud/hogpp:lint-18
+  image: sergiud/hogpp:lint-21
   stage: test
   allow_failure: true
   script:
-    - fdfind -g '*.[ch]pp' -x clang-format-18 --dry-run --Werror
+    - fdfind -g '*.[ch]pp' -x clang-format-21 --dry-run --Werror
   needs: []
 
-build:bookworm:
-  image: sergiud/hogpp:bookworm
+build:trixie:
+  image: sergiud/hogpp:trixie
   <<: *build_definition
 
-docs:bookworm:
-  image: sergiud/hogpp:bookworm
+docs:trixie:
+  image: sergiud/hogpp:trixie
   <<: *docs_definition
   needs:
-    - build:bookworm
+    - build:trixie
 
-test:bookworm:
-  image: sergiud/hogpp:bookworm
+test:trixie:
+  image: sergiud/hogpp:trixie
   <<: *test_definition
   needs:
-    - build:bookworm
+    - build:trixie

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM debian:bookworm-slim AS base
+FROM debian:trixie-slim AS base
 
 RUN --mount=type=cache,target=/var/cache/apt \
 apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -18,9 +18,9 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.
 
 FROM base AS deploy
 
-ARG clang_format_VERSION 19
+ARG clang_format_VERSION 21
 
-RUN echo deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-${clang_format_VERSION} main \
+RUN echo deb http://apt.llvm.org/trixie/ llvm-toolchain-trixie-${clang_format_VERSION} main \
 >/etc/apt/sources.list.d/llvm.list
 
 COPY --from=tools /etc/apt/trusted.gpg.d/apt.llvm.org.asc /etc/apt/trusted.gpg.d/apt.llvm.org.asc

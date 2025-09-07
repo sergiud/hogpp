@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN --mount=type=cache,target=/var/cache/apt \
 apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \

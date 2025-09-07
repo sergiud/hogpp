@@ -1,4 +1,4 @@
-ARG Python_VERSION=python:3.13-slim-bookworm
+ARG Python_VERSION=python:3.13-slim-trixie
 
 FROM ${Python_VERSION}
 
@@ -17,4 +17,5 @@ COPY docs/requirements.txt ./docs/
 COPY python/requirements.txt ./python/
 COPY requirements.txt ./
 
-RUN pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+pip install -r requirements.txt
