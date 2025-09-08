@@ -19,19 +19,6 @@ jobs:
       CIBW_ENVIRONMENT_LINUX: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES"
       CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES" MACOSX_DEPLOYMENT_TARGET=10.13
       CIBW_ENVIRONMENT_WINDOWS: CXXFLAGS="/GL /DPYBIND11_DETAILED_ERROR_MESSAGES" LDFLAGS=/LTCG
-      # As for Pillow 11.0.0, there is no aarch64 wheel for the
-      # free-threaded variant of Python 3.13 (both many* and musl*). We
-      # therefore skip the tests to avoid compiling Pillow from source which
-      # generally will fail due to missing dependencies.
-      #
-      # Additonally, there is no PyPy 3.9 aarch64 wheel of NumPy which is then
-      # built from source but fails with enabled LTO. Also PyPy 3.9 macOS 15
-      # wheel built using Clang 16.0.0 fails due to due missing <cstddef>
-      # include in NumPy 2.0.2 which is built from source as well.
-      #
-      # Finally, there are no PyPy 3.11 wheels of Pillow. Skip until these are
-      # provided.
-      CIBW_TEST_SKIP: cp313t-*linux_aarch64 pp39-manylinux_aarch64 pp39-macosx_arm64 pp311-*
     strategy:
       matrix:
         os:
