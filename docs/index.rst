@@ -21,9 +21,9 @@ Features
 
 -  C++ templated implementation
 -  Python support for 32, 64, and 80 bit floating point precision
--  Unrestricted input size (e.g., OpenCV as of version 4.10.0 requires
+-  Unrestricted input size (e.g., OpenCV as of version 4.12.0 requires
    the input to be a `multiple of the block
-   size <https://github.com/opencv/opencv/blob/71d3237a093b60a27601c20e9ee6c3e52154e8b1/modules/objdetect/src/hog.cpp#L94-L95>`__)
+   size <https://github.com/opencv/opencv/blob/49486f61fb25722cbcf586b7f4320921d46fb38e/modules/objdetect/src/hog.cpp#L94-L95>`__)
 -  Support for arbitrary integer (8 bit to 64 bit, both signed and
    unsigned) and floating point input (e.g., OpenCV requires 8-bit
    unsigned integer input)
