@@ -6,7 +6,7 @@ on: [push, pull_request]
 jobs:
   build-mingw:
     name: ${{matrix.sys}}-${{matrix.env}}-${{matrix.build_type}}
-    runs-on: windows-2022
+    runs-on: windows-2025
     defaults:
       run:
         shell: msys2 {0}
@@ -336,7 +336,7 @@ jobs:
           - 'pypy3.11'
         include:
           - msvc: VS-17-2022
-            os: windows-2022
+            os: windows-2025
             generator: 'Visual Studio 17 2022'
 
     steps:
