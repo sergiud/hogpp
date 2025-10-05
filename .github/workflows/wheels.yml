@@ -17,12 +17,11 @@ jobs:
       CIBW_ARCHS_WINDOWS: auto64
       CIBW_CACHE_PATH: ${{github.workspace}}/.cibuildwheel/
       CIBW_ENVIRONMENT_LINUX: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES"
-      CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES" MACOSX_DEPLOYMENT_TARGET=10.13
+      CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES" MACOSX_DEPLOYMENT_TARGET=11.0
       CIBW_ENVIRONMENT_WINDOWS: CXXFLAGS="/GL /DPYBIND11_DETAILED_ERROR_MESSAGES" LDFLAGS=/LTCG
     strategy:
       matrix:
         os:
-          - macos-13
           - macos-15
           - ubuntu-24.04
           - ubuntu-24.04-arm
@@ -38,13 +37,8 @@ jobs:
           path: .cibuildwheel/
           key: ${{matrix.os}}-cibuildwheel
 
-      - name: Build (x86_64)
+      - name: Build
         uses: pypa/cibuildwheel@v3.1.4
-        if: "!endsWith(matrix.os, '-arm')"
-
-      - name: Build (aarch64)
-        uses: pypa/cibuildwheel@v3.1.4
-        if: endsWith(matrix.os, '-arm')
 
       - uses: actions/upload-artifact@v4
         with:
