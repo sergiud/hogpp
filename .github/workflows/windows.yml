@@ -153,18 +153,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: boost/
-          key: ${{runner.os}}-boost-1.87-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-boost-1.89-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://archives.boost.io/release/1.87.0/source/boost_1_87_0.7z", "boost_1_87_0.7z");
-          7z x boost_1_87_0.7z;
+          (New-Object System.Net.WebClient).DownloadFile("https://archives.boost.io/release/1.89.0/source/boost_1_89_0.7z", "boost_1_89_0.7z");
+          7z x boost_1_89_0.7z;
 
       - name: Setup Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          cd boost_1_87_0
+          cd boost_1_89_0
           ./bootstrap.bat
           ./b2 address-model=${{matrix.address_model}} `
                variant=$('${{matrix.build_type}}'.ToLower()) `
