@@ -120,6 +120,7 @@ jobs:
       fail-fast: true
       matrix:
         arch:
+          - arm64
           - x64
         build_type:
           - Debug
@@ -136,11 +137,23 @@ jobs:
           - 'pypy3.11'
         include:
           - msvc: VS-17-2022
-            os: windows-2025
             generator: 'Visual Studio 17 2022'
             marker: vc17
           - arch: x64
             address_model: 64
+            os: windows-2025
+          - arch: arm64
+            address_model: 64
+            os: windows-11-arm
+        exclude:
+          - arch: arm64
+            python: 3.9
+          - arch: arm64
+            python: 3.10
+          - arch: arm64
+            python: pypy3.10
+          - arch: arm64
+            python: pypy3.11
 
     steps:
       - uses: actions/checkout@v5
@@ -238,7 +251,9 @@ jobs:
           cmake -S opencv-4.12.0 -B build-opencv `
                 -A ${{matrix.arch}} `
                 -DBUILD_LIST="core,imgproc" `
-                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv
+                -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/opencv `
+                -DOpenCV_ARCH=${{matrix.arch}} `
+                -DOpenCV_RUNTIME=${{matrix.marker}}
           cmake --build build-opencv `
                 --config ${{matrix.build_type}} `
                 --target install
@@ -278,7 +293,6 @@ jobs:
       - name: Configure
         env:
           CXXFLAGS: /WX
-          Python_ROOT: ${{env.pythonLocation}}
         run: |
           cmake -S . -B build_${{matrix.build_type}}/ `
                 -A ${{matrix.arch}} `
@@ -287,6 +301,7 @@ jobs:
                 -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON `
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON `
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON `
+                -DPython_EXECUTABLE=${{env.pythonLocation}}/python3.exe `
                 -G "${{matrix.generator}}"
 
       - name: Build
@@ -309,7 +324,7 @@ jobs:
                 --target sphinx
 
   build-wheel:
-    name: Python-${{matrix.python}}-${{matrix.build_type}}-wheel
+    name: Python-${{matrix.python}}-${{matrix.build_type}}-${{matrix.arch}}-wheel
     runs-on: ${{matrix.os}}
     defaults:
       run:
@@ -320,6 +335,7 @@ jobs:
       fail-fast: true
       matrix:
         arch:
+          - arm64
           - x64
         build_type:
           - Debug
@@ -336,8 +352,20 @@ jobs:
           - 'pypy3.11'
         include:
           - msvc: VS-17-2022
-            os: windows-2025
             generator: 'Visual Studio 17 2022'
+          - arch: x64
+            os: windows-2025
+          - arch: arm64
+            os: windows-11-arm
+        exclude:
+          - arch: arm64
+            python: 3.9
+          - arch: arm64
+            python: 3.10
+          - arch: arm64
+            python: pypy3.10
+          - arch: arm64
+            python: pypy3.11
 
     steps:
       - uses: actions/checkout@v5

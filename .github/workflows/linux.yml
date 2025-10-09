@@ -33,6 +33,12 @@ jobs:
           - Debug
         os:
           - ubuntu-24.04
+          - ubuntu-24.04-arm
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: arm64
 
     steps:
       - uses: actions/checkout@v5
@@ -114,8 +120,8 @@ jobs:
           verbose: true
 
   build-wheel:
-    name: Python-${{matrix.python}}-${{matrix.build_type}}-wheel
-    runs-on: ubuntu-24.04
+    name: Python-${{matrix.python}}-${{matrix.build_type}}-${{matrix.arch}} wheel
+    runs-on: ${{matrix.os}}
     defaults:
       run:
         shell: bash
@@ -125,6 +131,9 @@ jobs:
         build_type:
           - Release
           - Debug
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
         python:
           - '3.9'
           - '3.10'
@@ -133,6 +142,11 @@ jobs:
           - '3.13'
           - 'pypy3.10'
           - 'pypy3.11'
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: arm64
 
     steps:
       - uses: actions/checkout@v5
