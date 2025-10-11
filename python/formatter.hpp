@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@
 
 #ifndef PYTHON_HOGPP_FORMATTER_HPP
 #define PYTHON_HOGPP_FORMATTER_HPP
+
+#include <string_view>
 
 #include <fmt/format.h>
 
@@ -37,7 +39,7 @@ struct fmt::formatter<pybind11::str> : formatter<string_view>
     [[nodiscard]] constexpr auto format(
         const pybind11::str& s, FormatContext& ctx) HOGPP_FORMATTER_FORMAT_CONST
     {
-        return formatter<string_view>::format(std::string{s}, ctx);
+        return formatter<string_view>::format(s.cast<std::string_view>(), ctx);
     }
 };
 
