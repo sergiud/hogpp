@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,27 +30,33 @@
 #include <hogpp/signedgradient.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
+namespace pyhogpp::inline HOGPP_TARGET {
+
 enum class BinningType
 {
     Signed,
     Unsigned
 };
 
+} // namespace pyhogpp::inline HOGPP_TARGET
+
 namespace pybind11::detail {
 
 template<>
-class type_caster<BinningType>
+class type_caster<pyhogpp::BinningType>
 {
 public:
     bool load(handle src, bool);
-    static handle cast(BinningType in, return_value_policy /*policy*/,
+    static handle cast(pyhogpp::BinningType in, return_value_policy /*policy*/,
                        handle /*parent*/);
 
 private:
-    PYBIND11_TYPE_CASTER(BinningType, _("Binning"));
+    PYBIND11_TYPE_CASTER(pyhogpp::BinningType, _("Binning"));
 };
 
 } // namespace pybind11::detail
+
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template<class T>
 class Binning
@@ -107,6 +113,8 @@ private:
 
 extern template class Binning<float>;
 extern template class Binning<double>;
+
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #include <hogpp/suffix.hpp>
 

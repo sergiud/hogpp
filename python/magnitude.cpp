@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +23,10 @@
 
 namespace pybind11::detail {
 
-bool type_caster<MagnitudeType>::load(handle src, bool /*unused*/)
+bool type_caster<pyhogpp::MagnitudeType>::load(handle src, bool /*unused*/)
 {
+    using pyhogpp::MagnitudeType;
+
     auto name = pybind11::cast<std::string>(src);
 
     if (name == "identity") {
@@ -43,10 +45,12 @@ bool type_caster<MagnitudeType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<MagnitudeType>::cast(MagnitudeType in,
-                                        return_value_policy /*policy*/,
-                                        handle /*parent*/)
+handle type_caster<pyhogpp::MagnitudeType>::cast(pyhogpp::MagnitudeType in,
+                                                 return_value_policy /*policy*/,
+                                                 handle /*parent*/)
 {
+    using pyhogpp::MagnitudeType;
+
     str result;
 
     switch (in) {
@@ -66,7 +70,11 @@ handle type_caster<MagnitudeType>::cast(MagnitudeType in,
 
 } // namespace pybind11::detail
 
+namespace pyhogpp::inline HOGPP_TARGET {
+
 template class Magnitude<float>;
 template class Magnitude<double>;
+
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #include <hogpp/suffix.hpp>
