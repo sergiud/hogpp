@@ -32,6 +32,12 @@ if (PROJECT_IS_TOP_LEVEL)
 endif (PROJECT_IS_TOP_LEVEL)
 
 option (WITH_PYTHON "Build the Python module" ${PROJECT_IS_TOP_LEVEL})
+option (WITH_DISPATCH
+  "Build one pyhogpp variant per supported instruction set and pick the \
+fastest at runtime. When OFF, build a single variant using the compiler's \
+default target settings instead (e.g. -march=native if the user set it)."
+  ON
+)
 option (BUILD_DEPS
   "Download and build Eigen and fmt instead of using the installed packages" OFF)
 # The exported targets require the installed packages of the dependencies, and
@@ -103,10 +109,12 @@ if (WITH_PYTHON)
   find_package (Sphinx 4.0)
 endif (WITH_PYTHON)
 
+include (AddISA)
 include (BoostTestDiscovery)
 include (CheckCXXCompilerFlag)
 include (CheckCXXSourceCompiles)
 include (CheckCXXSymbolExists)
+include (CheckIncludeFileCXX)
 include (CMakePackageConfigHelpers)
 include (GNUInstallDirs)
 
@@ -116,6 +124,7 @@ set (hogpp_package_dir ${CMAKE_INSTALL_DATADIR}/cmake/hogpp)
 check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
 check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
+check_cxx_compiler_flag (-mtune=generic HAVE_MTUNE_GENERIC)
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
 
 # Replacing the allocation functions of glibc allows tests to observe the heap.
@@ -190,6 +199,85 @@ target_link_libraries (hogpp INTERFACE
 )
 
 if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
+  check_cxx_compiler_flag (-mfpu=neon HAVE_MFPU_NEON)
+  check_cxx_compiler_flag (-msve-vector-bits=scalable HAVE_MSVE_VECTOR_BITS)
+
+  check_cxx_symbol_exists (__check_isa_support "immintrin.h" HAVE___CHECK_ISA_SUPPORT)
+  check_cxx_symbol_exists (getauxval "sys/auxv.h" HAVE_GETAUXVAL)
+  check_cxx_symbol_exists (prctl "sys/prctl.h" HAVE_PRCTL)
+  check_include_file_cxx ("asm/hwcap.h" HAVE_ASM_HWCAP_H)
+  check_include_file_cxx ("sys/auxv.h" HAVE_SYS_AUXV_H)
+  check_include_file_cxx ("sys/prctl.h" HAVE_SYS_PRCTL_H)
+
+  set (HOGPP_ISAS)
+
+  if (WITH_DISPATCH)
+    # Each hogpp_add_isa() call below tests both the GNU/Clang and MSVC flag
+    # spelling for the same canonical ISA name, appending it to HOGPP_ISAS on
+    # success. The canonical name (used for the HAVE_ISA_* macro, the
+    # pyhogpp_<name> target/init_hogpp_<name> symbol, and the Eigen
+    # vectorization define) is independent of the compiler flag spelling,
+    # e.g. AVX512 pairs with -mavx512f on GNU/Clang and /arch:AVX512 on MSVC.
+    hogpp_add_isa (SSE2 GNU_FLAG -msse2 MSVC_FLAG /arch:SSE2)
+    hogpp_add_isa (SSE3 GNU_FLAG -msse3)
+    hogpp_add_isa (SSSE3 GNU_FLAG -mssse3)
+    hogpp_add_isa (SSE4.1 GNU_FLAG -msse4.1)
+    hogpp_add_isa (SSE4.2 GNU_FLAG -msse4.2 MSVC_FLAG /arch:SSE4.2)
+    hogpp_add_isa (AVX GNU_FLAG -mavx MSVC_FLAG /arch:AVX)
+    # Every AVX2-capable CPU (Haswell and later on Intel, all AVX2-capable
+    # AMD chips) also implements FMA3: the two were introduced together
+    # and no shipped CPU has one without the other. Unlike plain AVX
+    # (Sandy/Ivy Bridge predate FMA3), requiring FMA here needs no
+    # additional runtime check.
+    hogpp_add_isa (AVX2 GNU_FLAG -mavx2 MSVC_FLAG /arch:AVX2 REQUIRES_FMA)
+    # Required for AVX512 (and above) by Eigen 5.x: compiling with -mavx512f
+    # alone without SSE/AVX FMA is not supported (bug 1638)
+    # https://gitlab.com/libeigen/eigen/-/issues/1638
+    hogpp_add_isa (AVX512 GNU_FLAG -mavx512f MSVC_FLAG /arch:AVX512 REQUIRES_FMA)
+
+    # Avoid the following Eigen error when compiling using AppleClang:
+    #   error: invalid output size for constraint '=v'
+    #     360 |   __asm__("vbroadcastss %[mem], %[dst]" : [dst] "=v"(ret) : [mem] "m"(*from));
+    # when compiling using -mavx10.1 by explicitly setting the word size.
+    # Eigen assumes 512 bit vectors while AppleClang -mavx10.1 defaults to
+    # 256 bits.
+    if (NOT (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
+      hogpp_add_isa (AVX10.1 GNU_FLAG -mavx10.1 MSVC_FLAG /arch:AVX10.1 REQUIRES_FMA)
+      hogpp_add_isa (AVX10.2 GNU_FLAG -mavx10.2 REQUIRES_FMA)
+    endif (NOT (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
+
+    # CMAKE_SYSTEM_PROCESSOR alone is not reliable for the Visual Studio
+    # generator: with an explicit -A arm64 (as used for cross-generating an
+    # ARM64 solution), it does not necessarily get updated to reflect the
+    # requested target architecture. CMAKE_GENERATOR_PLATFORM always mirrors
+    # the -A value verbatim for VS generators, so check both.
+    string (TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _hogpp_system_processor)
+    string (TOLOWER "${CMAKE_GENERATOR_PLATFORM}" _hogpp_generator_platform)
+
+    if (_hogpp_system_processor MATCHES "^(arm|aarch64)" OR
+        _hogpp_generator_platform MATCHES "^arm")
+      list (APPEND HOGPP_ISAS NEON)
+      set (HAVE_ISA_NEON 1)
+
+      if (HAVE_MSVE_VECTOR_BITS)
+        set (HAVE_ISA_SVE128 1)
+        set (HAVE_ISA_SVE256 1)
+        set (HAVE_ISA_SVE512 1)
+        list (APPEND HOGPP_ISAS SVE128 SVE256 SVE512)
+      endif (HAVE_MSVE_VECTOR_BITS)
+    endif (_hogpp_system_processor MATCHES "^(arm|aarch64)" OR
+           _hogpp_generator_platform MATCHES "^arm")
+
+    unset (_hogpp_system_processor)
+    unset (_hogpp_generator_platform)
+  endif (WITH_DISPATCH)
+
+  configure_file (
+    python/isaconfig.hpp.cmake.in
+    python/isaconfig.hpp
+    @ONLY
+  )
+
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/maskingref.cpp
@@ -223,54 +311,161 @@ if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
   )
 
   python_add_library (pyhogpp MODULE WITH_SOABI
-    python/binning.cpp
-    python/blocknormalizer.cpp
-    python/hogpp.cpp
-    python/integralhogdescriptor.cpp
-    python/interpolation.cpp
-    python/magnitude.cpp
+    python/cpufeature.cpp
+    python/cpufeature.hpp
+    python/cpufeatures.cpp
+    python/cpufeatures.hpp
+    python/dispatchinit.cpp
+    python/isa.hpp
+    python/levenshtein.hpp
+    python/moduledispatch.cpp
+    python/moduledispatch.hpp
+    python/moduleinitializer.cpp
+    python/moduleinitializer.hpp
+  )
+  target_compile_features (pyhogpp PRIVATE cxx_std_20)
+
+  target_include_directories (pyhogpp PRIVATE
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/python>
   )
 
-  target_sources (pyhogpp PRIVATE FILE_SET HEADERS
-    BASE_DIRS python
-    FILES
+  # The mask is converted once before dispatching, so its type caster does not
+  # depend on the instruction set and is shared by all dispatch modules.
+  target_link_libraries (pyhogpp PRIVATE
+    fmt::fmt
+    pybind11::headers
+    Python::Module
+    python_type_caster
+  )
+
+  set (_arch
+    generic
+    ${HOGPP_ISAS}
+  )
+
+  foreach (arch IN LISTS _arch)
+    string (TOLOWER "${arch}" _lower_arch)
+    string (MAKE_C_IDENTIFIER "${_lower_arch}" _suffix)
+    string (MAKE_C_IDENTIFIER "${arch}" _eigen_suffix)
+    set (target_name pyhogpp_${_suffix})
+
+    add_library (${target_name} OBJECT
+      python/binning.cpp
       python/binning.hpp
+      python/blocknormalizer.cpp
       python/blocknormalizer.hpp
       python/formatter.hpp
+      python/hogpp.cpp
       python/hogpp.hpp
+      python/integralhogdescriptor.cpp
       python/integralhogdescriptor.hpp
+      python/interpolation.cpp
       python/interpolation.hpp
+      python/magnitude.cpp
       python/magnitude.hpp
-  )
+      python/typetraits.hpp
+      # We cannot reuse the python_type_caster library since we need to rename
+      # namespaces.
+      #
+      # While bounds.[ch]pp do not depend on a specific ABI, we rename the
+      # namespace which requires treating the sources as ABI specific.
+      python/type_caster/bounds.cpp
+      python/type_caster/bounds.hpp
+      python/type_caster/stride.hpp
+      python/type_caster/tensor.hpp
+      python/type_caster/typesequence.hpp
+    )
 
-  hogpp_enable_big_obj (pyhogpp)
+    if (arch STREQUAL generic)
+      target_compile_definitions (${target_name} PRIVATE
+        HOGPP_TARGET=${_suffix}
+      )
 
-  # The conforming preprocessor of MSVC evaluates the variadic macros of the
-  # free-threading support.
+      if (WITH_DISPATCH)
+        # This is specifically the runtime fallback used when no other
+        # compiled-in ISA matches the CPU it ends up running on, so it must
+        # stay portable: don't vectorize it (avoiding the same code
+        # generation as one of the other modules) and don't tune for the
+        # build machine's microarchitecture.
+        target_compile_definitions (${target_name} PRIVATE EIGEN_DONT_VECTORIZE)
+
+        if (HAVE_MTUNE_GENERIC)
+          target_compile_options (${target_name} PRIVATE -mtune=generic)
+        endif (HAVE_MTUNE_GENERIC)
+      endif (WITH_DISPATCH)
+    else (arch STREQUAL generic)
+      target_compile_definitions (${target_name} PRIVATE
+        HOGPP_TARGET=${_suffix}
+      )
+
+      if (arch STREQUAL NEON)
+        target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_NEON)
+
+        if (HAVE_MFPU_NEON)
+          target_compile_options (${target_name} PRIVATE -mfpu=neon)
+        endif (HAVE_MFPU_NEON)
+      elseif (arch MATCHES "^SVE([0-9]+)$")
+        target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_SVE)
+        target_compile_options (${target_name} PRIVATE -msve-vector-bits=${CMAKE_MATCH_1})
+      else (arch STREQUAL NEON)
+        target_compile_options (${target_name} PRIVATE
+          ${hogpp_isa_${_eigen_suffix}_flags}
+        )
+
+        if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+          if (hogpp_isa_${_eigen_suffix}_requires_fma)
+            target_compile_options (${target_name} PRIVATE -mfma)
+          endif (hogpp_isa_${_eigen_suffix}_requires_fma)
+        endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+      endif (arch STREQUAL NEON)
+
+      # Rename the Eigen namespace to avoid One Definition Rule (ODR) violations
+      target_compile_definitions (${target_name} PRIVATE
+        EIGEN_VECTORIZE_${_eigen_suffix}
+        Eigen=Eigen_${_suffix}
+        hogpp=hogpp_${_suffix}
+      )
+    endif (arch STREQUAL generic)
+
+    hogpp_enable_big_obj (${target_name})
+
+    # The conforming preprocessor of MSVC evaluates the variadic macros of the
+    # free-threading support.
+    if (HAVE_ZC_PREPROCESSOR)
+      target_compile_options (${target_name} PRIVATE /Zc:preprocessor)
+    endif (HAVE_ZC_PREPROCESSOR)
+
+    if (OpenCV_FOUND)
+      target_compile_definitions (${target_name} PRIVATE HAVE_OPENCV)
+      target_link_libraries (${target_name} PRIVATE opencv_core)
+    endif (OpenCV_FOUND)
+
+    if (HAVE_EXECUTION)
+      target_compile_definitions (${target_name} PRIVATE HAVE_EXECUTION)
+    endif (HAVE_EXECUTION)
+
+    target_link_libraries (${target_name} PRIVATE
+      hogpp::hogpp
+      pybind11::headers
+      Python::Module
+    )
+
+    target_link_libraries (pyhogpp PRIVATE ${target_name})
+  endforeach (arch)
+
+  unset (target_name)
+
   if (HAVE_ZC_PREPROCESSOR)
     target_compile_options (pyhogpp PRIVATE /Zc:preprocessor)
   endif (HAVE_ZC_PREPROCESSOR)
 
-  if (OpenCV_FOUND)
-    target_compile_definitions (pyhogpp PRIVATE HAVE_OPENCV)
-  endif (OpenCV_FOUND)
-
-  if (HAVE_EXECUTION)
-    target_compile_definitions (pyhogpp PRIVATE HAVE_EXECUTION)
-  endif (HAVE_EXECUTION)
-
   if (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME _hogpp)
-    set_property (SOURCE python/hogpp.cpp APPEND PROPERTY COMPILE_DEFINITIONS
-      HOGPP_SKBUILD)
+    set_property (SOURCE python/dispatchinit.cpp APPEND PROPERTY
+      COMPILE_DEFINITIONS HOGPP_SKBUILD)
   else (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
   endif (SKBUILD)
-
-  target_link_libraries (pyhogpp PRIVATE
-    hogpp::hogpp
-    python_type_caster
-  )
 
   python_add_library (type_caster_test MODULE WITH_SOABI
     python/type_caster_test.cpp
@@ -306,7 +501,7 @@ if (hogpp_BUILD_TESTS)
   # The tests include the header-only variant of Boost.Test.
   if (Boost_FOUND)
     set (cpp_tests binning block_norm cartesian_product descriptor gradient
-      integral_histogram maskingref multiply_add spatialweighting)
+      integral_histogram levenshtein maskingref multiply_add spatialweighting)
 
     if (HAVE_LIBC_MALLOC)
       list (APPEND cpp_tests allocations)
@@ -446,7 +641,9 @@ if (hogpp_BUILD_TESTS)
     set (pytest_xdist_args -n auto)
   endif (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
 
-  set (pytest_command Python::Interpreter -m pytest -W error ${pytest_xdist_args})
+  # Benchmarks run on their own, so their plugin stays disabled in the tests.
+  set (pytest_command Python::Interpreter -m pytest -p no:benchmark -W error
+    ${pytest_xdist_args})
 
   if (TARGET pyhogpp AND TARGET Python::Interpreter)
     add_test (NAME python_hogpp
@@ -463,8 +660,14 @@ if (hogpp_BUILD_TESTS)
         ${PROJECT_SOURCE_DIR}/tests/python/module/test_repr.py
     )
 
+    # Each dispatch test imports the module in subprocesses of its own.
+    add_test (NAME python_dispatch
+      COMMAND Python::Interpreter -m pytest -p no:benchmark -W error
+        ${PROJECT_SOURCE_DIR}/tests/python/module/test_dispatch.py
+    )
+
     set_tests_properties (python_hogpp python_tensor_type_caster python_repr
-      PROPERTIES
+      python_dispatch PROPERTIES
         ENVIRONMENT_MODIFICATION
           PYTHONPATH=path_list_prepend:$<TARGET_FILE_DIR:pyhogpp>
     )

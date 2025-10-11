@@ -23,8 +23,10 @@
 
 namespace pybind11::detail {
 
-bool type_caster<InterpolationType>::load(handle src, bool /*unused*/)
+bool type_caster<pyhogpp::InterpolationType>::load(handle src, bool /*unused*/)
 {
+    using pyhogpp::InterpolationType;
+
     auto name = pybind11::cast<std::string>(src);
 
     if (name == "orientation") {
@@ -40,10 +42,12 @@ bool type_caster<InterpolationType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<InterpolationType>::cast(InterpolationType in,
-                                            return_value_policy /*policy*/,
-                                            handle /*parent*/)
+handle type_caster<pyhogpp::InterpolationType>::cast(
+    pyhogpp::InterpolationType in, return_value_policy /*policy*/,
+    handle /*parent*/)
 {
+    using pyhogpp::InterpolationType;
+
     str result;
 
     switch (in) {
