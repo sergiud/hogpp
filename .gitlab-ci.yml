@@ -133,22 +133,6 @@ stages:
     - flake8 .
     - isort --check-only --diff .
 
-build:python3.9:
-  image: sergiud/hogpp:python3.9
-  <<: *skbuild_definition
-
-docs:python3.9:
-  image: sergiud/hogpp:python3.9
-  <<: *skdocs_definition
-  needs:
-    - build:python3.9
-
-test:python3.9:
-  image: sergiud/hogpp:python3.9
-  <<: *pytest_definition
-  needs:
-    - build:python3.9
-
 build:python3.10:
   image: sergiud/hogpp:python3.10
   <<: *skbuild_definition

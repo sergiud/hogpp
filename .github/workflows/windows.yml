@@ -128,7 +128,6 @@ jobs:
         msvc:
           - VS-17-2022
         python:
-          - '3.9'
           - '3.10'
           - '3.11'
           - '3.12'
@@ -147,8 +146,6 @@ jobs:
             address_model: 64
             os: windows-11-arm
         exclude:
-          - arch: arm64
-            python: 3.9
           - arch: arm64
             python: 3.10
           - arch: arm64
@@ -344,7 +341,6 @@ jobs:
         msvc:
           - VS-17-2022
         python:
-          - '3.9'
           - '3.10'
           - '3.11'
           - '3.12'
@@ -360,8 +356,6 @@ jobs:
           - arch: arm64
             os: windows-11-arm
         exclude:
-          - arch: arm64
-            python: 3.9
           - arch: arm64
             python: 3.10
           - arch: arm64
