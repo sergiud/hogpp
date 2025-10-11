@@ -22,6 +22,8 @@
 
 #include <pybind11/pybind11.h>
 
+namespace pyhogpp::inline HOGPP_TARGET {
+
 // Selects the hogpp::IntegralHOGDescriptor spatial interpolation trait.
 // A compile-time template parameter of the descriptor, not a runtime
 // functor, so this only steers which precompiled variant is picked.
@@ -31,18 +33,20 @@ enum class InterpolationType
     Trilinear
 };
 
+} // namespace pyhogpp::inline HOGPP_TARGET
+
 namespace pybind11::detail {
 
 template<>
-class type_caster<InterpolationType>
+class type_caster<pyhogpp::InterpolationType>
 {
 public:
     bool load(handle src, bool);
-    static handle cast(InterpolationType in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    static handle cast(pyhogpp::InterpolationType in,
+                       return_value_policy /*policy*/, handle /*parent*/);
 
 private:
-    PYBIND11_TYPE_CASTER(InterpolationType, _("Interpolation"));
+    PYBIND11_TYPE_CASTER(pyhogpp::InterpolationType, _("Interpolation"));
 };
 
 } // namespace pybind11::detail

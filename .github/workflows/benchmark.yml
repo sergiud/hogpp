@@ -1,0 +1,118 @@
+name: Benchmark
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: ${{matrix.os}}
+    runs-on: ${{matrix.os}}
+    defaults:
+      run:
+        shell: bash
+    # permissions values must be static (GitHub Actions does not evaluate
+    # expressions here), so this can't be conditioned on github.event_name.
+    # write is only actually exercised by the auto-push input below, which
+    # is itself gated to push events; for a pull_request from a fork,
+    # GitHub always downgrades GITHUB_TOKEN to read-only regardless of what
+    # this declares, so declaring write here is not a fork-safety issue.
+    permissions:
+      contents: write
+    strategy:
+      # benchmark-action/github-action-benchmark pushes to the shared
+      # gh-pages branch: running more than one push at a time risks a race,
+      # so these must not run concurrently.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-26.04
+          - windows-2025
+          - macos-15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Dependencies (Linux)
+        if: runner.os == 'Linux'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            --no-install-recommends --no-install-suggests \
+            cmake \
+            g++ \
+            ninja-build
+
+      - name: Setup Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Setup Dependencies
+        run: |
+          pip install -r requirements.txt --prefer-binary
+          pip install 'pybind11>=2.9.0'
+
+      - name: Setup Environment (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo 'CXXFLAGS=-fuse-ld=mold' >> "$GITHUB_ENV"
+
+      - name: Setup Environment
+        run: |
+          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> "$GITHUB_ENV"
+
+      # CIBUILDWHEEL=1 makes CMakeLists.txt fetch Eigen and fmt via
+      # FetchContent instead of requiring them as system packages, so this
+      # single set of steps works unchanged across all three platforms
+      # without reproducing linux.yml/windows.yml/macos.yml's manual
+      # Boost/Eigen/fmt/OpenCV setup (none of which the benchmark needs:
+      # it only imports the built extension and calls compute()).
+      - name: Build
+        env:
+          CIBUILDWHEEL: '1'
+        run: |
+          pip install --no-build-isolation \
+            --config-settings build-dir=build/ \
+            --config-settings cmake.build-type=Release \
+            --verbose \
+            --editable .
+
+      # Benchmarks every ISA this build supports (plus generic), each in its
+      # own interpreter since HOGPP_DISPATCH is only consulted once per
+      # process, and merges the results into one file so every ISA is
+      # tracked as its own metric per platform.
+      - name: Run benchmark
+        run: |
+          python tests/python/module/benchmark_isas.py --json output.json
+
+      - name: Compare against baseline and update history
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: ${{matrix.os}}
+          tool: 'pytest'
+          output-file-path: output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name == 'push' }}
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          summary-always: true
