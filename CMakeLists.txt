@@ -1,10 +1,12 @@
-cmake_minimum_required (VERSION 3.18...3.30)
+cmake_minimum_required (VERSION 3.18...4.1.2)
 project (hogpp
   VERSION 0.3.0
   LANGUAGES CXX
   DESCRIPTION "Fast histogram of oriented gradients computation using integral histogram"
   HOMEPAGE_URL https://github.com/sergiud/hogpp
 )
+
+option (WITH_DISPATCH "Dynamic ISA dispatch" ON)
 
 # Disable module support since under MinGW Clang compiling fails with the error
 # '"CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND"' is not recognized as an
@@ -141,37 +143,90 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   )
 
   python_add_library (pyhogpp WITH_SOABI
-    python/binning.cpp
-    python/binning.hpp
-    python/blocknormalizer.cpp
-    python/blocknormalizer.hpp
-    python/formatter.hpp
-    python/hogpp.cpp
-    python/hogpp.hpp
-    python/integralhogdescriptor.cpp
-    python/integralhogdescriptor.hpp
-    python/magnitude.cpp
-    python/magnitude.hpp
+    python/init.cpp
   )
 
-  if (HAVE_MBIG_OBJ)
-    set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
-  elseif (HAVE_BIGOBJ)
-    set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS /bigobj)
-  endif (HAVE_MBIG_OBJ)
+  # TODO aarch64 Eigen 3.4.0 EIGEN_ARM64_USE_SVE -msve-vector-bits=N
 
-  if (OpenCV_FOUND)
-    target_compile_definitions (pyhogpp PRIVATE HAVE_OPENCV)
-  endif (OpenCV_FOUND)
-
-  if (HAVE_EXECUTION)
-    target_compile_definitions (pyhogpp PRIVATE HAVE_EXECUTION)
-  endif (HAVE_EXECUTION)
-
-  target_link_libraries (pyhogpp PRIVATE
-    hogpp::hogpp
-    python_type_caster
+  set (_arch
+    default
+    x86-64
+    x86-64-v2
+    x86-64-v3
+    x86-64-v4
   )
+
+  foreach (arch IN LISTS _arch)
+    string (MAKE_C_IDENTIFIER "${arch}" _suffix)
+    set (target_name pyhogpp_${_suffix})
+
+    add_library (${target_name} OBJECT
+      python/binning.cpp
+      python/binning.hpp
+      python/blocknormalizer.cpp
+      python/blocknormalizer.hpp
+      python/formatter.hpp
+      python/hogpp.cpp
+      python/hogpp.hpp
+      python/integralhogdescriptor.cpp
+      python/integralhogdescriptor.hpp
+      python/magnitude.cpp
+      python/magnitude.hpp
+      # We cannot reuse the python_type_caster library since we need to rename
+      # the namespaces
+      python/type_caster/bounds.cpp
+      python/type_caster/bounds.hpp
+      python/type_caster/stride.hpp
+      python/type_caster/tensor.hpp
+      python/type_caster/typesequence.hpp
+    )
+
+    if (arch STREQUAL default)
+      target_compile_definitions (${target_name} PRIVATE HOGPP_TARGET=${_suffix})
+      # set_property (TARGET ${target_name} APPEND PROPERTY COMPILE_DEFINITIONS
+      #   $<$<TARGET_NAME:${target_name}>:HOGPP_TARGET="${arch}">
+      # )
+      target_compile_options (${target_name} PRIVATE -mtune=generic)
+    else (arch STREQUAL default)
+      target_compile_definitions (${target_name} PRIVATE HOGPP_TARGET=${_suffix})
+      # set_property (TARGET ${target_name} APPEND PROPERTY COMPILE_DEFINITIONS
+      #   $<$<TARGET_NAME:${target_name}>:HOGPP_TARGET="${arch}">
+      # )
+
+      target_compile_options (${target_name} PRIVATE -march=${arch})
+
+      # Rename the Eigen namespace to avoid One Definition Rule (ODR) violations
+      target_compile_definitions (${target_name} PRIVATE
+        Eigen=Eigen_${_suffix}
+        hogpp=hogpp_${_suffix}
+        pyhogpp=pyhogpp_${_suffix}
+      )
+    endif (arch STREQUAL default)
+
+    if (HAVE_MBIG_OBJ)
+      target_compile_options (${target_name} PRIVATE -Wa,-mbig-obj)
+    elseif (HAVE_BIGOBJ)
+      target_compile_options (${target_name} PRIVATE /bigobj)
+    endif (HAVE_MBIG_OBJ)
+
+    if (OpenCV_FOUND)
+      target_compile_definitions (${target_name} PRIVATE HAVE_OPENCV)
+      target_link_libraries (${target_name} PRIVATE opencv_core)
+    endif (OpenCV_FOUND)
+
+    if (HAVE_EXECUTION)
+      target_compile_definitions (${target_name} PRIVATE HAVE_EXECUTION)
+    endif (HAVE_EXECUTION)
+
+    target_link_libraries (${target_name} PRIVATE
+      hogpp::hogpp
+      Python::Module
+    )
+
+    target_link_libraries (pyhogpp PRIVATE ${target_name})
+  endforeach (arch)
+
+  unset (target_name)
 
   python_add_library (type_caster_test WITH_SOABI
     python/type_caster_test.cpp
