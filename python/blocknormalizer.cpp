@@ -23,8 +23,11 @@
 
 namespace pybind11::detail {
 
-bool type_caster<BlockNormalizerType>::load(handle src, bool /*unused*/)
+bool type_caster<pyhogpp::BlockNormalizerType>::load(handle src,
+                                                     bool /*unused*/)
 {
+    using pyhogpp::BlockNormalizerType;
+
     auto name = pybind11::cast<std::string>(src);
 
     if (name == "l1") {
@@ -49,10 +52,12 @@ bool type_caster<BlockNormalizerType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<BlockNormalizerType>::cast(BlockNormalizerType in,
-                                              return_value_policy /*policy*/,
-                                              handle /*parent*/)
+handle type_caster<pyhogpp::BlockNormalizerType>::cast(
+    pyhogpp::BlockNormalizerType in, return_value_policy /*policy*/,
+    handle /*parent*/)
 {
+    using pyhogpp::BlockNormalizerType;
+
     str result;
 
     switch (in) {
@@ -78,7 +83,11 @@ handle type_caster<BlockNormalizerType>::cast(BlockNormalizerType in,
 
 } // namespace pybind11::detail
 
+namespace pyhogpp {
+
 template class BlockNormalizer<float>;
 template class BlockNormalizer<double>;
+
+} // namespace pyhogpp
 
 #include <hogpp/suffix.hpp>

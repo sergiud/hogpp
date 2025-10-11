@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,8 @@
 #include "blocknormalizer.hpp"
 #include "magnitude.hpp"
 #include "type_caster/typesequence.hpp"
+
+namespace pyhogpp {
 
 template<class T>
 using Descriptor =
@@ -103,11 +105,14 @@ struct RankNTensorPair
     RankNTensor<Ranks...> buf2;
 };
 
+} // namespace pyhogpp
+
 template<long... Ranks>
-class pybind11::detail::type_caster<RankNTensor<Ranks...>>
+class pybind11::detail::type_caster<pyhogpp::RankNTensor<Ranks...>>
 {
 public:
-    PYBIND11_TYPE_CASTER(RankNTensor<Ranks...>, _("numpy.ndarray[n, m[, o]]"));
+    PYBIND11_TYPE_CASTER(pyhogpp::RankNTensor<Ranks...>,
+                         _("numpy.ndarray[n, m[, o]]"));
 
     [[nodiscard]] bool load(handle in, bool /*unused*/)
     {
@@ -116,7 +121,7 @@ public:
             auto info = a.request();
 
             bool supported = ((info.ndim == Ranks) || ...) &&
-                             compatible(dtype{info}, SupportedTypes{});
+                             compatible(dtype{info}, pyhogpp::SupportedTypes{});
 
             if (supported) {
                 value.buf = a;
@@ -130,7 +135,7 @@ public:
         return false;
     }
 
-    [[nodiscard]] static handle cast(const RankNTensor<Ranks...>& in,
+    [[nodiscard]] static handle cast(const pyhogpp::RankNTensor<Ranks...>& in,
                                      return_value_policy /*policy*/,
                                      handle /*parent*/)
     {
@@ -147,18 +152,19 @@ private:
 };
 
 template<long... Ranks>
-class pybind11::detail::type_caster<RankNTensorPair<Ranks...>>
+class pybind11::detail::type_caster<pyhogpp::RankNTensorPair<Ranks...>>
 {
 public:
     PYBIND11_TYPE_CASTER(
-        RankNTensorPair<Ranks...>,
+        pyhogpp::RankNTensorPair<Ranks...>,
         _("Tuple[numpy.ndarray[n, m[, o]], numpy.ndarray[n, m[, o]]]"));
 
     [[nodiscard]] bool load(handle in, bool /*unused*/)
     {
         try {
-            auto [buf1, buf2] = pybind11::cast<
-                std::tuple<RankNTensor<Ranks...>, RankNTensor<Ranks...>>>(in);
+            auto [buf1, buf2] =
+                pybind11::cast<std::tuple<pyhogpp::RankNTensor<Ranks...>,
+                                          pyhogpp::RankNTensor<Ranks...>>>(in);
             auto info1 = buf1.buf.request();
             auto info2 = buf2.buf.request();
 
@@ -179,13 +185,15 @@ public:
         return false;
     }
 
-    [[nodiscard]] static handle cast(const RankNTensorPair<Ranks...>& in,
-                                     return_value_policy /*policy*/,
-                                     handle /*parent*/)
+    [[nodiscard]] static handle cast(
+        const pyhogpp::RankNTensorPair<Ranks...>& in,
+        return_value_policy /*policy*/, handle /*parent*/)
     {
         return pybind11::make_tuple(in.buf1, in.buf2).release();
     }
 };
+
+namespace pyhogpp {
 
 using Rank2Or3Tensor = RankNTensor<2, 3>;
 using Rank2Or3TensorPair = RankNTensorPair<2, 3>;
@@ -268,5 +276,7 @@ private:
 
     DescriptorVariant descriptor_;
 };
+
+} // namespace pyhogpp
 
 #endif // PYTHON_HOGPP_INTEGRALHOGDESCRIPTOR_HPP

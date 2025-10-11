@@ -30,27 +30,33 @@
 #include <hogpp/signedgradient.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
+namespace pyhogpp {
+
 enum class BinningType
 {
     Signed,
     Unsigned
 };
 
+} // namespace pyhogpp
+
 namespace pybind11::detail {
 
 template<>
-class type_caster<BinningType>
+class type_caster<pyhogpp::BinningType>
 {
 public:
     bool load(handle src, bool);
-    static handle cast(BinningType in, return_value_policy /*policy*/,
+    static handle cast(pyhogpp::BinningType in, return_value_policy /*policy*/,
                        handle /*parent*/);
 
 private:
-    PYBIND11_TYPE_CASTER(BinningType, _("Binning"));
+    PYBIND11_TYPE_CASTER(pyhogpp::BinningType, _("Binning"));
 };
 
 } // namespace pybind11::detail
+
+namespace pyhogpp {
 
 template<class T>
 class Binning
@@ -108,6 +114,8 @@ private:
 extern template class Binning<float>;
 extern template class Binning<double>;
 
+} // namespace pyhogpp
+  //
 #include <hogpp/suffix.hpp>
 
 #endif // PYTHON_HOGPP_BINNING_HPP

@@ -23,8 +23,10 @@
 
 namespace pybind11::detail {
 
-bool type_caster<MagnitudeType>::load(handle src, bool /*unused*/)
+bool type_caster<pyhogpp::MagnitudeType>::load(handle src, bool /*unused*/)
 {
+    using pyhogpp::MagnitudeType;
+
     auto name = pybind11::cast<std::string>(src);
 
     if (name == "identity") {
@@ -43,10 +45,12 @@ bool type_caster<MagnitudeType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<MagnitudeType>::cast(MagnitudeType in,
-                                        return_value_policy /*policy*/,
-                                        handle /*parent*/)
+handle type_caster<pyhogpp::MagnitudeType>::cast(pyhogpp::MagnitudeType in,
+                                                 return_value_policy /*policy*/,
+                                                 handle /*parent*/)
 {
+    using pyhogpp::MagnitudeType;
+
     str result;
 
     switch (in) {
@@ -66,7 +70,11 @@ handle type_caster<MagnitudeType>::cast(MagnitudeType in,
 
 } // namespace pybind11::detail
 
+namespace pyhogpp {
+
 template class Magnitude<float>;
 template class Magnitude<double>;
+
+} // namespace pyhogpp
 
 #include <hogpp/suffix.hpp>

@@ -32,6 +32,8 @@
 #include <hogpp/gradientsquaremagnitude.hpp>
 #include <hogpp/prefix.hpp>
 
+namespace pyhogpp {
+
 enum class MagnitudeType
 {
     Identity,
@@ -39,21 +41,25 @@ enum class MagnitudeType
     Sqrt
 };
 
+} // namespace pyhogpp
+
 namespace pybind11::detail {
 
 template<>
-class type_caster<MagnitudeType>
+class type_caster<pyhogpp::MagnitudeType>
 {
 public:
     bool load(handle src, bool);
-    static handle cast(MagnitudeType in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    static handle cast(pyhogpp::MagnitudeType in,
+                       return_value_policy /*policy*/, handle /*parent*/);
 
 private:
-    PYBIND11_TYPE_CASTER(MagnitudeType, _("Magnitude"));
+    PYBIND11_TYPE_CASTER(pyhogpp::MagnitudeType, _("Magnitude"));
 };
 
 } // namespace pybind11::detail
+
+namespace pyhogpp {
 
 template<class T>
 class Magnitude
@@ -127,6 +133,8 @@ private:
 
 extern template class Magnitude<float>;
 extern template class Magnitude<double>;
+
+} // namespace pyhogpp
 
 #include <hogpp/suffix.hpp>
 

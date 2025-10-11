@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,12 +45,25 @@
 #    define HOGPP_MODULE_NAME hogpp
 #endif // defined(HOGPP_SKBUILD)
 
-HOGPP_MODULE(HOGPP_MODULE_NAME, m)
+#define HOGPP_CAT(prefix, ...) prefix##__VA_ARGS__
+#define HOGPP_MAKE_INIT(suffix, ...) \
+    extern void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__)
+
+HOGPP_MAKE_INIT(HOGPP_TARGET, pybind11::module& m)
 {
     namespace py = pybind11;
 
     py::options opts;
     opts.disable_function_signatures();
+
+    using pyhogpp::BinningType;
+    using pyhogpp::BlockNormalizerType;
+    using pyhogpp::IntegralHOGDescriptor;
+    using pyhogpp::MagnitudeType;
+    using pyhogpp::Rank2Or3Tensor;
+    using pyhogpp::Rank2Or3TensorPair;
+    using pyhogpp::RankNTensor;
+    using pyhogpp::RankNTensorPair;
 
     py::class_<IntegralHOGDescriptor> cls{m, "IntegralHOGDescriptor"};
     cls.doc() = R"|(

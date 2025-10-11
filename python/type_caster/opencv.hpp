@@ -40,7 +40,7 @@
 #include "stride.hpp"
 #include "typesequence.hpp"
 
-[[noreturn]] inline std::string depthToFormat(
+[[gnu::cold]] [[noreturn]] inline std::string depthToFormat(
     [[maybe_unused]] int depth, [[maybe_unused]] TypeSequence<> /*unused*/)
 {
     throw std::invalid_argument{
@@ -48,7 +48,7 @@
 }
 
 template<class Type, class... Types>
-[[nodiscard]] constexpr auto
+[[gnu::hot]] [[nodiscard]] constexpr auto
 depthToFormat(int depth, TypeSequence<Type, Types...> /*unused*/) noexcept(
     noexcept(depthToFormat(depth, TypeSequence<Types...>{})))
 {

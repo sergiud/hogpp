@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,8 @@
 
 #include "typetraits.hpp"
 
+namespace pyhogpp {
+
 enum class BlockNormalizerType
 {
     L1,
@@ -46,21 +48,25 @@ enum class BlockNormalizerType
     L2Hys
 };
 
+} // namespace pyhogpp
+
 namespace pybind11::detail {
 
 template<>
-class type_caster<BlockNormalizerType>
+class type_caster<pyhogpp::BlockNormalizerType>
 {
 public:
     bool load(handle src, bool);
-    static handle cast(BlockNormalizerType in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    static handle cast(pyhogpp::BlockNormalizerType in,
+                       return_value_policy /*policy*/, handle /*parent*/);
 
 private:
-    PYBIND11_TYPE_CASTER(BlockNormalizerType, _("BlockNormalizer"));
+    PYBIND11_TYPE_CASTER(pyhogpp::BlockNormalizerType, _("BlockNormalizer"));
 };
 
 } // namespace pybind11::detail
+
+namespace pyhogpp {
 
 template<class T>
 class BlockNormalizer
@@ -232,6 +238,8 @@ private:
 
 extern template class BlockNormalizer<float>;
 extern template class BlockNormalizer<double>;
+
+} // namespace pyhogpp
 
 #include <hogpp/suffix.hpp>
 
