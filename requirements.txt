@@ -8,6 +8,7 @@ numpy
 Pillow>=11.0.0
 pipx>=1.7.1
 pytest
+pytest-benchmark
 pytest-xdist
 scikit-build-core>=0.10.7
 

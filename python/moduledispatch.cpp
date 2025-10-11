@@ -1,0 +1,143 @@
+//
+// HOGpp - Fast histogram of oriented gradients computation using integral
+// histograms
+//
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+#include "moduledispatch.hpp"
+
+void init_hogpp_generic(pybind11::module& m);
+void init_hogpp_sse2(pybind11::module& m);
+void init_hogpp_sse3(pybind11::module& m);
+void init_hogpp_ssse3(pybind11::module& m);
+void init_hogpp_sse4_1(pybind11::module& m);
+void init_hogpp_sse4_2(pybind11::module& m);
+void init_hogpp_avx(pybind11::module& m);
+void init_hogpp_avx2(pybind11::module& m);
+void init_hogpp_avx512(pybind11::module& m);
+void init_hogpp_avx10_1(pybind11::module& m);
+void init_hogpp_avx10_2(pybind11::module& m);
+void init_hogpp_neon(pybind11::module& m);
+void init_hogpp_sve128(pybind11::module& m);
+void init_hogpp_sve256(pybind11::module& m);
+void init_hogpp_sve512(pybind11::module& m);
+
+namespace pyhogpp {
+
+void ModuleDispatch<ISA::Generic>::initialize(pybind11::module& m)
+{
+    init_hogpp_generic(m);
+}
+
+#if defined(HAVE_ISA_SSE2)
+void ModuleDispatch<ISA::SSE2>::initialize(pybind11::module& m)
+{
+    init_hogpp_sse2(m);
+}
+#endif // defined(HAVE_ISA_SSE2)
+
+#if defined(HAVE_ISA_SSE3)
+void ModuleDispatch<ISA::SSE3>::initialize(pybind11::module& m)
+{
+    init_hogpp_sse3(m);
+}
+#endif // defined(HAVE_ISA_SSE3)
+
+#if defined(HAVE_ISA_SSSE3)
+void ModuleDispatch<ISA::SSSE3>::initialize(pybind11::module& m)
+{
+    init_hogpp_ssse3(m);
+}
+#endif // defined(HAVE_ISA_SSSE3)
+
+#if defined(HAVE_ISA_SSE4_1)
+void ModuleDispatch<ISA::SSE4_1>::initialize(pybind11::module& m)
+{
+    init_hogpp_sse4_1(m);
+}
+#endif // defined(HAVE_ISA_SSE4_1)
+
+#if defined(HAVE_ISA_SSE4_2)
+void ModuleDispatch<ISA::SSE4_2>::initialize(pybind11::module& m)
+{
+    init_hogpp_sse4_2(m);
+}
+#endif // defined(HAVE_ISA_SSE4_2)
+
+#if defined(HAVE_ISA_AVX)
+void ModuleDispatch<ISA::AVX>::initialize(pybind11::module& m)
+{
+    init_hogpp_avx(m);
+}
+#endif // defined(HAVE_ISA_AVX)
+
+#if defined(HAVE_ISA_AVX2)
+void ModuleDispatch<ISA::AVX2>::initialize(pybind11::module& m)
+{
+    init_hogpp_avx2(m);
+}
+#endif // defined(HAVE_ISA_AVX2)
+
+#if defined(HAVE_ISA_AVX512)
+void ModuleDispatch<ISA::AVX512>::initialize(pybind11::module& m)
+{
+    init_hogpp_avx512(m);
+}
+#endif // defined(HAVE_ISA_AVX512)
+
+#if defined(HAVE_ISA_AVX10_1)
+void ModuleDispatch<ISA::AVX10_1>::initialize(pybind11::module& m)
+{
+    init_hogpp_avx10_1(m);
+}
+#endif // defined(HAVE_ISA_AVX10_1)
+
+#if defined(HAVE_ISA_AVX10_2)
+void ModuleDispatch<ISA::AVX10_2>::initialize(pybind11::module& m)
+{
+    init_hogpp_avx10_2(m);
+}
+#endif // defined(HAVE_ISA_AVX10_2)
+
+#if defined(HAVE_ISA_NEON)
+void ModuleDispatch<ISA::NEON>::initialize(pybind11::module& m)
+{
+    init_hogpp_neon(m);
+}
+#endif // defined(HAVE_ISA_NEON)
+
+#if defined(HAVE_ISA_SVE128)
+void ModuleDispatch<ISA::SVE128>::initialize(pybind11::module& m)
+{
+    init_hogpp_sve128(m);
+}
+#endif // defined(HAVE_ISA_SVE128)
+
+#if defined(HAVE_ISA_SVE256)
+void ModuleDispatch<ISA::SVE256>::initialize(pybind11::module& m)
+{
+    init_hogpp_sve256(m);
+}
+#endif // defined(HAVE_ISA_SVE256)
+
+#if defined(HAVE_ISA_SVE512)
+void ModuleDispatch<ISA::SVE512>::initialize(pybind11::module& m)
+{
+    init_hogpp_sve512(m);
+}
+#endif // defined(HAVE_ISA_SVE512)
+
+} // namespace pyhogpp

@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,25 +32,26 @@
 #include "magnitude.hpp"
 #include "type_caster/bounds.hpp"
 
-#if defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE(name, module, ...) \
-        PYBIND11_MODULE(name, module, pybind11::mod_gil_not_used())
-#else // !defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE PYBIND11_MODULE
-#endif // defined(HOGPP_GIL_DISABLED)
+#define HOGPP_CAT(prefix, ...) prefix##__VA_ARGS__
+#define HOGPP_MAKE_INIT(suffix, ...)                  \
+    void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__); \
+    void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__)
 
-#if defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME _hogpp
-#else // !defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME hogpp
-#endif // defined(HOGPP_SKBUILD)
-
-HOGPP_MODULE(HOGPP_MODULE_NAME, m)
+HOGPP_MAKE_INIT(HOGPP_TARGET, pybind11::module& m)
 {
     namespace py = pybind11;
 
     py::options opts;
     opts.disable_function_signatures();
+
+    using pyhogpp::BinningType;
+    using pyhogpp::BlockNormalizerType;
+    using pyhogpp::IntegralHOGDescriptor;
+    using pyhogpp::MagnitudeType;
+    using pyhogpp::Rank2Or3Tensor;
+    using pyhogpp::Rank2Or3TensorPair;
+    using pyhogpp::RankNTensor;
+    using pyhogpp::RankNTensorPair;
 
     py::class_<IntegralHOGDescriptor> cls{m, "IntegralHOGDescriptor"};
     cls.doc() = R"|(

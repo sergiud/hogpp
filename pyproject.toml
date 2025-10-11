@@ -110,3 +110,7 @@ xfail_strict = true
 addopts = [
     '--import-mode=importlib',
 ]
+# Makes tests/python/module/_dispatch_isas.py importable as a plain module
+# from test_dispatch.py despite --import-mode=importlib not adding a test
+# file's own directory to sys.path.
+pythonpath = ['tests/python/module']
