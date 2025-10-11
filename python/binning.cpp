@@ -23,8 +23,10 @@
 
 namespace pybind11::detail {
 
-bool type_caster<BinningType>::load(handle src, bool /*unused*/)
+bool type_caster<pyhogpp::BinningType>::load(handle src, bool /*unused*/)
 {
+    using pyhogpp::BinningType;
+
     auto name = pybind11::cast<std::string>(src);
 
     if (name == "signed") {
@@ -40,10 +42,12 @@ bool type_caster<BinningType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<BinningType>::cast(BinningType in,
-                                      return_value_policy /*policy*/,
-                                      handle /*parent*/)
+handle type_caster<pyhogpp::BinningType>::cast(pyhogpp::BinningType in,
+                                               return_value_policy /*policy*/,
+                                               handle /*parent*/)
 {
+    using pyhogpp::BinningType;
+
     str result;
 
     switch (in) {
@@ -60,7 +64,11 @@ handle type_caster<BinningType>::cast(BinningType in,
 
 } // namespace pybind11::detail
 
+namespace pyhogpp {
+
 template class Binning<float>;
 template class Binning<double>;
+
+} // namespace pyhogpp
 
 #include <hogpp/suffix.hpp>
