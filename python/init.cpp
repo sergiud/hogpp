@@ -53,6 +53,16 @@ struct CPUFeature;
 template<ISA Type>
 struct HOGppModule
 {
+    [[noreturn]] static void initialize(pybind11::module& /*m*/)
+    {
+        // TODO CPU features not available
+        throw pybind11::import_error{"cannot initialize"};
+    }
+};
+
+template<>
+struct HOGppModule<ISA::Default>
+{
     static void initialize(pybind11::module& m)
     {
         void init_hogpp_default(pybind11::module & m);
@@ -416,65 +426,93 @@ void supportedCPUFeatureNames(std::vector<std::string_view>& names,
     return names;
 }
 
-void init_hogpp(pybind11::module& m, std::string_view isa,
-                const std::locale* /*loc*/, CPUFeatures<> /*unused*/)
+struct Initializer
 {
-    if (!isa.empty()) {
-        using namespace fmt::literals;
-
-        throw pybind11::import_error{fmt::format(
-            FMT_STRING(
-                "ISA specified by the HOGPP_DISPATCH environment "
-                "variable (\"{isa}\") is neither available nor supported. The "
-                "following CPU features are supported: {features}."),
-            "isa"_a = isa,
-            "features"_a = fmt::join(supportedCPUFeatureNames(), ", "))};
+    [[nodiscard]] Initializer(pybind11::module& m)
+        : m{m} // Allow to override the dispatch using HOGPP_DISPATCH
+               // environment variable
+        , isa{std::getenv("HOGPP_DISPATCH")}
+        , logging{pybind11::module::import("logging")}
+        , getLogger{pybind11::getattr(logging, "getLogger")}
+        , moduleName{pybind11::getattr(m, "__name__")}
+        , logger{getLogger(moduleName)}
+        , debug{pybind11::getattr(logger, "debug")}
+        , loc{isa.empty() ? nullptr : &std::locale::classic()}
+    {
     }
 
-    HOGppModule<ISA::Default>::initialize(m);
-}
+    void run(CPUFeatures<> /*unused*/) const
+    {
+        if (!isa.empty()) {
+            using namespace fmt::literals;
 
-template<ISA Type, ISA... Types>
-void init_hogpp(pybind11::module& m, std::string_view isa,
-                const std::locale* loc, CPUFeatures<Type, Types...> /*unused*/)
-{
-    bool initialize = false;
+            throw pybind11::import_error{fmt::format(
+                FMT_STRING("ISA specified by the HOGPP_DISPATCH environment "
+                           "variable (\"{isa}\") is neither available nor "
+                           "supported. The "
+                           "following CPU features are supported: {features}."),
+                "isa"_a = isa,
+                "features"_a = fmt::join(supportedCPUFeatureNames(), ", "))};
+        }
 
-    if (!isa.empty()) {
-        const auto proj = [loc = *loc](char ch) {
-            return std::tolower(ch, loc);
-        };
+        HOGppModule<ISA::Default>::initialize(m);
+    }
 
-        constexpr std::string_view name = CPUFeature<Type>::name();
+    template<ISA Type, ISA... Types>
+    void run(CPUFeatures<Type, Types...> /*unused*/) const
+    {
+        using namespace fmt::literals;
+        bool initialize = false;
 
-        if (std::ranges::equal(isa, name, {}, proj, proj)) {
-            if (!CPUFeature<Type>::supported()) {
-                using namespace fmt::literals;
+        if (!isa.empty()) {
+            const auto proj = [loc = *loc](char ch) {
+                return std::tolower(ch, loc);
+            };
 
-                throw pybind11::import_error{fmt::format(
-                    FMT_STRING(
-                        "ISA specified by the HOGPP_DISPATCH environment "
-                        "variable (\"{isa}\") is not supported by the CPU. The "
-                        "following CPU features are supported: {features}."),
-                    "isa"_a = isa,
-                    "features"_a =
-                        fmt::join(supportedCPUFeatureNames(), ", "))};
+            constexpr std::string_view name = CPUFeature<Type>::name();
+
+            if (std::ranges::equal(isa, name, {}, proj, proj)) {
+                if (!CPUFeature<Type>::supported()) {
+                    throw pybind11::import_error{fmt::format(
+                        FMT_STRING(
+                            "ISA specified by the HOGPP_DISPATCH environment "
+                            "variable (\"{isa}\") is not supported by the CPU. "
+                            "The "
+                            "following CPU features are supported: "
+                            "{features}."),
+                        "isa"_a = isa,
+                        "features"_a =
+                            fmt::join(supportedCPUFeatureNames(), ", "))};
+                }
+
+                debug(fmt::format(FMT_STRING("found requested ISA {isa}"),
+                                  "isa"_a = name));
+                initialize = true;
             }
+        }
+        else {
+            initialize = CPUFeature<Type>::supported();
+        }
 
-            initialize = true;
+        if (initialize) {
+            debug(fmt::format(FMT_STRING("initializing using ISA {isa}"),
+                              "isa"_a = CPUFeature<Type>::name()));
+            HOGppModule<Type>::initialize(m);
+        }
+        else {
+            run(CPUFeatures<Types...>{});
         }
     }
-    else {
-        initialize = CPUFeature<Type>::supported();
-    }
 
-    if (initialize) {
-        HOGppModule<Type>::initialize(m);
-    }
-    else {
-        init_hogpp(m, isa, loc, CPUFeatures<Types...>{});
-    }
-}
+    pybind11::module& m;
+    const std::string_view isa;
+    pybind11::object logging;
+    pybind11::object getLogger;
+    pybind11::object moduleName;
+    pybind11::object logger;
+    pybind11::object debug;
+    const std::locale* loc;
+};
 
 } // namespace
 
@@ -493,14 +531,6 @@ void init_hogpp(pybind11::module& m, std::string_view isa,
 
 HOGPP_MODULE(HOGPP_MODULE_NAME, m)
 {
-    // TODO Log detected dispatch
-    if (const char* const isa = std::getenv("HOGPP_DISPATCH")) {
-        // Allow to override the dispatch using HOGPP_DISPATCH environment
-        // variable
-        init_hogpp(m, isa, &std::locale::classic(), AvailableCPUFeatures{});
-    }
-    else {
-        using namespace std::string_view_literals;
-        init_hogpp(m, ""sv, nullptr, AvailableCPUFeatures{});
-    }
+    const Initializer initializer{m};
+    initializer.run(AvailableCPUFeatures{});
 }
