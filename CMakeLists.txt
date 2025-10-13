@@ -119,6 +119,62 @@ target_link_libraries (hogpp INTERFACE
 )
 
 if (pybind11_FOUND AND Python_Development.Module_FOUND)
+  check_cxx_symbol_exists (__x86_64__ "" HAVE_ARCH_X86_64)
+  check_cxx_symbol_exists (__cpuid "intrin.h" HAVE___CPUID)
+  check_cxx_symbol_exists (__check_isa_support "isa_availability.h" HAVE___CHECK_ISA_SUPPORT)
+
+  if (HAVE_ARCH_X86_64)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+      set (_supported
+        SSE2
+        SSE3
+        SSSE3
+        SSE4.1
+        SSE4.2
+        AVX
+        AVX2
+        AVX512F
+        AVX10.2
+      )
+
+      check_cxx_compiler_flag (-msse2 HAVE_ISA_SSE2)
+      check_cxx_compiler_flag (-msse3 HAVE_ISA_SSE3)
+      check_cxx_compiler_flag (-mssse3 HAVE_ISA_SSSE3)
+      check_cxx_compiler_flag (-msse4.1 HAVE_ISA_SSE4_1)
+      check_cxx_compiler_flag (-msse4.2 HAVE_ISA_SSE4_2)
+      check_cxx_compiler_flag (-mavx HAVE_ISA_AVX)
+      check_cxx_compiler_flag (-mavx2 HAVE_ISA_AVX2)
+      check_cxx_compiler_flag (-mavx512f HAVE_ISA_AVX512F)
+      check_cxx_compiler_flag (-mavx10.2 HAVE_ISA_AVX10_2)
+    elseif (MSVC)
+      set (_supported
+        SSE2
+        SSE4.2
+        AVX
+        AVX2
+        AVX512
+        AVX10.1
+      )
+
+      check_cxx_compiler_flag (/march:SSE2 HAVE_ISA_SSE2)
+      check_cxx_compiler_flag (/march:SSE4.2 HAVE_ISA_SSE4_2)
+      check_cxx_compiler_flag (/march:AVX HAVE_ISA_AVX)
+      check_cxx_compiler_flag (/march:AVX2 HAVE_ISA_AVX2)
+      check_cxx_compiler_flag (/march:AVX512 HAVE_ISA_AVX512)
+      check_cxx_compiler_flag (/march:AVX10.1 HAVE_ISA_AVX10_1)
+    endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  endif (HAVE_ARCH_X86_64)
+
+  if (HAVE_ARCH_AARCH64)
+    check_cxx_compiler_flag (-msse2 HAVE_ISA_SSE2)
+  endif (HAVE_ARCH_AARCH64)
+
+  configure_file (
+    python/isa.hpp.cmake.in
+    python/isa.hpp
+    @ONLY
+  )
+
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
@@ -146,18 +202,33 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     python/init.cpp
   )
 
+  target_include_directories (pyhogpp PRIVATE
+    $<BUILD_INTERFACE:${hogpp_BINARY_DIR}/python>
+  )
+
+  target_link_libraries (pyhogpp PRIVATE
+    pybind11::headers
+    Python::Module
+  )
+
   # TODO aarch64 Eigen 3.4.0 EIGEN_ARM64_USE_SVE -msve-vector-bits=N
 
   set (_arch
     default
-    x86-64
-    x86-64-v2
-    x86-64-v3
-    x86-64-v4
   )
 
+  foreach (isa IN LISTS _supported)
+    string (TOLOWER "${isa}" _lower_isa)
+    string (MAKE_C_IDENTIFIER "${isa}" _suffix)
+
+    if (HAVE_ISA_${_suffix})
+      list (APPEND _arch ${_lower_isa})
+    endif (HAVE_ISA_${_suffix})
+  endforeach (isa)
+
   foreach (arch IN LISTS _arch)
-    string (MAKE_C_IDENTIFIER "${arch}" _suffix)
+    string (TOLOWER "${arch}" _lower_arch)
+    string (MAKE_C_IDENTIFIER "${_lower_arch}" _suffix)
     set (target_name pyhogpp_${_suffix})
 
     add_library (${target_name} OBJECT
@@ -186,14 +257,19 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       # set_property (TARGET ${target_name} APPEND PROPERTY COMPILE_DEFINITIONS
       #   $<$<TARGET_NAME:${target_name}>:HOGPP_TARGET="${arch}">
       # )
-      target_compile_options (${target_name} PRIVATE -mtune=generic)
+      #target_compile_options (${target_name} PRIVATE -mtune=generic)
     else (arch STREQUAL default)
-      target_compile_definitions (${target_name} PRIVATE HOGPP_TARGET=${_suffix})
-      # set_property (TARGET ${target_name} APPEND PROPERTY COMPILE_DEFINITIONS
-      #   $<$<TARGET_NAME:${target_name}>:HOGPP_TARGET="${arch}">
-      # )
+      #set_source_files_properties (python/hogpp.cpp
+      #  TARGET_DIRECTORY ${target_name}
+      #  PROPERTIES COMPILE_DEFINITIONS HOGPP_TARGET=${_suffix}
+      #)
+      target_compile_definitions (${target_name} PRIVATE
+        HOGPP_TARGET=${_suffix}
+      )
 
-      target_compile_options (${target_name} PRIVATE -march=${arch})
+      target_compile_options (${target_name} PRIVATE -m${_lower_arch})
+
+      message (${_lower_arch})
 
       # Rename the Eigen namespace to avoid One Definition Rule (ODR) violations
       target_compile_definitions (${target_name} PRIVATE
