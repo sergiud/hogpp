@@ -17,13 +17,18 @@
 // limitations under the License.
 //
 
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <locale>
+#include <ranges>
 #include <string_view>
+#include <vector>
 
 #include <pybind11/pybind11.h>
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include "isa.hpp"
 
@@ -376,25 +381,54 @@ using AvailableCPUFeatures = CPUFeatures
     , ISA::AVX10_1
     , ISA::AVX512
     , ISA::AVX2
+    , ISA::AVX
     , ISA::SSE4_2
     , ISA::SSE4_1
     , ISA::SSSE3
+    , ISA::SSE3
     , ISA::SSE2
 >;
 // clang-format on
 
 namespace {
 
+void supportedCPUFeatureNames(std::vector<std::string_view>& /*names*/,
+                              CPUFeatures<> /*unused*/)
+{
+}
+
+template<ISA Type, ISA... Types>
+void supportedCPUFeatureNames(std::vector<std::string_view>& names,
+                              CPUFeatures<Type, Types...> /*unused*/)
+{
+    if (CPUFeature<Type>::supported()) {
+        names.push_back(CPUFeature<Type>::name());
+    }
+
+    supportedCPUFeatureNames(names, CPUFeatures<Types...>{});
+}
+
+[[nodiscard]] std::vector<std::string_view> supportedCPUFeatureNames()
+{
+    std::vector<std::string_view> names;
+    supportedCPUFeatureNames(names, AvailableCPUFeatures{});
+    std::ranges::sort(names);
+    return names;
+}
+
 void init_hogpp(pybind11::module& m, std::string_view isa,
-                CPUFeatures<> /*unused*/)
+                const std::locale* /*loc*/, CPUFeatures<> /*unused*/)
 {
     if (!isa.empty()) {
         using namespace fmt::literals;
 
         throw pybind11::import_error{fmt::format(
-            FMT_STRING("ISA specified by the HOGPP_DISPATCH environment "
-                       "variable (\"{isa}\") is not available"),
-            "isa"_a = isa)};
+            FMT_STRING(
+                "ISA specified by the HOGPP_DISPATCH environment "
+                "variable (\"{isa}\") is neither available nor supported. The "
+                "following CPU features are supported: {features}."),
+            "isa"_a = isa,
+            "features"_a = fmt::join(supportedCPUFeatureNames(), ", "))};
     }
 
     HOGppModule<ISA::Default>::initialize(m);
@@ -402,23 +436,43 @@ void init_hogpp(pybind11::module& m, std::string_view isa,
 
 template<ISA Type, ISA... Types>
 void init_hogpp(pybind11::module& m, std::string_view isa,
-                CPUFeatures<Type, Types...> /*unused*/)
+                const std::locale* loc, CPUFeatures<Type, Types...> /*unused*/)
 {
-    if (isa.empty() && CPUFeature<Type>::supported()) {
-        HOGppModule<Type>::initialize(m);
-    }
-    else if (isa == CPUFeature<Type>::name() &&
-             !CPUFeature<Type>::supported()) {
-        using namespace fmt::literals;
+    bool initialize = false;
 
-        throw pybind11::import_error{fmt::format(
-            FMT_STRING("ISA specified by the HOGPP_DISPATCH environment "
-                       "variable (\"{isa}\") is available but not "
-                       "supported by the CPU"),
-            "isa"_a = isa)};
+    if (!isa.empty()) {
+        const auto proj = [loc = *loc](char ch) {
+            return std::tolower(ch, loc);
+        };
+
+        constexpr std::string_view name = CPUFeature<Type>::name();
+
+        if (std::ranges::equal(isa, name, {}, proj, proj)) {
+            if (!CPUFeature<Type>::supported()) {
+                using namespace fmt::literals;
+
+                throw pybind11::import_error{fmt::format(
+                    FMT_STRING(
+                        "ISA specified by the HOGPP_DISPATCH environment "
+                        "variable (\"{isa}\") is not supported by the CPU. The "
+                        "following CPU features are supported: {features}."),
+                    "isa"_a = isa,
+                    "features"_a =
+                        fmt::join(supportedCPUFeatureNames(), ", "))};
+            }
+
+            initialize = true;
+        }
     }
     else {
-        init_hogpp(m, isa, CPUFeatures<Types...>{});
+        initialize = CPUFeature<Type>::supported();
+    }
+
+    if (initialize) {
+        HOGppModule<Type>::initialize(m);
+    }
+    else {
+        init_hogpp(m, isa, loc, CPUFeatures<Types...>{});
     }
 }
 
@@ -439,11 +493,14 @@ void init_hogpp(pybind11::module& m, std::string_view isa,
 
 HOGPP_MODULE(HOGPP_MODULE_NAME, m)
 {
-    const char* const isa = std::getenv("HOGPP_DISPATCH");
     // TODO Log detected dispatch
-    // TODO Allow to override the dispatch using HOGPP_DISPATCH environment
-    // variable
-    //
-
-    init_hogpp(m, isa, AvailableCPUFeatures{});
+    if (const char* const isa = std::getenv("HOGPP_DISPATCH")) {
+        // Allow to override the dispatch using HOGPP_DISPATCH environment
+        // variable
+        init_hogpp(m, isa, &std::locale::classic(), AvailableCPUFeatures{});
+    }
+    else {
+        using namespace std::string_view_literals;
+        init_hogpp(m, ""sv, nullptr, AvailableCPUFeatures{});
+    }
 }

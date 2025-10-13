@@ -17,12 +17,23 @@
 // limitations under the License.
 //
 
+// Indicates whether the SSE2 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_SSE2
+// Indicates whether the SSE3 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_SSE3
+// Indicates whether the SSSE3 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_SSSE3
+// Indicates whether the SSE4.1 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_SSE4_1
+// Indicates whether the SSE4.2 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_SSE4_2
+// Indicates whether the AVX instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_AVX
+// Indicates whether the AVX2 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_AVX2
+// Indicates whether the AVX512F instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_AVX512F
+// Indicates whether the AVX10.1 instruction set is available at compile-time.
+#cmakedefine HAVE_ISA_AVX10_1
+// Indicates whether the AVX10.2 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_AVX10_2
