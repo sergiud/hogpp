@@ -17,9 +17,11 @@
 // limitations under the License.
 //
 
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <locale>
 #include <ranges>
 #include <string_view>
@@ -31,6 +33,47 @@
 #include <fmt/ranges.h>
 
 #include "isa.hpp"
+
+template<std::ranges::random_access_range R1,
+         std::ranges::random_access_range R2,
+         class Pred = std::ranges::equal_to, class Proj1 = std::identity,
+         class Proj2 = std::identity>
+    requires std::indirectly_comparable<std::ranges::iterator_t<R1>,
+                                        std::ranges::iterator_t<R2>, Pred,
+                                        Proj1, Proj2>
+[[nodiscard]] std::size_t levenshteinDistance(const R1& a, const R2& b,
+                                              Pred pred = {}, Proj1 proj1 = {},
+                                              Proj2 proj2 = {})
+{
+    const auto m = std::ranges::size(a);
+    const auto n = std::ranges::size(b);
+
+    std::vector<std::size_t> v0(n + 1);
+    std::vector<std::size_t> v1(n + 1);
+
+    std::iota(v0.begin(), v0.end() - 1, 0);
+
+    for (std::size_t i = 0; i != m; ++i) {
+        v1[0] = i + 1;
+
+        for (std::size_t j = 0; j != n; ++j) {
+            const auto deletion = v0[j + 1] + 1;
+            const auto insertion = v1[j] + 1;
+            auto substitution = v0[j];
+
+            if (!std::invoke(pred, std::invoke(proj1, a[i]),
+                             std::invoke(proj2, b[j]))) {
+                ++substitution;
+            }
+
+            v1[j + 1] = std::min({deletion, insertion, substitution});
+        }
+
+        swap(v0, v1);
+    }
+
+    return v0.back();
+}
 
 enum class ISA : std::uint8_t
 {
@@ -444,15 +487,38 @@ struct Initializer
     void run(CPUFeatures<> /*unused*/) const
     {
         if (!isa.empty()) {
+            const auto& supported = supportedCPUFeatureNames();
+
+            const auto proj = [loc = *loc](char ch) {
+                return std::tolower(ch, loc);
+            };
+
+            auto pos = std::ranges::min_element(
+                supported, {}, [&isa = isa, &proj](std::string_view test) {
+                    return levenshteinDistance(isa, test, {}, proj, proj);
+                });
+
             using namespace fmt::literals;
 
-            throw pybind11::import_error{fmt::format(
-                FMT_STRING("ISA specified by the HOGPP_DISPATCH environment "
-                           "variable (\"{isa}\") is neither available nor "
-                           "supported. The "
-                           "following CPU features are supported: {features}."),
-                "isa"_a = isa,
-                "features"_a = fmt::join(supportedCPUFeatureNames(), ", "))};
+            if (pos != supported.end()) {
+                throw pybind11::import_error{fmt::format(
+                    FMT_STRING(
+                        "ISA specified by the HOGPP_DISPATCH environment "
+                        "variable (\"{isa}\") is neither available nor "
+                        "supported. The following CPU features are "
+                        "supported: {features}. Did you mean {match}?"),
+                    "isa"_a = isa, "features"_a = fmt::join(supported, ", "),
+                    "match"_a = *pos)};
+            }
+            else {
+                throw pybind11::import_error{fmt::format(
+                    FMT_STRING(
+                        "ISA specified by the HOGPP_DISPATCH environment "
+                        "variable (\"{isa}\") is neither available nor "
+                        "supported. The following CPU features are "
+                        "supported: {features}."),
+                    "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
+            }
         }
 
         HOGppModule<ISA::Default>::initialize(m);
@@ -477,8 +543,7 @@ struct Initializer
                         FMT_STRING(
                             "ISA specified by the HOGPP_DISPATCH environment "
                             "variable (\"{isa}\") is not supported by the CPU. "
-                            "The "
-                            "following CPU features are supported: "
+                            "The following CPU features are supported: "
                             "{features}."),
                         "isa"_a = isa,
                         "features"_a =
