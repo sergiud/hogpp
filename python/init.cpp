@@ -469,12 +469,21 @@ void supportedCPUFeatureNames(std::vector<std::string_view>& names,
     return names;
 }
 
+[[nodiscard]] std::string_view getenv(const char* key) noexcept
+{
+    if (const char* const value = std::getenv(key)) {
+        return value;
+    }
+
+    return {}; // Avoid invoking std::strlen on a nullptr
+}
+
 struct Initializer
 {
     [[nodiscard]] Initializer(pybind11::module& m)
         : m{m} // Allow to override the dispatch using HOGPP_DISPATCH
                // environment variable
-        , isa{std::getenv("HOGPP_DISPATCH")}
+        , isa{getenv("HOGPP_DISPATCH")}
         , logging{pybind11::module::import("logging")}
         , getLogger{pybind11::getattr(logging, "getLogger")}
         , moduleName{pybind11::getattr(m, "__name__")}
