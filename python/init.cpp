@@ -512,9 +512,9 @@ struct Initializer
             if (pos != supported.end()) {
                 throw pybind11::import_error{fmt::format(
                     FMT_STRING(
-                        "ISA specified by the HOGPP_DISPATCH environment "
-                        "variable (\"{isa}\") is neither available nor "
-                        "supported. The following CPU features are "
+                        "The instruction set specified by the HOGPP_DISPATCH "
+                        "environment variable (\"{isa}\") is neither available "
+                        "nor supported. The following CPU features are "
                         "supported: {features}. Did you mean {match}?"),
                     "isa"_a = isa, "features"_a = fmt::join(supported, ", "),
                     "match"_a = *pos)};
@@ -522,10 +522,10 @@ struct Initializer
             else {
                 throw pybind11::import_error{fmt::format(
                     FMT_STRING(
-                        "ISA specified by the HOGPP_DISPATCH environment "
-                        "variable (\"{isa}\") is neither available nor "
-                        "supported. The following CPU features are "
-                        "supported: {features}."),
+                        "The instruction set specified by the "
+                        "HOGPP_DISPATCH environment variable (\"{isa}\") is "
+                        "neither available nor supported. The following CPU "
+                        "features are supported: {features}."),
                     "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
             }
         }
