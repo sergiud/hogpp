@@ -174,7 +174,7 @@ jobs:
 
       - name: Setup Dependencies
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements.txt --prefer-binary
 
       - name: Setup Environment
         run: |
