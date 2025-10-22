@@ -54,7 +54,7 @@ jobs:
 
       - name: Setup Dependencies
         run: |
-          pip install -r docs/requirements.txt
+          pip install -r docs/requirements.txt --prefer-binary
 
       - name: Setup Environment
         run: |
@@ -269,7 +269,7 @@ jobs:
 
       - name: Setup Dependencies
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements.txt --prefer-binary
 
       - name: Setup Dependencies (VC17)
         if: matrix.msvc == 'VS-17-2022'
@@ -430,7 +430,7 @@ jobs:
 
       - name: Setup Dependencies
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements.txt --prefer-binary
 
       - name: Setup Environment
         run: |
