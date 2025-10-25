@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <functional>
 #include <locale>
+#include <numeric>
 #include <ranges>
 #include <string_view>
 #include <vector>
