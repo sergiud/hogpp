@@ -245,6 +245,9 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       python/magnitude.hpp
       # We cannot reuse the python_type_caster library since we need to rename
       # the namespaces
+      #
+      # While bounds.[ch]pp do not depend on a specific ABI, we rename the
+      # namespace which requires treating the sources as ABI specific.
       python/type_caster/bounds.cpp
       python/type_caster/bounds.hpp
       python/type_caster/stride.hpp
