@@ -269,8 +269,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
 
       target_compile_options (${target_name} PRIVATE -m${_lower_arch})
 
-      message (${_lower_arch})
-
       # Rename the Eigen namespace to avoid One Definition Rule (ODR) violations
       target_compile_definitions (${target_name} PRIVATE
         Eigen=Eigen_${_suffix}
