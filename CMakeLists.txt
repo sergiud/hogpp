@@ -201,6 +201,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   python_add_library (pyhogpp WITH_SOABI
     python/init.cpp
   )
+  target_compile_features (pyhogpp PRIVATE cxx_std_20)
 
   target_include_directories (pyhogpp PRIVATE
     $<BUILD_INTERFACE:${hogpp_BINARY_DIR}/python>
