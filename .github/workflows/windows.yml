@@ -214,18 +214,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: fmt/
-          key: ${{runner.os}}-fmt-12.0.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-fmt-12.1.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/12.0.0/fmt-12.0.0.zip", "fmt-12.0.0.zip");
-          7z x fmt-12.0.0.zip;
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/12.1.0/fmt-12.1.0.zip", "fmt-12.1.0.zip");
+          7z x fmt-12.1.0.zip;
 
       - name: Setup fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          cmake -S fmt-12.0.0 -B build-fmt `
+          cmake -S fmt-12.1.0 -B build-fmt `
                 -A ${{matrix.arch}} `
                 -DFMT_TEST=OFF `
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt
@@ -401,18 +401,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: fmt/
-          key: ${{runner.os}}-fmt-12.0.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
+          key: ${{runner.os}}-fmt-12.1.0-${{matrix.arch}}-${{matrix.msvc}}-${{matrix.build_type}}
 
       - name: Download fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/12.0.0/fmt-12.0.0.zip", "fmt-12.0.0.zip");
-          7z x fmt-12.0.0.zip;
+          (New-Object System.Net.WebClient).DownloadFile("https://github.com/fmtlib/fmt/releases/download/12.1.0/fmt-12.1.0.zip", "fmt-12.1.0.zip");
+          7z x fmt-12.1.0.zip;
 
       - name: Setup fmt
         if: steps.cache-fmt.outputs.cache-hit != 'true'
         run: |
-          cmake -S fmt-12.0.0 -B build-fmt `
+          cmake -S fmt-12.1.0 -B build-fmt `
                 -A ${{matrix.arch}} `
                 -DFMT_TEST=OFF `
                 -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/fmt
