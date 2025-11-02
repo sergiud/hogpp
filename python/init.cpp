@@ -397,7 +397,6 @@ struct CPUFeature<ISA::AVX10_1>
 };
 
 #if defined(HAVE_ISA_AVX10_2)
-
 template<>
 struct HOGppModule<ISA::AVX10_2>
 {
