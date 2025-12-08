@@ -35,7 +35,12 @@ else ("$ENV{CIBUILDWHEEL}" EQUAL 1)
 endif ("$ENV{CIBUILDWHEEL}" EQUAL 1)
 
 if (NOT CIBUILDWHEEL)
-  find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
+  find_package (Eigen3 3.4.1...5 NO_MODULE)
+
+  if (NOT Eigen3_FOUND)
+    find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
+  endif (NOT Eigen3_FOUND)
+
   find_package (fmt 6.0 REQUIRED)
 else (NOT CIBUILDWHEEL)
   include (FetchContent)
