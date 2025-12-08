@@ -15,6 +15,7 @@ jobs:
         os:
           - macos-14
           - macos-15
+          - macos-15-intel
         build_type:
           - Release
           - Debug
