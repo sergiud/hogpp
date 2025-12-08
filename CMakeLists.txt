@@ -50,7 +50,7 @@ else (NOT CIBUILDWHEEL)
 
   FetchContent_Declare (eigen3
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-    GIT_TAG 5.0.0
+    GIT_TAG 5.0.1
     EXCLUDE_FROM_ALL
   )
 
