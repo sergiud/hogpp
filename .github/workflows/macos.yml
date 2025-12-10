@@ -50,7 +50,7 @@ jobs:
 
       - name: Configure
         env:
-          CXXFLAGS: -Weverything -Wno-c++98-compat -Wno-padded -Wno-c++98-compat-pedantic -Wno-disabled-macro-expansion -Wno-shadow -Wno-used-but-marked-unused -Wno-global-constructors -Wno-shorten-64-to-32 -Wno-documentation -Wno-poison-system-directories -Werror ${{env.CXXFLAGS}}
+          CXXFLAGS: -isystem /usr/local/include -Weverything -Wno-c++98-compat -Wno-padded -Wno-c++98-compat-pedantic -Wno-disabled-macro-expansion -Wno-shadow -Wno-used-but-marked-unused -Wno-global-constructors -Wno-shorten-64-to-32 -Wno-documentation -Wno-poison-system-directories -Werror ${{env.CXXFLAGS}}
           Python_ROOT: ${{github.workspace}}/.env/
         run: |
           cmake -S . -B build/  \
