@@ -40,7 +40,7 @@ jobs:
 
       - name: Cache cibuildwheel
         id: cache-cibuildwheel
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .cibuildwheel/
           key: ${{matrix.os}}-cibuildwheel
