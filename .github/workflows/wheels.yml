@@ -48,7 +48,7 @@ jobs:
       - name: Build
         uses: pypa/cibuildwheel@v3.3.0
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: wheelhouse/*.whl
@@ -75,7 +75,7 @@ jobs:
         run: |
           pipx run build --sdist --verbose
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: cibw-sdist
           path: dist/
