@@ -42,7 +42,7 @@ stages:
     - export CMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
     - export CXXFLAGS='--coverage -fuse-ld=mold'
     - export pybind11_DIR=$(pybind11-config --cmakedir)
-    - pip install -r requirements.txt
+    - pip install -r requirements.txt --prefer-binary
     - pip install --no-build-isolation
       --config-settings build-dir=build/
       --config-settings cmake.build-type=Debug
