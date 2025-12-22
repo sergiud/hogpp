@@ -40,6 +40,8 @@ jobs:
           key: ${{matrix.os}}-cibuildwheel
 
       - name: Build
+        env:
+          PIP_PREFER_BINARY: 1
         uses: pypa/cibuildwheel@v3.3.0
 
       - uses: actions/upload-artifact@v6
