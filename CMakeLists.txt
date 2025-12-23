@@ -298,6 +298,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
 
     target_link_libraries (${target_name} PRIVATE
       hogpp::hogpp
+      pybind11::headers
       Python::Module
     )
 
