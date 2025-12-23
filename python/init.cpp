@@ -405,14 +405,17 @@ struct CPUFeature<ISA::AVX10_1>
     }
 };
 
-#if defined(HAVE_ISA_AVX10_2)
 template<>
 struct HOGppModule<ISA::AVX10_2>
 {
     static void initialize(pybind11::module& m)
     {
+#if defined(HAVE_ISA_AVX10_2)
         void init_hogpp_avx10_2(pybind11::module & m);
         init_hogpp_avx10_2(m);
+#else
+        (void)m;
+#endif
     }
 };
 
@@ -426,10 +429,13 @@ struct CPUFeature<ISA::AVX10_2>
 
     [[nodiscard]] static bool supported() noexcept
     {
+#if defined(HAVE_ISA_AVX10_2)
         return __builtin_cpu_supports("avx10.2");
+#else
+        return false;
+#endif
     }
 };
-#endif
 
 template<ISA... Types>
 struct CPUFeatures
