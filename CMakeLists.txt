@@ -208,6 +208,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   )
 
   target_link_libraries (pyhogpp PRIVATE
+    fmt::fmt
     pybind11::headers
     Python::Module
   )
