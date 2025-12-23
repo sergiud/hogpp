@@ -123,6 +123,7 @@ struct HOGppModule<ISA::SSE2>
         void init_hogpp_sse2(pybind11::module & m);
         init_hogpp_sse2(m);
 #else
+        (void)m;
 #endif
     }
 };
@@ -154,6 +155,7 @@ struct HOGppModule<ISA::SSE3>
         void init_hogpp_sse3(pybind11::module & m);
         init_hogpp_sse3(m);
 #else
+        (void)m;
 #endif
     }
 };
@@ -185,6 +187,7 @@ struct HOGppModule<ISA::SSSE3>
         void init_hogpp_ssse3(pybind11::module & m);
         init_hogpp_ssse3(m);
 #else
+        (void)m;
 #endif
     }
 };
@@ -216,6 +219,7 @@ struct HOGppModule<ISA::SSE4_1>
         void init_hogpp_sse4_1(pybind11::module & m);
         init_hogpp_sse4_1(m);
 #else
+        (void)m;
 #endif
     }
 };
@@ -247,6 +251,7 @@ struct HOGppModule<ISA::SSE4_2>
         void init_hogpp_sse4_2(pybind11::module & m);
         init_hogpp_sse4_2(m);
 #else
+        (void)m;
 #endif
     }
 };
@@ -279,6 +284,7 @@ struct HOGppModule<ISA::AVX>
         init_hogpp_avx(m);
 #else
         // TODO Throw
+        (void)m;
 #endif
     }
 };
@@ -310,6 +316,7 @@ struct HOGppModule<ISA::AVX2>
         void init_hogpp_avx2(pybind11::module & m);
         init_hogpp_avx2(m);
 #else
+        (void)m;
 #endif
     }
 };
@@ -342,6 +349,7 @@ struct HOGppModule<ISA::AVX512>
         init_hogpp_avx512f(m);
 #else
         // TODO Trhow
+        (void)m;
 #endif
     }
 };
@@ -373,6 +381,7 @@ struct HOGppModule<ISA::AVX10_1>
         void init_hogpp_avx10_1(pybind11::module & m);
         init_hogpp_avx10_1(m);
 #else
+        (void)m;
         // TODO Throw
 #endif
     }
