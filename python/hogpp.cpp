@@ -33,8 +33,9 @@
 #include "type_caster/bounds.hpp"
 
 #define HOGPP_CAT(prefix, ...) prefix##__VA_ARGS__
-#define HOGPP_MAKE_INIT(suffix, ...) \
-    extern void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__)
+#define HOGPP_MAKE_INIT(suffix, ...)                  \
+    void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__); \
+    void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__)
 
 HOGPP_MAKE_INIT(HOGPP_TARGET, pybind11::module& m)
 {
