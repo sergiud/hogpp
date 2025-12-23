@@ -32,19 +32,6 @@
 #include "magnitude.hpp"
 #include "type_caster/bounds.hpp"
 
-#if defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE(name, module, ...) \
-        PYBIND11_MODULE(name, module, pybind11::mod_gil_not_used())
-#else // !defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE PYBIND11_MODULE
-#endif // defined(HOGPP_GIL_DISABLED)
-
-#if defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME _hogpp
-#else // !defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME hogpp
-#endif // defined(HOGPP_SKBUILD)
-
 #define HOGPP_CAT(prefix, ...) prefix##__VA_ARGS__
 #define HOGPP_MAKE_INIT(suffix, ...) \
     extern void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__)
