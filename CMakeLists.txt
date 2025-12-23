@@ -329,7 +329,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
 
   if (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME _hogpp)
-    set_property (SOURCE python/hogpp.cpp APPEND PROPERTY COMPILE_DEFINITIONS HOGPP_SKBUILD)
+    set_property (SOURCE python/init.cpp APPEND PROPERTY COMPILE_DEFINITIONS HOGPP_SKBUILD)
   else (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
   endif (SKBUILD)
