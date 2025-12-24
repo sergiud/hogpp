@@ -9,9 +9,16 @@
 #    include <asm/hwcap.h>
 #endif
 
+#if defined(HAVE___CHECK_ISA_SUPPORT)
+#    include <immintrin.h>
+#    include <isa_availability.h>
+#endif
+
 bool CPUFeature<ISA::SSE2>::supported() noexcept
 {
-#if defined(HAVE_ISA_SSE2)
+#if defined(HAVE___CHECK_ISA_SUPPORT)
+    return __check_isa_support(__IA_SUPPORT_VECTOR128, 0);
+#elif defined(HAVE_ISA_SSE2)
     return __builtin_cpu_supports("sse2");
 #else
     return false;
@@ -38,7 +45,9 @@ bool CPUFeature<ISA::SSSE3>::supported() noexcept
 
 bool CPUFeature<ISA::SSE4_2>::supported() noexcept
 {
-#if defined(HAVE_ISA_SSE4_2)
+#if defined(HAVE___CHECK_ISA_SUPPORT)
+    return __check_isa_support(__IA_SUPPORT_SSE42, 0);
+#elif defined(HAVE_ISA_SSE4_2)
     return __builtin_cpu_supports("sse4.2");
 #else
     return false;
@@ -65,7 +74,9 @@ bool CPUFeature<ISA::AVX>::supported() noexcept
 
 bool CPUFeature<ISA::AVX2>::supported() noexcept
 {
-#if defined(HAVE_ISA_AVX2)
+#if defined(HAVE___CHECK_ISA_SUPPORT)
+    return __check_isa_support(__IA_SUPPORT_VECTOR256, 0);
+#elif defined(HAVE_ISA_AVX2)
     return __builtin_cpu_supports("avx2");
 #else
     return false;
@@ -74,7 +85,9 @@ bool CPUFeature<ISA::AVX2>::supported() noexcept
 
 bool CPUFeature<ISA::AVX512>::supported() noexcept
 {
-#if defined(HAVE_ISA_AVX512F)
+#if defined(HAVE___CHECK_ISA_SUPPORT)
+    return __check_isa_support(__IA_SUPPORT_VECTOR512, 0);
+#elif defined(HAVE_ISA_AVX512F)
     return __builtin_cpu_supports("avx512f");
 #else
     return false;
@@ -83,7 +96,9 @@ bool CPUFeature<ISA::AVX512>::supported() noexcept
 
 bool CPUFeature<ISA::AVX10_1>::supported() noexcept
 {
-#if defined(HAVE_ISA_AVX10_1)
+#if defined(HAVE___CHECK_ISA_SUPPORT)
+    return __check_isa_support(__IA_SUPPORT_VECTOR512, 1);
+#elif defined(HAVE_ISA_AVX10_1)
     return __builtin_cpu_supports("avx10.1");
 #else
     return false;
@@ -92,7 +107,9 @@ bool CPUFeature<ISA::AVX10_1>::supported() noexcept
 
 bool CPUFeature<ISA::AVX10_2>::supported() noexcept
 {
-#if defined(HAVE_ISA_AVX10_2)
+#if defined(HAVE___CHECK_ISA_SUPPORT)
+    return __check_isa_support(__IA_SUPPORT_AVX10_2, 0);
+#elif defined(HAVE_ISA_AVX10_2)
     return __builtin_cpu_supports("avx10.2");
 #else
     return false;
