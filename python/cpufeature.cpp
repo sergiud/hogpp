@@ -56,7 +56,7 @@ bool CPUFeature<ISA::SSE4_1>::supported() noexcept
 
 bool CPUFeature<ISA::AVX>::supported() noexcept
 {
-#if defined(HAVE_ISA_AVX2)
+#if defined(HAVE_ISA_AVX)
     return __builtin_cpu_supports("avx");
 #else
     return false;
