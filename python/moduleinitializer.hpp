@@ -17,25 +17,35 @@
 // limitations under the License.
 //
 
+#ifndef PYTHON_MODULEINITIALIZER_HPP
+#define PYTHON_MODULEINITIALIZER_HPP
+
+#include <locale>
+#include <string_view>
+
 #include <pybind11/pybind11.h>
 
-#include "moduleinitializer.hpp"
+#include "cpufeatures.hpp"
 
-#if defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE(name, module, ...) \
-        PYBIND11_MODULE(name, module, pybind11::mod_gil_not_used())
-#else // !defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE PYBIND11_MODULE
-#endif // defined(HOGPP_GIL_DISABLED)
-
-#if defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME _hogpp
-#else // !defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME hogpp
-#endif // defined(HOGPP_SKBUILD)
-
-HOGPP_MODULE(HOGPP_MODULE_NAME, m)
+struct HOGppModuleInitializer
 {
-    const HOGppModuleInitializer initializer{m};
-    initializer.run();
-}
+    [[nodiscard]] explicit HOGppModuleInitializer(pybind11::module& m);
+
+    void run() const;
+
+private:
+    void run(CPUFeatures<> /*unused*/) const;
+    template<ISA Type, ISA... Types>
+    void run(CPUFeatures<Type, Types...> /*unused*/) const;
+
+    pybind11::module& m;
+    const std::string_view isa;
+    pybind11::object logging;
+    pybind11::object getLogger;
+    pybind11::object moduleName;
+    pybind11::object logger;
+    pybind11::object debug;
+    const std::locale* const loc;
+};
+
+#endif

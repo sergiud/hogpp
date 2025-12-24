@@ -17,25 +17,25 @@
 // limitations under the License.
 //
 
-#include <pybind11/pybind11.h>
+#ifndef PYTHON_ISA_HPP
+#define PYTHON_ISA_HPP
 
-#include "moduleinitializer.hpp"
+#include <cstdint>
 
-#if defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE(name, module, ...) \
-        PYBIND11_MODULE(name, module, pybind11::mod_gil_not_used())
-#else // !defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE PYBIND11_MODULE
-#endif // defined(HOGPP_GIL_DISABLED)
-
-#if defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME _hogpp
-#else // !defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME hogpp
-#endif // defined(HOGPP_SKBUILD)
-
-HOGPP_MODULE(HOGPP_MODULE_NAME, m)
+enum class ISA : std::uint8_t
 {
-    const HOGppModuleInitializer initializer{m};
-    initializer.run();
-}
+    Default,
+    SSE2,
+    SSE3,
+    SSSE3,
+    SSE4_1,
+    SSE4_2,
+    AVX,
+    AVX2,
+    AVX512,
+    AVX10_1,
+    AVX10_2,
+    NEON,
+};
+
+#endif

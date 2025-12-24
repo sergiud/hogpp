@@ -17,25 +17,31 @@
 // limitations under the License.
 //
 
-#include <pybind11/pybind11.h>
+#ifndef PYTHON_CPUFEATURES_HPP
+#define PYTHON_CPUFEATURES_HPP
 
-#include "moduleinitializer.hpp"
+#include "isa.hpp"
 
-#if defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE(name, module, ...) \
-        PYBIND11_MODULE(name, module, pybind11::mod_gil_not_used())
-#else // !defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE PYBIND11_MODULE
-#endif // defined(HOGPP_GIL_DISABLED)
-
-#if defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME _hogpp
-#else // !defined(HOGPP_SKBUILD)
-#    define HOGPP_MODULE_NAME hogpp
-#endif // defined(HOGPP_SKBUILD)
-
-HOGPP_MODULE(HOGPP_MODULE_NAME, m)
+template<ISA... Types>
+struct CPUFeatures
 {
-    const HOGppModuleInitializer initializer{m};
-    initializer.run();
-}
+};
+
+using AvailableCPUFeatures = CPUFeatures
+    // clang-format off
+<
+      ISA::AVX10_2
+    , ISA::AVX10_1
+    , ISA::AVX512
+    , ISA::AVX2
+    , ISA::AVX
+    , ISA::SSE4_2
+    , ISA::SSE4_1
+    , ISA::SSSE3
+    , ISA::SSE3
+    , ISA::SSE2
+    , ISA::NEON
+>;
+// clang-format on
+
+#endif
