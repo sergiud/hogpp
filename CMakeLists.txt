@@ -277,6 +277,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       if (arch STREQUAL avx512f OR arch STREQUAL avx10.2)
         # Required for AVX512F (and above) by Eigen 5.x
         # compiling with -mavx512f alone without SSE/AVX FMA is not supported (bug 1638)
+        # https://gitlab.com/libeigen/eigen/-/issues/1638
         target_compile_options (${target_name} PRIVATE -mfma)
       endif (arch STREQUAL avx512f OR arch STREQUAL avx10.2)
 
