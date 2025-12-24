@@ -58,4 +58,7 @@
 #cmakedefine HAVE_SYS_AUXV_H
 #endif // !defined(HAVE_SYS_AUXV_H)
 
+// Indicates whether the __check_isa_support function is available.
+#cmakedefine HAVE___CHECK_ISA_SUPPORT
+
 // vim: ft=cpp
