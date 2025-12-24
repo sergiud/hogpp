@@ -123,6 +123,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   check_cxx_symbol_exists (__aarch64__ "" HAVE_ARCH_AARCH64)
   check_cxx_symbol_exists (__arm__ "" HAVE_ARCH_ARM)
   check_cxx_compiler_flag (-mfpu=neon HAVE_MFPU_NEON)
+  check_cxx_compiler_flag (-msve-vector-bits=scalable HAVE_MSVE_VECTOR_BITS)
 
   if (HAVE_ARCH_AARCH64 OR HAVE_ARCH_ARM)
     set (HAVE_ISA_NEON 1)
@@ -175,6 +176,15 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 
   list (APPEND _supported NEON)
+
+  if (HAVE_MSVE_VECTOR_BITS)
+    set (HAVE_ISA_SVE128 1)
+    set (HAVE_ISA_SVE256 1)
+    set (HAVE_ISA_SVE512 1)
+    list (APPEND _supported SVE128)
+    list (APPEND _supported SVE256)
+    list (APPEND _supported SVE512)
+  endif (HAVE_MSVE_VECTOR_BITS)
 
   configure_file (
     python/isaconfig.hpp.cmake.in
@@ -297,6 +307,9 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
         if (HAVE_MFPU_NEON)
           target_compile_options (${target_name} PRIVATE -mfpu=neon)
         endif (HAVE_MFPU_NEON)
+      elseif (arch MATCHES "^sve([0-9]+)$")
+        target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_SVE)
+        target_compile_options (${target_name} PRIVATE -msve-vector-bits=${CMAKE_MATCH_1})
       else (arch STREQUAL neon)
         target_compile_options (${target_name} PRIVATE -m${_lower_arch})
       endif (arch STREQUAL neon)

@@ -40,6 +40,9 @@ using AvailableCPUFeatures = CPUFeatures
     , ISA::SSSE3
     , ISA::SSE3
     , ISA::SSE2
+    , ISA::SVE512
+    , ISA::SVE256
+    , ISA::SVE128
     , ISA::NEON
 >;
 // clang-format on
