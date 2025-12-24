@@ -37,3 +37,19 @@
 #cmakedefine HAVE_ISA_AVX10_1
 // Indicates whether the AVX10.2 instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_AVX10_2
+
+// Indicates whether the ARM NEON instruction set is available at compile-time.
+#cmakedefine HAVE_ISA_NEON
+
+// Indicates whether the getauxval function is available.
+#cmakedefine HAVE_GETAUXVAL
+// Indicates whether the <asm/hwcap.h> header is available.
+#cmakedefine HAVE_ASM_HWCAP_H
+// Indicates whether the <sys/auxv.h> header is available.
+#if !defined(HAVE_SYS_AUXV_H)
+// pyconfig.h already defines HAVE_SYS_AUXV_H as of Python 3.13. Avoid
+// redifinition.
+#cmakedefine HAVE_SYS_AUXV_H
+#endif // !defined(HAVE_SYS_AUXV_H)
+
+// vim: ft=cpp
