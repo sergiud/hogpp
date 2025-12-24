@@ -469,10 +469,10 @@ void supportedCPUFeatureNames(std::vector<std::string_view>& names,
     return {}; // Avoid invoking std::strlen on a nullptr
 }
 
-struct Initializer
+struct HOGppModuleInitializer
 {
-    [[nodiscard]] Initializer(pybind11::module& m)
-        : m{m} // Allow to override the dispatch using HOGPP_DISPATCH
+    [[nodiscard]] HOGppModuleInitializer(pybind11::module& m)
+        : m{m} // Allow to override the dispatch using the HOGPP_DISPATCH
                // environment variable
         , isa{getenv("HOGPP_DISPATCH")}
         , logging{pybind11::module::import("logging")}
@@ -602,6 +602,6 @@ struct Initializer
 
 HOGPP_MODULE(HOGPP_MODULE_NAME, m)
 {
-    const Initializer initializer{m};
+    const HOGppModuleInitializer initializer{m};
     initializer.run(AvailableCPUFeatures{});
 }
