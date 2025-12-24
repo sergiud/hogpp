@@ -40,6 +40,12 @@
 
 // Indicates whether the ARM NEON instruction set is available at compile-time.
 #cmakedefine HAVE_ISA_NEON
+// Indicates whether the ARM SVE instruction set is available at compile-time.
+#cmakedefine HAVE_ISA_SVE128
+// Indicates whether the ARM SVE instruction set is available at compile-time.
+#cmakedefine HAVE_ISA_SVE256
+// Indicates whether the ARM SVE instruction set is available at compile-time.
+#cmakedefine HAVE_ISA_SVE512
 
 // Indicates whether the getauxval function is available.
 #cmakedefine HAVE_GETAUXVAL

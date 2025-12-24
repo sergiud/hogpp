@@ -110,3 +110,12 @@ bool CPUFeature<ISA::NEON>::supported() noexcept
     return false;
 #endif
 }
+
+bool CPUFeature<ISA::SVE>::supported() noexcept
+{
+#if defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) && defined(HWCAP_SVE)
+    return (getauxval(AT_HWCAP) & HWCAP_SVE) == HWCAP_SVE;
+#else
+    return false;
+#endif
+}

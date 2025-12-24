@@ -169,6 +169,42 @@ struct HOGppModule<ISA::NEON>
 };
 #endif
 
+#if defined(HAVE_ISA_SVE128)
+template<>
+struct HOGppModule<ISA::SVE128>
+{
+    static void initialize(pybind11::module& m)
+    {
+        void init_hogpp_sve128(pybind11::module & m);
+        init_hogpp_sve128(m);
+    }
+};
+#endif
+
+#if defined(HAVE_ISA_SVE256)
+template<>
+struct HOGppModule<ISA::SVE256>
+{
+    static void initialize(pybind11::module& m)
+    {
+        void init_hogpp_sve256(pybind11::module & m);
+        init_hogpp_sve256(m);
+    }
+};
+#endif
+
+#if defined(HAVE_ISA_SVE512)
+template<>
+struct HOGppModule<ISA::SVE512>
+{
+    static void initialize(pybind11::module& m)
+    {
+        void init_hogpp_sve512(pybind11::module & m);
+        init_hogpp_sve512(m);
+    }
+};
+#endif
+
 template<ISA Type>
 concept HOGppModuleSupported =
     requires(pybind11::module& m) { HOGppModule<Type>::initialize(m); };
