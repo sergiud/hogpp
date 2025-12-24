@@ -21,6 +21,7 @@ list (APPEND CMAKE_MODULE_PATH ${hogpp_SOURCE_DIR}/cmake)
 
 include (CheckCXXCompilerFlag)
 include (CheckCXXSymbolExists)
+include (CheckIncludeFileCXX)
 include (CTest)
 include (GNUInstallDirs)
 
@@ -119,59 +120,65 @@ target_link_libraries (hogpp INTERFACE
 )
 
 if (pybind11_FOUND AND Python_Development.Module_FOUND)
-  check_cxx_symbol_exists (__x86_64__ "" HAVE_ARCH_X86_64)
-  check_cxx_symbol_exists (__cpuid "intrin.h" HAVE___CPUID)
+  check_cxx_symbol_exists (__aarch64__ "" HAVE_ARCH_AARCH64)
+  check_cxx_symbol_exists (__arm__ "" HAVE_ARCH_ARM)
+  check_cxx_compiler_flag (-mfpu=neon HAVE_MFPU_NEON)
+
+  if (HAVE_ARCH_AARCH64 OR HAVE_ARCH_ARM)
+    set (HAVE_ISA_NEON 1)
+  endif (HAVE_ARCH_AARCH64 OR HAVE_ARCH_ARM)
+
   check_cxx_symbol_exists (__check_isa_support "isa_availability.h" HAVE___CHECK_ISA_SUPPORT)
+  check_cxx_symbol_exists (__cpuid "intrin.h" HAVE___CPUID)
+  check_cxx_symbol_exists (getauxval "sys/auxv.h" HAVE_GETAUXVAL)
+  check_include_file_cxx ("asm/hwcap.h" HAVE_ASM_HWCAP_H)
+  check_include_file_cxx ("sys/auxv.h" HAVE_SYS_AUXV_H)
 
-  if (HAVE_ARCH_X86_64)
-    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-      set (_supported
-        SSE2
-        SSE3
-        SSSE3
-        SSE4.1
-        SSE4.2
-        AVX
-        AVX2
-        AVX512F
-        AVX10.2
-      )
+  if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set (_supported
+      SSE2
+      SSE3
+      SSSE3
+      SSE4.1
+      SSE4.2
+      AVX
+      AVX2
+      AVX512F
+      AVX10.2
+    )
 
-      check_cxx_compiler_flag (-msse2 HAVE_ISA_SSE2)
-      check_cxx_compiler_flag (-msse3 HAVE_ISA_SSE3)
-      check_cxx_compiler_flag (-mssse3 HAVE_ISA_SSSE3)
-      check_cxx_compiler_flag (-msse4.1 HAVE_ISA_SSE4_1)
-      check_cxx_compiler_flag (-msse4.2 HAVE_ISA_SSE4_2)
-      check_cxx_compiler_flag (-mavx HAVE_ISA_AVX)
-      check_cxx_compiler_flag (-mavx2 HAVE_ISA_AVX2)
-      check_cxx_compiler_flag (-mavx512f HAVE_ISA_AVX512F)
-      check_cxx_compiler_flag (-mavx10.2 HAVE_ISA_AVX10_2)
-    elseif (MSVC)
-      set (_supported
-        SSE2
-        SSE4.2
-        AVX
-        AVX2
-        AVX512
-        AVX10.1
-      )
-
-      check_cxx_compiler_flag (/march:SSE2 HAVE_ISA_SSE2)
-      check_cxx_compiler_flag (/march:SSE4.2 HAVE_ISA_SSE4_2)
-      check_cxx_compiler_flag (/march:AVX HAVE_ISA_AVX)
-      check_cxx_compiler_flag (/march:AVX2 HAVE_ISA_AVX2)
-      check_cxx_compiler_flag (/march:AVX512 HAVE_ISA_AVX512)
-      check_cxx_compiler_flag (/march:AVX10.1 HAVE_ISA_AVX10_1)
-    endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  endif (HAVE_ARCH_X86_64)
-
-  if (HAVE_ARCH_AARCH64)
     check_cxx_compiler_flag (-msse2 HAVE_ISA_SSE2)
-  endif (HAVE_ARCH_AARCH64)
+    check_cxx_compiler_flag (-msse3 HAVE_ISA_SSE3)
+    check_cxx_compiler_flag (-mssse3 HAVE_ISA_SSSE3)
+    check_cxx_compiler_flag (-msse4.1 HAVE_ISA_SSE4_1)
+    check_cxx_compiler_flag (-msse4.2 HAVE_ISA_SSE4_2)
+    check_cxx_compiler_flag (-mavx HAVE_ISA_AVX)
+    check_cxx_compiler_flag (-mavx2 HAVE_ISA_AVX2)
+    check_cxx_compiler_flag (-mavx512f HAVE_ISA_AVX512F)
+    check_cxx_compiler_flag (-mavx10.2 HAVE_ISA_AVX10_2)
+  elseif (MSVC)
+    set (_supported
+      SSE2
+      SSE4.2
+      AVX
+      AVX2
+      AVX512
+      AVX10.1
+    )
+
+    check_cxx_compiler_flag (/march:SSE2 HAVE_ISA_SSE2)
+    check_cxx_compiler_flag (/march:SSE4.2 HAVE_ISA_SSE4_2)
+    check_cxx_compiler_flag (/march:AVX HAVE_ISA_AVX)
+    check_cxx_compiler_flag (/march:AVX2 HAVE_ISA_AVX2)
+    check_cxx_compiler_flag (/march:AVX512 HAVE_ISA_AVX512)
+    check_cxx_compiler_flag (/march:AVX10.1 HAVE_ISA_AVX10_1)
+  endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+
+  list (APPEND _supported NEON)
 
   configure_file (
-    python/isa.hpp.cmake.in
-    python/isa.hpp
+    python/isaconfig.hpp.cmake.in
+    python/isaconfig.hpp
     @ONLY
   )
 
@@ -199,7 +206,14 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   )
 
   python_add_library (pyhogpp WITH_SOABI
+    python/cpufeature.cpp
+    python/cpufeature.hpp
+    python/cpufeatures.hpp
     python/init.cpp
+    python/module.cpp
+    python/module.hpp
+    python/moduleinitializer.cpp
+    python/moduleinitializer.hpp
   )
   target_compile_features (pyhogpp PRIVATE cxx_std_20)
 
@@ -258,7 +272,12 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     )
 
     if (arch STREQUAL default)
-      target_compile_definitions (${target_name} PRIVATE HOGPP_TARGET=${_suffix})
+      target_compile_definitions (${target_name} PRIVATE
+        # Don't vector the default dispatch to avoid same code generation for
+        # different modules
+        EIGEN_DONT_VECTORIZE
+        HOGPP_TARGET=${_suffix}
+      )
       # set_property (TARGET ${target_name} APPEND PROPERTY COMPILE_DEFINITIONS
       #   $<$<TARGET_NAME:${target_name}>:HOGPP_TARGET="${arch}">
       # )
@@ -272,7 +291,15 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
         HOGPP_TARGET=${_suffix}
       )
 
-      target_compile_options (${target_name} PRIVATE -m${_lower_arch})
+      if (arch STREQUAL neon)
+        target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_NEON)
+
+        if (HAVE_MFPU_NEON)
+          target_compile_options (${target_name} PRIVATE -mfpu=neon)
+        endif (HAVE_MFPU_NEON)
+      else (arch STREQUAL neon)
+        target_compile_options (${target_name} PRIVATE -m${_lower_arch})
+      endif (arch STREQUAL neon)
 
       if (arch STREQUAL avx512f OR arch STREQUAL avx10.2)
         # Required for AVX512F (and above) by Eigen 5.x
