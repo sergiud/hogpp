@@ -148,4 +148,37 @@ struct CPUFeature<ISA::NEON>
     [[nodiscard]] static bool supported() noexcept;
 };
 
+template<>
+struct CPUFeature<ISA::SVE>
+{
+    [[nodiscard]] static bool supported() noexcept;
+};
+
+template<>
+struct CPUFeature<ISA::SVE128> : CPUFeature<ISA::SVE>
+{
+    [[nodiscard]] constexpr static std::string_view name() noexcept
+    {
+        return "SVE128";
+    }
+};
+
+template<>
+struct CPUFeature<ISA::SVE256> : CPUFeature<ISA::SVE>
+{
+    [[nodiscard]] constexpr static std::string_view name() noexcept
+    {
+        return "SVE256";
+    }
+};
+
+template<>
+struct CPUFeature<ISA::SVE512> : CPUFeature<ISA::SVE>
+{
+    [[nodiscard]] constexpr static std::string_view name() noexcept
+    {
+        return "SVE512";
+    }
+};
+
 #endif

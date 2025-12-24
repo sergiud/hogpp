@@ -17,29 +17,9 @@
 // limitations under the License.
 //
 
-#ifndef PYTHON_ISA_HPP
-#define PYTHON_ISA_HPP
+#ifndef PYTHON_CAT_HPP
+#define PYTHON_CAT_HPP
 
-#include <cstdint>
-
-enum class ISA : std::uint8_t
-{
-    Default,
-    SSE2,
-    SSE3,
-    SSSE3,
-    SSE4_1,
-    SSE4_2,
-    AVX,
-    AVX2,
-    AVX512,
-    AVX10_1,
-    AVX10_2,
-    NEON,
-    SVE,
-    SVE128,
-    SVE256,
-    SVE512,
-};
+#define HOGPP_CAT(prefix, ...) prefix##__VA_ARGS__
 
 #endif
