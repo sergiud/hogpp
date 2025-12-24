@@ -95,14 +95,7 @@ template<ISA Type>
 struct CPUFeature;
 
 template<ISA Type>
-struct HOGppModule
-{
-    [[noreturn]] static void initialize(pybind11::module& /*m*/)
-    {
-        // TODO CPU features not available
-        throw pybind11::import_error{"cannot initialize"};
-    }
-};
+struct HOGppModule;
 
 template<>
 struct HOGppModule<ISA::Default>
@@ -114,19 +107,17 @@ struct HOGppModule<ISA::Default>
     }
 };
 
+#if defined(HAVE_ISA_SSE2)
 template<>
 struct HOGppModule<ISA::SSE2>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_SSE2)
         void init_hogpp_sse2(pybind11::module & m);
         init_hogpp_sse2(m);
-#else
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::SSE2>
@@ -146,19 +137,17 @@ struct CPUFeature<ISA::SSE2>
     }
 };
 
+#if defined(HAVE_ISA_SSE3)
 template<>
 struct HOGppModule<ISA::SSE3>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_SSE3)
         void init_hogpp_sse3(pybind11::module & m);
         init_hogpp_sse3(m);
-#else
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::SSE3>
@@ -178,19 +167,17 @@ struct CPUFeature<ISA::SSE3>
     }
 };
 
+#if defined(HAVE_ISA_SSSE3)
 template<>
 struct HOGppModule<ISA::SSSE3>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_SSSE3)
         void init_hogpp_ssse3(pybind11::module & m);
         init_hogpp_ssse3(m);
-#else
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::SSSE3>
@@ -210,19 +197,17 @@ struct CPUFeature<ISA::SSSE3>
     }
 };
 
+#if defined(HAVE_ISA_SSE4_1)
 template<>
 struct HOGppModule<ISA::SSE4_1>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_SSE4_1)
         void init_hogpp_sse4_1(pybind11::module & m);
         init_hogpp_sse4_1(m);
-#else
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::SSE4_1>
@@ -242,19 +227,17 @@ struct CPUFeature<ISA::SSE4_1>
     }
 };
 
+#if defined(HAVE_ISA_SSE4_2)
 template<>
 struct HOGppModule<ISA::SSE4_2>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_SSE4_2)
         void init_hogpp_sse4_2(pybind11::module & m);
         init_hogpp_sse4_2(m);
-#else
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::SSE4_2>
@@ -274,20 +257,17 @@ struct CPUFeature<ISA::SSE4_2>
     }
 };
 
+#if defined(HAVE_ISA_AVX2)
 template<>
 struct HOGppModule<ISA::AVX>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_AVX2)
         void init_hogpp_avx(pybind11::module & m);
         init_hogpp_avx(m);
-#else
-        // TODO Throw
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::AVX>
@@ -307,19 +287,17 @@ struct CPUFeature<ISA::AVX>
     }
 };
 
+#if defined(HAVE_ISA_AVX2)
 template<>
 struct HOGppModule<ISA::AVX2>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_AVX2)
         void init_hogpp_avx2(pybind11::module & m);
         init_hogpp_avx2(m);
-#else
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::AVX2>
@@ -339,20 +317,17 @@ struct CPUFeature<ISA::AVX2>
     }
 };
 
+#if defined(HAVE_ISA_AVX512F)
 template<>
 struct HOGppModule<ISA::AVX512>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_AVX512F)
         void init_hogpp_avx512f(pybind11::module & m);
         init_hogpp_avx512f(m);
-#else
-        // TODO Trhow
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::AVX512>
@@ -372,20 +347,17 @@ struct CPUFeature<ISA::AVX512>
     }
 };
 
+#if defined(HAVE_ISA_AVX10_1)
 template<>
 struct HOGppModule<ISA::AVX10_1>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_AVX10_1)
         void init_hogpp_avx10_1(pybind11::module & m);
         init_hogpp_avx10_1(m);
-#else
-        (void)m;
-        // TODO Throw
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::AVX10_1>
@@ -405,19 +377,17 @@ struct CPUFeature<ISA::AVX10_1>
     }
 };
 
+#if defined(HAVE_ISA_AVX10_2)
 template<>
 struct HOGppModule<ISA::AVX10_2>
 {
     static void initialize(pybind11::module& m)
     {
-#if defined(HAVE_ISA_AVX10_2)
         void init_hogpp_avx10_2(pybind11::module & m);
         init_hogpp_avx10_2(m);
-#else
-        (void)m;
-#endif
     }
 };
+#endif
 
 template<>
 struct CPUFeature<ISA::AVX10_2>
@@ -460,6 +430,10 @@ using AvailableCPUFeatures = CPUFeatures
 
 namespace {
 
+template<ISA Type>
+concept HOGppModuleSupported =
+    requires(pybind11::module& m) { HOGppModule<Type>::initialize(m); };
+
 void supportedCPUFeatureNames(std::vector<std::string_view>& /*names*/,
                               CPUFeatures<> /*unused*/)
 {
@@ -469,8 +443,10 @@ template<ISA Type, ISA... Types>
 void supportedCPUFeatureNames(std::vector<std::string_view>& names,
                               CPUFeatures<Type, Types...> /*unused*/)
 {
-    if (CPUFeature<Type>::supported()) {
-        names.push_back(CPUFeature<Type>::name());
+    if constexpr (HOGppModuleSupported<Type>) {
+        if (CPUFeature<Type>::supported()) {
+            names.push_back(CPUFeature<Type>::name());
+        }
     }
 
     supportedCPUFeatureNames(names, CPUFeatures<Types...>{});
@@ -534,15 +510,13 @@ struct Initializer
                     "isa"_a = isa, "features"_a = fmt::join(supported, ", "),
                     "match"_a = *pos)};
             }
-            else {
-                throw pybind11::import_error{fmt::format(
-                    FMT_STRING(
-                        "The instruction set specified by the "
-                        "HOGPP_DISPATCH environment variable (\"{isa}\") is "
-                        "neither available nor supported. The following CPU "
-                        "features are supported: {features}."),
-                    "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
-            }
+
+            throw pybind11::import_error{fmt::format(
+                FMT_STRING("The instruction set specified by the "
+                           "HOGPP_DISPATCH environment variable (\"{isa}\") is "
+                           "neither available nor supported. The following CPU "
+                           "features are supported: {features}."),
+                "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
         }
 
         HOGppModule<ISA::Default>::initialize(m);
@@ -584,11 +558,19 @@ struct Initializer
         }
 
         if (initialize) {
-            debug(fmt::format(FMT_STRING("initializing using ISA {isa}"),
-                              "isa"_a = CPUFeature<Type>::name()));
-            HOGppModule<Type>::initialize(m);
+            // Make sure the module initialization is defined at compile-time
+            if constexpr (HOGppModuleSupported<Type>) {
+                debug(fmt::format(FMT_STRING("initializing using ISA {isa}"),
+                                  "isa"_a = CPUFeature<Type>::name()));
+                HOGppModule<Type>::initialize(m);
+            }
+            else {
+                // Otherwise continue searching
+                initialize = false;
+            }
         }
-        else {
+
+        if (!initialize) {
             run(CPUFeatures<Types...>{});
         }
     }
