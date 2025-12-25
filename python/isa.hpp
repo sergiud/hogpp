@@ -22,6 +22,8 @@
 
 #include <cstdint>
 
+namespace pyhogpp {
+
 enum class ISA : std::uint8_t
 {
     Default,
@@ -41,5 +43,7 @@ enum class ISA : std::uint8_t
     SVE256,
     SVE512,
 };
+
+} // namespace pyhogpp
 
 #endif

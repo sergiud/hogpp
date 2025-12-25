@@ -27,9 +27,11 @@
 
 #include "cpufeatures.hpp"
 
-struct HOGppModuleInitializer
+namespace pyhogpp {
+
+struct ModuleInitializer
 {
-    [[nodiscard]] explicit HOGppModuleInitializer(pybind11::module& m);
+    [[nodiscard]] explicit ModuleInitializer(pybind11::module& m);
 
     void run() const;
 
@@ -47,5 +49,7 @@ private:
     pybind11::object debug;
     const std::locale* const loc;
 };
+
+} // namespace pyhogpp
 
 #endif

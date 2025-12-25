@@ -29,7 +29,7 @@
 #include <fmt/ranges.h>
 
 #include "cpufeature.hpp"
-#include "module.hpp"
+#include "moduledispatch.hpp"
 #include "moduleinitializer.hpp"
 
 namespace pyhogpp {
@@ -45,7 +45,6 @@ namespace {
 }
 
 } // namespace
-} // namespace pyhogpp
 
 template<std::ranges::random_access_range R1,
          std::ranges::random_access_range R2,
@@ -88,10 +87,10 @@ template<std::ranges::random_access_range R1,
     return v0.back();
 }
 
-HOGppModuleInitializer::HOGppModuleInitializer(pybind11::module& m)
+ModuleInitializer::ModuleInitializer(pybind11::module& m)
     : m{m} // Allow to override the dispatch using the HOGPP_DISPATCH
            // environment variable
-    , isa{pyhogpp::getenv("HOGPP_DISPATCH")}
+    , isa{getenv("HOGPP_DISPATCH")}
     , logging{pybind11::module::import("logging")}
     , getLogger{pybind11::getattr(logging, "getLogger")}
     , moduleName{pybind11::getattr(m, "__name__")}
@@ -101,12 +100,12 @@ HOGppModuleInitializer::HOGppModuleInitializer(pybind11::module& m)
 {
 }
 
-void HOGppModuleInitializer::run() const
+void ModuleInitializer::run() const
 {
     run(AvailableCPUFeatures{});
 }
 
-void HOGppModuleInitializer::run(CPUFeatures<> /*unused*/) const
+void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
 {
     if (!isa.empty()) {
         using namespace fmt::literals;
@@ -152,11 +151,11 @@ void HOGppModuleInitializer::run(CPUFeatures<> /*unused*/) const
             "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
     }
 
-    HOGppModule<ISA::Default>::initialize(m);
+    ModuleDispatch<ISA::Default>::initialize(m);
 }
 
 template<ISA Type, ISA... Types>
-void HOGppModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
+void ModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
 {
     using namespace fmt::literals;
     bool initialize = false;
@@ -192,10 +191,10 @@ void HOGppModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
 
     if (initialize) {
         // Make sure the module initialization is defined at compile-time
-        if constexpr (HOGppModuleSupported<Type>) {
+        if constexpr (ModuleDispatchSupported<Type>) {
             debug(fmt::format(FMT_STRING("initializing using ISA {isa}"),
                               "isa"_a = CPUFeature<Type>::name()));
-            HOGppModule<Type>::initialize(m);
+            ModuleDispatch<Type>::initialize(m);
         }
         else {
             // Otherwise continue searching
@@ -207,3 +206,5 @@ void HOGppModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
         run(CPUFeatures<Types...>{});
     }
 }
+
+} // namespace pyhogpp

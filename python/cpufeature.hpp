@@ -24,6 +24,8 @@
 
 #include "isa.hpp"
 
+namespace pyhogpp {
+
 template<ISA Type>
 struct CPUFeature;
 
@@ -180,5 +182,7 @@ struct CPUFeature<ISA::SVE512> : CPUFeature<ISA::SVE>
         return "SVE512";
     }
 };
+
+} // namespace pyhogpp
 
 #endif
