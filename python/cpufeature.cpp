@@ -14,6 +14,8 @@
 #    include <isa_availability.h>
 #endif
 
+namespace pyhogpp {
+
 bool CPUFeature<ISA::SSE2>::supported() noexcept
 {
 #if defined(HAVE___CHECK_ISA_SUPPORT)
@@ -136,3 +138,5 @@ bool CPUFeature<ISA::SVE>::supported() noexcept
     return false;
 #endif
 }
+
+} // namespace pyhogpp
