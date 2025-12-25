@@ -17,8 +17,8 @@
 // limitations under the License.
 //
 
-#ifndef PYTHON_MODULE_HPP
-#define PYTHON_MODULE_HPP
+#ifndef PYTHON_MODULEDISPATCH_HPP
+#define PYTHON_MODULEDISPATCH_HPP
 
 #include <string_view>
 #include <vector>
@@ -28,22 +28,39 @@
 #include "isa.hpp"
 #include "isaconfig.hpp"
 
+void init_hogpp_default(pybind11::module& m);
+void init_hogpp_sse2(pybind11::module& m);
+void init_hogpp_sse3(pybind11::module& m);
+void init_hogpp_ssse3(pybind11::module& m);
+void init_hogpp_sse4_1(pybind11::module& m);
+void init_hogpp_sse4_2(pybind11::module& m);
+void init_hogpp_avx(pybind11::module& m);
+void init_hogpp_avx2(pybind11::module& m);
+void init_hogpp_avx512f(pybind11::module& m);
+void init_hogpp_avx10_1(pybind11::module& m);
+void init_hogpp_avx10_2(pybind11::module& m);
+void init_hogpp_neon(pybind11::module& m);
+void init_hogpp_sve128(pybind11::module& m);
+void init_hogpp_sve256(pybind11::module& m);
+void init_hogpp_sve512(pybind11::module& m);
+
+namespace pyhogpp {
+
 template<ISA Type>
-struct HOGppModule;
+struct ModuleDispatch;
 
 template<>
-struct HOGppModule<ISA::Default>
+struct ModuleDispatch<ISA::Default>
 {
     static void initialize(pybind11::module& m);
 };
 
 #if defined(HAVE_ISA_SSE2)
 template<>
-struct HOGppModule<ISA::SSE2>
+struct ModuleDispatch<ISA::SSE2>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_sse2(pybind11::module & m);
         init_hogpp_sse2(m);
     }
 };
@@ -51,11 +68,10 @@ struct HOGppModule<ISA::SSE2>
 
 #if defined(HAVE_ISA_SSE3)
 template<>
-struct HOGppModule<ISA::SSE3>
+struct ModuleDispatch<ISA::SSE3>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_sse3(pybind11::module & m);
         init_hogpp_sse3(m);
     }
 };
@@ -63,11 +79,10 @@ struct HOGppModule<ISA::SSE3>
 
 #if defined(HAVE_ISA_SSSE3)
 template<>
-struct HOGppModule<ISA::SSSE3>
+struct ModuleDispatch<ISA::SSSE3>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_ssse3(pybind11::module & m);
         init_hogpp_ssse3(m);
     }
 };
@@ -75,11 +90,10 @@ struct HOGppModule<ISA::SSSE3>
 
 #if defined(HAVE_ISA_SSE4_1)
 template<>
-struct HOGppModule<ISA::SSE4_1>
+struct ModuleDispatch<ISA::SSE4_1>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_sse4_1(pybind11::module & m);
         init_hogpp_sse4_1(m);
     }
 };
@@ -87,11 +101,10 @@ struct HOGppModule<ISA::SSE4_1>
 
 #if defined(HAVE_ISA_SSE4_2)
 template<>
-struct HOGppModule<ISA::SSE4_2>
+struct ModuleDispatch<ISA::SSE4_2>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_sse4_2(pybind11::module & m);
         init_hogpp_sse4_2(m);
     }
 };
@@ -99,11 +112,10 @@ struct HOGppModule<ISA::SSE4_2>
 
 #if defined(HAVE_ISA_AVX2)
 template<>
-struct HOGppModule<ISA::AVX>
+struct ModuleDispatch<ISA::AVX>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_avx(pybind11::module & m);
         init_hogpp_avx(m);
     }
 };
@@ -111,11 +123,10 @@ struct HOGppModule<ISA::AVX>
 
 #if defined(HAVE_ISA_AVX2)
 template<>
-struct HOGppModule<ISA::AVX2>
+struct ModuleDispatch<ISA::AVX2>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_avx2(pybind11::module & m);
         init_hogpp_avx2(m);
     }
 };
@@ -123,11 +134,10 @@ struct HOGppModule<ISA::AVX2>
 
 #if defined(HAVE_ISA_AVX512F)
 template<>
-struct HOGppModule<ISA::AVX512>
+struct ModuleDispatch<ISA::AVX512>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_avx512f(pybind11::module & m);
         init_hogpp_avx512f(m);
     }
 };
@@ -135,11 +145,10 @@ struct HOGppModule<ISA::AVX512>
 
 #if defined(HAVE_ISA_AVX10_1)
 template<>
-struct HOGppModule<ISA::AVX10_1>
+struct ModuleDispatch<ISA::AVX10_1>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_avx10_1(pybind11::module & m);
         init_hogpp_avx10_1(m);
     }
 };
@@ -147,11 +156,10 @@ struct HOGppModule<ISA::AVX10_1>
 
 #if defined(HAVE_ISA_AVX10_2)
 template<>
-struct HOGppModule<ISA::AVX10_2>
+struct ModuleDispatch<ISA::AVX10_2>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_avx10_2(pybind11::module & m);
         init_hogpp_avx10_2(m);
     }
 };
@@ -159,11 +167,10 @@ struct HOGppModule<ISA::AVX10_2>
 
 #if defined(HAVE_ISA_NEON)
 template<>
-struct HOGppModule<ISA::NEON>
+struct ModuleDispatch<ISA::NEON>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_neon(pybind11::module & m);
         init_hogpp_neon(m);
     }
 };
@@ -171,11 +178,10 @@ struct HOGppModule<ISA::NEON>
 
 #if defined(HAVE_ISA_SVE128)
 template<>
-struct HOGppModule<ISA::SVE128>
+struct ModuleDispatch<ISA::SVE128>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_sve128(pybind11::module & m);
         init_hogpp_sve128(m);
     }
 };
@@ -183,11 +189,10 @@ struct HOGppModule<ISA::SVE128>
 
 #if defined(HAVE_ISA_SVE256)
 template<>
-struct HOGppModule<ISA::SVE256>
+struct ModuleDispatch<ISA::SVE256>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_sve256(pybind11::module & m);
         init_hogpp_sve256(m);
     }
 };
@@ -195,20 +200,21 @@ struct HOGppModule<ISA::SVE256>
 
 #if defined(HAVE_ISA_SVE512)
 template<>
-struct HOGppModule<ISA::SVE512>
+struct ModuleDispatch<ISA::SVE512>
 {
     static void initialize(pybind11::module& m)
     {
-        void init_hogpp_sve512(pybind11::module & m);
         init_hogpp_sve512(m);
     }
 };
 #endif
 
 template<ISA Type>
-concept HOGppModuleSupported =
-    requires(pybind11::module& m) { HOGppModule<Type>::initialize(m); };
+concept ModuleDispatchSupported =
+    requires(pybind11::module& m) { ModuleDispatch<Type>::initialize(m); };
 
 [[nodiscard]] std::vector<std::string_view> supportedCPUFeatureNames();
+
+} // namespace pyhogpp
 
 #endif

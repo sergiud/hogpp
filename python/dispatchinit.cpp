@@ -36,6 +36,6 @@
 
 HOGPP_MODULE(HOGPP_MODULE_NAME, m)
 {
-    const HOGppModuleInitializer initializer{m};
+    const pyhogpp::ModuleInitializer initializer{m};
     initializer.run();
 }

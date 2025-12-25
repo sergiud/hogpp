@@ -22,6 +22,8 @@
 
 #include "isa.hpp"
 
+namespace pyhogpp {
+
 template<ISA... Types>
 struct CPUFeatures
 {
@@ -46,5 +48,7 @@ using AvailableCPUFeatures = CPUFeatures
     , ISA::NEON
 >;
 // clang-format on
+
+} // namespace pyhogpp
 
 #endif

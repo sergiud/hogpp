@@ -2,11 +2,12 @@
 
 #include "cpufeature.hpp"
 #include "cpufeatures.hpp"
-#include "module.hpp"
+#include "moduledispatch.hpp"
 
-void HOGppModule<ISA::Default>::initialize(pybind11::module& m)
+namespace pyhogpp {
+
+void ModuleDispatch<ISA::Default>::initialize(pybind11::module& m)
 {
-    void init_hogpp_default(pybind11::module & m);
     init_hogpp_default(m);
 }
 
@@ -21,7 +22,7 @@ template<ISA Type, ISA... Types>
 void supportedCPUFeatureNames(std::vector<std::string_view>& names,
                               CPUFeatures<Type, Types...> /*unused*/)
 {
-    if constexpr (HOGppModuleSupported<Type>) {
+    if constexpr (ModuleDispatchSupported<Type>) {
         if (CPUFeature<Type>::supported()) {
             names.push_back(CPUFeature<Type>::name());
         }
@@ -39,3 +40,5 @@ std::vector<std::string_view> supportedCPUFeatureNames()
     std::ranges::sort(names);
     return names;
 }
+
+} // namespace pyhogpp
