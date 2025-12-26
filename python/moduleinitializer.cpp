@@ -151,7 +151,7 @@ void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
             "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
     }
 
-    ModuleDispatch<ISA::Default>::initialize(m);
+    ModuleDispatch<ISA::Generic>::initialize(m);
 }
 
 template<ISA Type, ISA... Types>

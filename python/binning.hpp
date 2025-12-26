@@ -30,7 +30,7 @@
 #include <hogpp/signedgradient.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 enum class BinningType
 {
@@ -38,7 +38,7 @@ enum class BinningType
     Unsigned
 };
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 namespace pybind11::detail {
 
@@ -56,7 +56,7 @@ private:
 
 } // namespace pybind11::detail
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template<class T>
 class Binning
@@ -114,8 +114,8 @@ private:
 extern template class Binning<float>;
 extern template class Binning<double>;
 
-} // namespace pyhogpp
-  //
+} // namespace pyhogpp::inline HOGPP_TARGET
+
 #include <hogpp/suffix.hpp>
 
 #endif // PYTHON_HOGPP_BINNING_HPP

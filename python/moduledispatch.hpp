@@ -35,7 +35,7 @@ template<ISA Type>
 struct ModuleDispatch;
 
 template<>
-struct ModuleDispatch<ISA::Default>
+struct ModuleDispatch<ISA::Generic>
 {
     static void initialize(pybind11::module& m);
 };
