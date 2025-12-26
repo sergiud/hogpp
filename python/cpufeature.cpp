@@ -130,7 +130,7 @@ bool CPUFeature<ISA::AVX10_1>::supported() noexcept
 #if defined(HAVE___CHECK_ISA_SUPPORT)
     return __check_isa_support(__IA_SUPPORT_VECTOR512, 1);
 #elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS) && defined(__GNUC__) && \
-    (__GNUC__ >= 14)
+    (__GNUC__ >= 15)
     return __builtin_cpu_supports("avx10.1");
 #else
     return false;
