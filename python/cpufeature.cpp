@@ -33,9 +33,11 @@
 #    include <isa_availability.h>
 #endif
 
-#if defined(__has_builtin)
-#    if __has_builtin(__builtin_cpu_supports)
-#        define HOGPP_USE_BUILTIN_CPU_SUPPORTS
+#if defined(__i386__) || defined(__x86_64__)
+#    if defined(__has_builtin)
+#        if __has_builtin(__builtin_cpu_supports)
+#            define HOGPP_USE_BUILTIN_CPU_SUPPORTS
+#        endif
 #    endif
 #endif
 
