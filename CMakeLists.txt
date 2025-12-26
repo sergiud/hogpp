@@ -165,7 +165,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       check_cxx_compiler_flag (-mavx10.1 HAVE_ISA_AVX10_1)
       check_cxx_compiler_flag (-mavx10.2 HAVE_ISA_AVX10_2)
     endif (NOT APPLE)
-
   elseif (MSVC)
     set (_supported
       SSE2
@@ -184,16 +183,19 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     check_cxx_compiler_flag (/arch:AVX10.1 HAVE_ISA_AVX10_1)
   endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 
-  list (APPEND _supported NEON)
+  if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64|ARM)")
+    list (APPEND _supported NEON)
+    set (HAVE_ISA_NEON 1)
 
-  if (HAVE_MSVE_VECTOR_BITS)
-    set (HAVE_ISA_SVE128 1)
-    set (HAVE_ISA_SVE256 1)
-    set (HAVE_ISA_SVE512 1)
-    list (APPEND _supported SVE128)
-    list (APPEND _supported SVE256)
-    list (APPEND _supported SVE512)
-  endif (HAVE_MSVE_VECTOR_BITS)
+    if (HAVE_MSVE_VECTOR_BITS)
+      set (HAVE_ISA_SVE128 1)
+      set (HAVE_ISA_SVE256 1)
+      set (HAVE_ISA_SVE512 1)
+      list (APPEND _supported SVE128)
+      list (APPEND _supported SVE256)
+      list (APPEND _supported SVE512)
+    endif (HAVE_MSVE_VECTOR_BITS)
+  endif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64|ARM)")
 
   configure_file (
     python/isaconfig.hpp.cmake.in
