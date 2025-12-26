@@ -33,6 +33,8 @@
 #    include <isa_availability.h>
 #endif
 
+// Cacade macro definition by constraining it to x86/x86-64 instead of checking
+// for the platform inline to avoid unused macro definition warnings.
 #if defined(__i386__) || defined(__x86_64__)
 #    if defined(__has_builtin)
 #        if __has_builtin(__builtin_cpu_supports)
