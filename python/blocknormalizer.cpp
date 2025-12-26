@@ -83,11 +83,11 @@ handle type_caster<pyhogpp::BlockNormalizerType>::cast(
 
 } // namespace pybind11::detail
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template class BlockNormalizer<float>;
 template class BlockNormalizer<double>;
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #include <hogpp/suffix.hpp>

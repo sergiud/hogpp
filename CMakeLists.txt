@@ -243,7 +243,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   # TODO aarch64 Eigen 3.4.0 EIGEN_ARM64_USE_SVE -msve-vector-bits=N
 
   set (_arch
-    default
+    generic
   )
 
   foreach (isa IN LISTS _supported)
@@ -274,7 +274,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       python/magnitude.cpp
       python/magnitude.hpp
       # We cannot reuse the python_type_caster library since we need to rename
-      # the namespaces
+      # namespaces.
       #
       # While bounds.[ch]pp do not depend on a specific ABI, we rename the
       # namespace which requires treating the sources as ABI specific.
@@ -285,9 +285,9 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       python/type_caster/typesequence.hpp
     )
 
-    if (arch STREQUAL default)
+    if (arch STREQUAL generic)
       target_compile_definitions (${target_name} PRIVATE
-        # Don't vector the default dispatch to avoid same code generation for
+        # Don't vector the generic dispatch to avoid same code generation for
         # different modules
         EIGEN_DONT_VECTORIZE
         HOGPP_TARGET=${_suffix}
@@ -299,7 +299,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       if (HAVE_MTUNE_GENERIC)
         target_compile_options (${target_name} PRIVATE -mtune=generic)
       endif (HAVE_MTUNE_GENERIC)
-    else (arch STREQUAL default)
+    else (arch STREQUAL generic)
       #set_source_files_properties (python/hogpp.cpp
       #  TARGET_DIRECTORY ${target_name}
       #  PROPERTIES COMPILE_DEFINITIONS HOGPP_TARGET=${_suffix}
@@ -337,9 +337,8 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
         EIGEN_VECTORIZE_${_eigen_suffix}
         Eigen=Eigen_${_suffix}
         hogpp=hogpp_${_suffix}
-        pyhogpp=pyhogpp_${_suffix}
       )
-    endif (arch STREQUAL default)
+    endif (arch STREQUAL generic)
 
     if (HAVE_MBIG_OBJ)
       target_compile_options (${target_name} PRIVATE -Wa,-mbig-obj)

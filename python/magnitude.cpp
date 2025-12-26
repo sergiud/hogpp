@@ -70,11 +70,11 @@ handle type_caster<pyhogpp::MagnitudeType>::cast(pyhogpp::MagnitudeType in,
 
 } // namespace pybind11::detail
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template class Magnitude<float>;
 template class Magnitude<double>;
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #include <hogpp/suffix.hpp>

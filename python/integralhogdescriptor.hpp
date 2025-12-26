@@ -38,7 +38,7 @@
 #include "magnitude.hpp"
 #include "type_caster/typesequence.hpp"
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template<class T>
 using Descriptor =
@@ -105,7 +105,7 @@ struct RankNTensorPair
     RankNTensor<Ranks...> buf2;
 };
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 template<long... Ranks>
 class pybind11::detail::type_caster<pyhogpp::RankNTensor<Ranks...>>
@@ -193,7 +193,7 @@ public:
     }
 };
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 using Rank2Or3Tensor = RankNTensor<2, 3>;
 using Rank2Or3TensorPair = RankNTensorPair<2, 3>;
@@ -277,6 +277,6 @@ private:
     DescriptorVariant descriptor_;
 };
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #endif // PYTHON_HOGPP_INTEGRALHOGDESCRIPTOR_HPP

@@ -64,11 +64,11 @@ handle type_caster<pyhogpp::BinningType>::cast(pyhogpp::BinningType in,
 
 } // namespace pybind11::detail
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template class Binning<float>;
 template class Binning<double>;
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #include <hogpp/suffix.hpp>

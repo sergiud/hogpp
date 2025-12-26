@@ -26,7 +26,7 @@ namespace pyhogpp {
 
 enum class ISA : std::uint8_t
 {
-    Default,
+    Generic,
     SSE2,
     SSE3,
     SSSE3,
