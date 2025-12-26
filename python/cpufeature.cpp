@@ -33,13 +33,19 @@
 #    include <isa_availability.h>
 #endif
 
+#if defined(__has_builtin)
+#    if __has_builtin(__builtin_cpu_supports)
+#        define HOGPP_USE_BUILTIN_CPU_SUPPORTS
+#    endif
+#endif
+
 namespace pyhogpp {
 
 bool CPUFeature<ISA::SSE2>::supported() noexcept
 {
 #if defined(HAVE___CHECK_ISA_SUPPORT)
     return __check_isa_support(__IA_SUPPORT_VECTOR128, 0);
-#elif defined(HAVE_ISA_SSE2)
+#elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("sse2");
 #else
     return false;
@@ -48,7 +54,7 @@ bool CPUFeature<ISA::SSE2>::supported() noexcept
 
 bool CPUFeature<ISA::SSE3>::supported() noexcept
 {
-#if defined(HAVE_ISA_SSE3)
+#if defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("sse3");
 #else
     return false;
@@ -57,7 +63,7 @@ bool CPUFeature<ISA::SSE3>::supported() noexcept
 
 bool CPUFeature<ISA::SSSE3>::supported() noexcept
 {
-#if defined(HAVE_ISA_SSSE3)
+#if defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("ssse3");
 #else
     return false;
@@ -68,7 +74,7 @@ bool CPUFeature<ISA::SSE4_2>::supported() noexcept
 {
 #if defined(HAVE___CHECK_ISA_SUPPORT)
     return __check_isa_support(__IA_SUPPORT_SSE42, 0);
-#elif defined(HAVE_ISA_SSE4_2)
+#elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("sse4.2");
 #else
     return false;
@@ -77,7 +83,7 @@ bool CPUFeature<ISA::SSE4_2>::supported() noexcept
 
 bool CPUFeature<ISA::SSE4_1>::supported() noexcept
 {
-#if defined(HAVE_ISA_SSE4_1)
+#if defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("sse4.1");
 #else
     return false;
@@ -86,7 +92,7 @@ bool CPUFeature<ISA::SSE4_1>::supported() noexcept
 
 bool CPUFeature<ISA::AVX>::supported() noexcept
 {
-#if defined(HAVE_ISA_AVX)
+#if defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("avx");
 #else
     return false;
@@ -97,7 +103,7 @@ bool CPUFeature<ISA::AVX2>::supported() noexcept
 {
 #if defined(HAVE___CHECK_ISA_SUPPORT)
     return __check_isa_support(__IA_SUPPORT_VECTOR256, 0);
-#elif defined(HAVE_ISA_AVX2)
+#elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("avx2");
 #else
     return false;
@@ -108,7 +114,7 @@ bool CPUFeature<ISA::AVX512>::supported() noexcept
 {
 #if defined(HAVE___CHECK_ISA_SUPPORT)
     return __check_isa_support(__IA_SUPPORT_VECTOR512, 0);
-#elif defined(HAVE_ISA_AVX512F)
+#elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("avx512f");
 #else
     return false;
@@ -119,7 +125,7 @@ bool CPUFeature<ISA::AVX10_1>::supported() noexcept
 {
 #if defined(HAVE___CHECK_ISA_SUPPORT)
     return __check_isa_support(__IA_SUPPORT_VECTOR512, 1);
-#elif defined(HAVE_ISA_AVX10_1)
+#elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("avx10.1");
 #else
     return false;
