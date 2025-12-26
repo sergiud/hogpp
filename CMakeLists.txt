@@ -145,6 +145,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       AVX
       AVX2
       AVX512F
+      AVX10.1
       AVX10.2
     )
 
@@ -156,6 +157,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     check_cxx_compiler_flag (-mavx HAVE_ISA_AVX)
     check_cxx_compiler_flag (-mavx2 HAVE_ISA_AVX2)
     check_cxx_compiler_flag (-mavx512f HAVE_ISA_AVX512F)
+    check_cxx_compiler_flag (-mavx10.1 HAVE_ISA_AVX10_1)
     check_cxx_compiler_flag (-mavx10.2 HAVE_ISA_AVX10_2)
   elseif (MSVC)
     set (_supported
@@ -324,12 +326,12 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
         endif (NOT MSVC)
       endif (arch STREQUAL NEON)
 
-      if (arch STREQUAL AVX512F OR arch STREQUAL AVX10.2)
+      if (arch STREQUAL AVX512F OR arch MATCHES "^AVX10")
         # Required for AVX512F (and above) by Eigen 5.x
         # compiling with -mavx512f alone without SSE/AVX FMA is not supported (bug 1638)
         # https://gitlab.com/libeigen/eigen/-/issues/1638
         target_compile_options (${target_name} PRIVATE -mfma)
-      endif (arch STREQUAL AVX512F OR arch STREQUAL AVX10.2)
+      endif (arch STREQUAL AVX512F OR arch MATCHES "^AVX10")
 
       # Rename the Eigen namespace to avoid One Definition Rule (ODR) violations
       target_compile_definitions (${target_name} PRIVATE
