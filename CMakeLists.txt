@@ -168,12 +168,12 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       AVX10.1
     )
 
-    check_cxx_compiler_flag (/march:SSE2 HAVE_ISA_SSE2)
-    check_cxx_compiler_flag (/march:SSE4.2 HAVE_ISA_SSE4_2)
-    check_cxx_compiler_flag (/march:AVX HAVE_ISA_AVX)
-    check_cxx_compiler_flag (/march:AVX2 HAVE_ISA_AVX2)
-    check_cxx_compiler_flag (/march:AVX512 HAVE_ISA_AVX512)
-    check_cxx_compiler_flag (/march:AVX10.1 HAVE_ISA_AVX10_1)
+    check_cxx_compiler_flag (/arch:SSE2 HAVE_ISA_SSE2)
+    check_cxx_compiler_flag (/arch:SSE4.2 HAVE_ISA_SSE4_2)
+    check_cxx_compiler_flag (/arch:AVX HAVE_ISA_AVX)
+    check_cxx_compiler_flag (/arch:AVX2 HAVE_ISA_AVX2)
+    check_cxx_compiler_flag (/arch:AVX512 HAVE_ISA_AVX512)
+    check_cxx_compiler_flag (/arch:AVX10.1 HAVE_ISA_AVX10_1)
   endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 
   list (APPEND _supported NEON)
@@ -251,13 +251,14 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     string (MAKE_C_IDENTIFIER "${isa}" _suffix)
 
     if (HAVE_ISA_${_suffix})
-      list (APPEND _arch ${_lower_isa})
+      list (APPEND _arch ${isa})
     endif (HAVE_ISA_${_suffix})
   endforeach (isa)
 
   foreach (arch IN LISTS _arch)
     string (TOLOWER "${arch}" _lower_arch)
     string (MAKE_C_IDENTIFIER "${_lower_arch}" _suffix)
+    string (MAKE_C_IDENTIFIER "${arch}" _eigen_suffix)
     set (target_name pyhogpp_${_suffix})
 
     add_library (${target_name} OBJECT
@@ -307,28 +308,33 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
         HOGPP_TARGET=${_suffix}
       )
 
-      if (arch STREQUAL neon)
+      if (arch STREQUAL NEON)
         target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_NEON)
 
         if (HAVE_MFPU_NEON)
           target_compile_options (${target_name} PRIVATE -mfpu=neon)
         endif (HAVE_MFPU_NEON)
-      elseif (arch MATCHES "^sve([0-9]+)$")
+      elseif (arch MATCHES "^SVE([0-9]+)$")
         target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_SVE)
         target_compile_options (${target_name} PRIVATE -msve-vector-bits=${CMAKE_MATCH_1})
-      else (arch STREQUAL neon)
-        target_compile_options (${target_name} PRIVATE -m${_lower_arch})
-      endif (arch STREQUAL neon)
+      else (arch STREQUAL NEON)
+        if (NOT MSVC)
+          target_compile_options (${target_name} PRIVATE -m${_lower_arch})
+        else (NOT MSVC)
+          target_compile_options (${target_name} PRIVATE /arch:${arch})
+        endif (NOT MSVC)
+      endif (arch STREQUAL NEON)
 
-      if (arch STREQUAL avx512f OR arch STREQUAL avx10.2)
+      if (arch STREQUAL AVX512F OR arch STREQUAL AVX10.2)
         # Required for AVX512F (and above) by Eigen 5.x
         # compiling with -mavx512f alone without SSE/AVX FMA is not supported (bug 1638)
         # https://gitlab.com/libeigen/eigen/-/issues/1638
         target_compile_options (${target_name} PRIVATE -mfma)
-      endif (arch STREQUAL avx512f OR arch STREQUAL avx10.2)
+      endif (arch STREQUAL AVX512F OR arch STREQUAL AVX10.2)
 
       # Rename the Eigen namespace to avoid One Definition Rule (ODR) violations
       target_compile_definitions (${target_name} PRIVATE
+        EIGEN_VECTORIZE_${_eigen_suffix}
         Eigen=Eigen_${_suffix}
         hogpp=hogpp_${_suffix}
         pyhogpp=pyhogpp_${_suffix}
