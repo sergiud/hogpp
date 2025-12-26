@@ -44,6 +44,45 @@ namespace {
     return {}; // Avoid invoking std::strlen on a nullptr
 }
 
+[[noreturn]] void reportUnsupportedDispatch(std::string_view isa)
+{
+    using namespace fmt::literals;
+
+    throw pybind11::import_error{fmt::format(
+        FMT_STRING(
+            "The instruction set specified by the HOGPP_DISPATCH environment "
+            "variable (\"{isa}\") is neither available nor supported."),
+        "isa"_a = isa)};
+}
+
+[[noreturn]] void reportUnsupportedDispatch(
+    std::string_view isa, const std::vector<std::string_view>& supported)
+{
+    using namespace fmt::literals;
+
+    throw pybind11::import_error{fmt::format(
+        FMT_STRING(
+            "The instruction set specified by the HOGPP_DISPATCH environment "
+            "variable (\"{isa}\") is neither available nor supported. The "
+            "following CPU features are supported: {features}."),
+        "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
+}
+
+[[noreturn]] void reportUnsupportedDispatch(
+    std::string_view isa, std::string_view match,
+    const std::vector<std::string_view>& supported)
+{
+    using namespace fmt::literals;
+
+    throw pybind11::import_error{fmt::format(
+        FMT_STRING("The instruction set specified by the HOGPP_DISPATCH "
+                   "environment variable (\"{isa}\") is neither available nor "
+                   "supported. The following CPU features are supported: "
+                   "{features}. Did you mean {match}?"),
+        "isa"_a = isa, "features"_a = fmt::join(supported, ", "),
+        "match"_a = match)};
+}
+
 } // namespace
 
 template<std::ranges::random_access_range R1,
@@ -108,19 +147,12 @@ void ModuleInitializer::run() const
 void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
 {
     if (!isa.empty()) {
-        using namespace fmt::literals;
-
         const auto& supported = supportedCPUFeatureNames();
 
         if (supported.empty()) {
             // No dispatch for additional instruction sets defined: nothing to
             // do
-            throw pybind11::import_error{fmt::format(
-                FMT_STRING(
-                    "The instruction set specified by the HOGPP_DISPATCH "
-                    "environment variable (\"{isa}\") is neither available "
-                    "nor supported."),
-                "isa"_a = isa)};
+            reportUnsupportedDispatch(isa);
         }
 
         const auto proj = [loc = *loc](char ch) {
@@ -133,22 +165,10 @@ void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
             });
 
         if (pos != supported.end()) {
-            throw pybind11::import_error{fmt::format(
-                FMT_STRING(
-                    "The instruction set specified by the HOGPP_DISPATCH "
-                    "environment variable (\"{isa}\") is neither available "
-                    "nor supported. The following CPU features are "
-                    "supported: {features}. Did you mean {match}?"),
-                "isa"_a = isa, "features"_a = fmt::join(supported, ", "),
-                "match"_a = *pos)};
+            reportUnsupportedDispatch(isa, *pos, supported);
         }
 
-        throw pybind11::import_error{fmt::format(
-            FMT_STRING("The instruction set specified by the "
-                       "HOGPP_DISPATCH environment variable (\"{isa}\") is "
-                       "neither available nor supported. The following CPU "
-                       "features are supported: {features}."),
-            "isa"_a = isa, "features"_a = fmt::join(supported, ", "))};
+        reportUnsupportedDispatch(isa, supported);
     }
 
     ModuleDispatch<ISA::Generic>::initialize(m);
@@ -169,15 +189,15 @@ void ModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
 
         if (std::ranges::equal(isa, name, {}, proj, proj)) {
             if (!CPUFeature<Type>::supported()) {
-                throw pybind11::import_error{fmt::format(
-                    FMT_STRING(
-                        "ISA specified by the HOGPP_DISPATCH environment "
-                        "variable (\"{isa}\") is not supported by the CPU. "
-                        "The following CPU features are supported: "
-                        "{features}."),
-                    "isa"_a = isa,
-                    "features"_a =
-                        fmt::join(supportedCPUFeatureNames(), ", "))};
+                const auto& supported = supportedCPUFeatureNames();
+
+                if (supported.empty()) {
+                    // No dispatch for additional instruction sets defined:
+                    // nothing to do
+                    reportUnsupportedDispatch(isa);
+                }
+
+                reportUnsupportedDispatch(isa, supported);
             }
 
             debug(fmt::format(FMT_STRING("found requested ISA {isa}"),
