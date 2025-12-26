@@ -20,32 +20,17 @@
 #ifndef PYTHON_MODULEDISPATCH_HPP
 #define PYTHON_MODULEDISPATCH_HPP
 
-#include <string_view>
-#include <vector>
-
 #include <pybind11/pybind11.h>
 
 #include "isa.hpp"
 #include "isaconfig.hpp"
 
-void init_hogpp_default(pybind11::module& m);
-void init_hogpp_sse2(pybind11::module& m);
-void init_hogpp_sse3(pybind11::module& m);
-void init_hogpp_ssse3(pybind11::module& m);
-void init_hogpp_sse4_1(pybind11::module& m);
-void init_hogpp_sse4_2(pybind11::module& m);
-void init_hogpp_avx(pybind11::module& m);
-void init_hogpp_avx2(pybind11::module& m);
-void init_hogpp_avx512f(pybind11::module& m);
-void init_hogpp_avx10_1(pybind11::module& m);
-void init_hogpp_avx10_2(pybind11::module& m);
-void init_hogpp_neon(pybind11::module& m);
-void init_hogpp_sve128(pybind11::module& m);
-void init_hogpp_sve256(pybind11::module& m);
-void init_hogpp_sve512(pybind11::module& m);
-
 namespace pyhogpp {
 
+/**
+ * @brief Provides dispatch for the module functionality compiled using the
+ * specified instruction set architecture (ISA).
+ */
 template<ISA Type>
 struct ModuleDispatch;
 
@@ -59,10 +44,7 @@ struct ModuleDispatch<ISA::Default>
 template<>
 struct ModuleDispatch<ISA::SSE2>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_sse2(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -70,10 +52,7 @@ struct ModuleDispatch<ISA::SSE2>
 template<>
 struct ModuleDispatch<ISA::SSE3>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_sse3(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -81,10 +60,7 @@ struct ModuleDispatch<ISA::SSE3>
 template<>
 struct ModuleDispatch<ISA::SSSE3>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_ssse3(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -92,10 +68,7 @@ struct ModuleDispatch<ISA::SSSE3>
 template<>
 struct ModuleDispatch<ISA::SSE4_1>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_sse4_1(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -103,10 +76,7 @@ struct ModuleDispatch<ISA::SSE4_1>
 template<>
 struct ModuleDispatch<ISA::SSE4_2>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_sse4_2(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -114,10 +84,7 @@ struct ModuleDispatch<ISA::SSE4_2>
 template<>
 struct ModuleDispatch<ISA::AVX>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_avx(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -125,10 +92,7 @@ struct ModuleDispatch<ISA::AVX>
 template<>
 struct ModuleDispatch<ISA::AVX2>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_avx2(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -136,10 +100,7 @@ struct ModuleDispatch<ISA::AVX2>
 template<>
 struct ModuleDispatch<ISA::AVX512>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_avx512f(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -147,10 +108,7 @@ struct ModuleDispatch<ISA::AVX512>
 template<>
 struct ModuleDispatch<ISA::AVX10_1>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_avx10_1(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -158,10 +116,7 @@ struct ModuleDispatch<ISA::AVX10_1>
 template<>
 struct ModuleDispatch<ISA::AVX10_2>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_avx10_2(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -169,10 +124,7 @@ struct ModuleDispatch<ISA::AVX10_2>
 template<>
 struct ModuleDispatch<ISA::NEON>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_neon(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -180,10 +132,7 @@ struct ModuleDispatch<ISA::NEON>
 template<>
 struct ModuleDispatch<ISA::SVE128>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_sve128(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -191,10 +140,7 @@ struct ModuleDispatch<ISA::SVE128>
 template<>
 struct ModuleDispatch<ISA::SVE256>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_sve256(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
@@ -202,18 +148,13 @@ struct ModuleDispatch<ISA::SVE256>
 template<>
 struct ModuleDispatch<ISA::SVE512>
 {
-    static void initialize(pybind11::module& m)
-    {
-        init_hogpp_sve512(m);
-    }
+    static void initialize(pybind11::module& m);
 };
 #endif
 
 template<ISA Type>
 concept ModuleDispatchSupported =
     requires(pybind11::module& m) { ModuleDispatch<Type>::initialize(m); };
-
-[[nodiscard]] std::vector<std::string_view> supportedCPUFeatureNames();
 
 } // namespace pyhogpp
 
