@@ -61,4 +61,11 @@
 // Indicates whether the __check_isa_support function is available.
 #cmakedefine HAVE___CHECK_ISA_SUPPORT
 
+#if !defined(HAVE_ISA_NEON)
+#    if defined(__aarch64__) || defined(__arm__) || defined(_M_ARM64) || \
+        defined(_M_ARM)
+#        define HAVE_ISA_NEON
+#    endif
+#endif
+
 // vim: ft=cpp

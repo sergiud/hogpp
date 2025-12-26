@@ -121,14 +121,8 @@ target_link_libraries (hogpp INTERFACE
 )
 
 if (pybind11_FOUND AND Python_Development.Module_FOUND)
-  check_cxx_symbol_exists (__aarch64__ "" HAVE_ARCH_AARCH64)
-  check_cxx_symbol_exists (__arm__ "" HAVE_ARCH_ARM)
   check_cxx_compiler_flag (-mfpu=neon HAVE_MFPU_NEON)
   check_cxx_compiler_flag (-msve-vector-bits=scalable HAVE_MSVE_VECTOR_BITS)
-
-  if (HAVE_ARCH_AARCH64 OR HAVE_ARCH_ARM)
-    set (HAVE_ISA_NEON 1)
-  endif (HAVE_ARCH_AARCH64 OR HAVE_ARCH_ARM)
 
   check_cxx_symbol_exists (__check_isa_support "immintrin.h" HAVE___CHECK_ISA_SUPPORT)
   check_cxx_symbol_exists (getauxval "sys/auxv.h" HAVE_GETAUXVAL)
