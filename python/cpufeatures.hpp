@@ -20,6 +20,9 @@
 #ifndef PYTHON_CPUFEATURES_HPP
 #define PYTHON_CPUFEATURES_HPP
 
+#include <string_view>
+#include <vector>
+
 #include "isa.hpp"
 
 namespace pyhogpp {
@@ -48,6 +51,8 @@ using AvailableCPUFeatures = CPUFeatures
     , ISA::NEON
 >;
 // clang-format on
+
+[[nodiscard]] std::vector<std::string_view> supportedCPUFeatureNames();
 
 } // namespace pyhogpp
 

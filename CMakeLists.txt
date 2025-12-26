@@ -219,6 +219,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     python/cpufeature.cpp
     python/cpufeature.hpp
     python/cpufeatures.hpp
+    python/cpufeatures.cpp
     python/dispatchinit.cpp
     python/isa.hpp
     python/moduledispatch.cpp
