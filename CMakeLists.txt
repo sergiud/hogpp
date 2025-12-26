@@ -145,8 +145,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       AVX
       AVX2
       AVX512F
-      AVX10.1
-      AVX10.2
     )
 
     check_cxx_compiler_flag (-msse2 HAVE_ISA_SSE2)
@@ -157,8 +155,23 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     check_cxx_compiler_flag (-mavx HAVE_ISA_AVX)
     check_cxx_compiler_flag (-mavx2 HAVE_ISA_AVX2)
     check_cxx_compiler_flag (-mavx512f HAVE_ISA_AVX512F)
-    check_cxx_compiler_flag (-mavx10.1 HAVE_ISA_AVX10_1)
-    check_cxx_compiler_flag (-mavx10.2 HAVE_ISA_AVX10_2)
+
+    # Avoid the following Eigen error when compiling using AppleClang:
+    #   error: invalid output size for constraint '=v'
+    #     360 |   __asm__("vbroadcastss %[mem], %[dst]" : [dst] "=v"(ret) : [mem] "m"(*from));
+    # when compiling using -mavx10.1 by explicitly setting the word size.
+    # Eigen assumes 512 bit vectors while AppleClang -mavx10.1 defaults to
+    # 256 bits.
+    if (NOT APPLE)
+      list (APPEND _supported
+        AVX10.1
+        AVX10.2
+      )
+
+      check_cxx_compiler_flag (-mavx10.1 HAVE_ISA_AVX10_1)
+      check_cxx_compiler_flag (-mavx10.2 HAVE_ISA_AVX10_2)
+    endif (NOT APPLE)
+
   elseif (MSVC)
     set (_supported
       SSE2
