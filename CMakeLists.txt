@@ -6,6 +6,11 @@ project (hogpp
   HOMEPAGE_URL https://github.com/sergiud/hogpp
 )
 
+# Disable module support since under MinGW Clang compiling fails with the error
+# '"CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND"' is not recognized as an
+# internal or external command'. On Linux, the following Clang bug additionally
+# prevents compilation: https://github.com/llvm/llvm-project/issues/88896
+set (CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set (CMAKE_CXX_VISIBILITY_PRESET hidden)
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
