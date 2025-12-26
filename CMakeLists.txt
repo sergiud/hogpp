@@ -131,7 +131,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   endif (HAVE_ARCH_AARCH64 OR HAVE_ARCH_ARM)
 
   check_cxx_symbol_exists (__check_isa_support "immintrin.h" HAVE___CHECK_ISA_SUPPORT)
-  check_cxx_symbol_exists (__cpuid "intrin.h" HAVE___CPUID)
   check_cxx_symbol_exists (getauxval "sys/auxv.h" HAVE_GETAUXVAL)
   check_include_file_cxx ("asm/hwcap.h" HAVE_ASM_HWCAP_H)
   check_include_file_cxx ("sys/auxv.h" HAVE_SYS_AUXV_H)
