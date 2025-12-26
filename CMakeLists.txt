@@ -330,17 +330,17 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       else (arch STREQUAL NEON)
         if (NOT MSVC)
           target_compile_options (${target_name} PRIVATE -m${_lower_arch})
+
+          if (arch STREQUAL AVX512F OR arch MATCHES "^AVX10")
+            # Required for AVX512F (and above) by Eigen 5.x for compiling with
+            # -mavx512f alone without SSE/AVX FMA is not supported (bug 1638)
+            # https://gitlab.com/libeigen/eigen/-/issues/1638
+            target_compile_options (${target_name} PRIVATE -mfma)
+          endif (arch STREQUAL AVX512F OR arch MATCHES "^AVX10")
         else (NOT MSVC)
           target_compile_options (${target_name} PRIVATE /arch:${arch})
         endif (NOT MSVC)
       endif (arch STREQUAL NEON)
-
-      if (arch STREQUAL AVX512F OR arch MATCHES "^AVX10")
-        # Required for AVX512F (and above) by Eigen 5.x
-        # compiling with -mavx512f alone without SSE/AVX FMA is not supported (bug 1638)
-        # https://gitlab.com/libeigen/eigen/-/issues/1638
-        target_compile_options (${target_name} PRIVATE -mfma)
-      endif (arch STREQUAL AVX512F OR arch MATCHES "^AVX10")
 
       # Rename the Eigen namespace to avoid One Definition Rule (ODR) violations
       target_compile_definitions (${target_name} PRIVATE
