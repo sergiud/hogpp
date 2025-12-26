@@ -26,6 +26,10 @@
 
 namespace pyhogpp {
 
+/**
+ * @brief Identifies a CPU feature given an instruction set architecture (ISA)
+ * at runtime.
+ */
 template<ISA Type>
 struct CPUFeature;
 
