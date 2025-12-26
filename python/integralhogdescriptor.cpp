@@ -41,7 +41,7 @@
 #include "hogpp.hpp"
 #include "type_caster/tensor.hpp"
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 namespace {
 
 template<class... Elements, std::size_t... Indices>
@@ -822,4 +822,4 @@ std::string IntegralHOGDescriptor::repr() const
     return fmt::format("IntegralHOGDescriptor({})", fmt::join(argvals, ", "));
 }
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET

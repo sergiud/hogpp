@@ -37,7 +37,7 @@
 
 #include "typetraits.hpp"
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 enum class BlockNormalizerType
 {
@@ -48,7 +48,7 @@ enum class BlockNormalizerType
     L2Hys
 };
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 namespace pybind11::detail {
 
@@ -66,7 +66,7 @@ private:
 
 } // namespace pybind11::detail
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template<class T>
 class BlockNormalizer
@@ -239,7 +239,7 @@ private:
 extern template class BlockNormalizer<float>;
 extern template class BlockNormalizer<double>;
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #include <hogpp/suffix.hpp>
 

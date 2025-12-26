@@ -19,7 +19,7 @@
 
 #include "moduledispatch.hpp"
 
-void init_hogpp_default(pybind11::module& m);
+void init_hogpp_generic(pybind11::module& m);
 void init_hogpp_sse2(pybind11::module& m);
 void init_hogpp_sse3(pybind11::module& m);
 void init_hogpp_ssse3(pybind11::module& m);
@@ -37,9 +37,9 @@ void init_hogpp_sve512(pybind11::module& m);
 
 namespace pyhogpp {
 
-void ModuleDispatch<ISA::Default>::initialize(pybind11::module& m)
+void ModuleDispatch<ISA::Generic>::initialize(pybind11::module& m)
 {
-    init_hogpp_default(m);
+    init_hogpp_generic(m);
 }
 
 #if defined(HAVE_ISA_SSE2)

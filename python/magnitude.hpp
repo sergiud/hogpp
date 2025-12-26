@@ -32,7 +32,7 @@
 #include <hogpp/gradientsquaremagnitude.hpp>
 #include <hogpp/prefix.hpp>
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 enum class MagnitudeType
 {
@@ -41,7 +41,7 @@ enum class MagnitudeType
     Sqrt
 };
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 namespace pybind11::detail {
 
@@ -59,7 +59,7 @@ private:
 
 } // namespace pybind11::detail
 
-namespace pyhogpp {
+namespace pyhogpp::inline HOGPP_TARGET {
 
 template<class T>
 class Magnitude
@@ -134,7 +134,7 @@ private:
 extern template class Magnitude<float>;
 extern template class Magnitude<double>;
 
-} // namespace pyhogpp
+} // namespace pyhogpp::inline HOGPP_TARGET
 
 #include <hogpp/suffix.hpp>
 
