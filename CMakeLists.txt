@@ -28,6 +28,7 @@ include (GNUInstallDirs)
 check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
 check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
+check_cxx_compiler_flag (-mtune=generic HAVE_MTUNE_GENERIC)
 
 set (PYBIND11_NOPYTHON ON)
 
@@ -293,7 +294,10 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       # set_property (TARGET ${target_name} APPEND PROPERTY COMPILE_DEFINITIONS
       #   $<$<TARGET_NAME:${target_name}>:HOGPP_TARGET="${arch}">
       # )
-      #target_compile_options (${target_name} PRIVATE -mtune=generic)
+
+      if (HAVE_MTUNE_GENERIC)
+        target_compile_options (${target_name} PRIVATE -mtune=generic)
+      endif (HAVE_MTUNE_GENERIC)
     else (arch STREQUAL default)
       #set_source_files_properties (python/hogpp.cpp
       #  TARGET_DIRECTORY ${target_name}
