@@ -23,7 +23,6 @@
 #include <cstdlib>
 #include <numeric>
 #include <ranges>
-#include <string_view>
 
 #include <fmt/format.h>
 #include <fmt/ranges.h>
@@ -35,13 +34,13 @@
 namespace pyhogpp {
 namespace {
 
-[[nodiscard]] std::string_view getenv(const char* key) noexcept
+[[nodiscard]] std::optional<std::string_view> getenv(const char* key) noexcept
 {
     if (const char* const value = std::getenv(key)) {
         return value;
     }
 
-    return {}; // Avoid invoking std::strlen on a nullptr
+    return std::nullopt; // Avoid invoking std::strlen on a nullptr
 }
 
 [[noreturn]] void reportUnsupportedDispatch(std::string_view isa)
@@ -135,24 +134,34 @@ ModuleInitializer::ModuleInitializer(pybind11::module& m)
     , moduleName{pybind11::getattr(m, "__name__")}
     , logger{getLogger(moduleName)}
     , debug{pybind11::getattr(logger, "debug")}
-    , loc{isa.empty() ? nullptr : &std::locale::classic()}
+    , loc{!isa ? nullptr : &std::locale::classic()}
 {
 }
 
 void ModuleInitializer::run() const
 {
-    run(AvailableCPUFeatures{});
+    if (isa && isa->empty()) {
+        // Setting the environment variable to an empty string implies generic
+        // dispatch: take a shortcut
+        debug("using generic instruction set");
+        ModuleDispatch<ISA::Generic>::initialize(m);
+    }
+    else {
+        // Cycle through available CPU features while taking the dispatch set
+        // using the environment variable if any
+        run(AvailableCPUFeatures{});
+    }
 }
 
 void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
 {
-    if (!isa.empty()) {
+    if (isa) {
         const auto& supported = supportedCPUFeatureNames();
 
         if (supported.empty()) {
             // No dispatch for additional instruction sets defined: nothing to
             // do
-            reportUnsupportedDispatch(isa);
+            reportUnsupportedDispatch(*isa);
         }
 
         const auto proj = [loc = *loc](char ch) {
@@ -161,16 +170,17 @@ void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
 
         auto pos = std::ranges::min_element(
             supported, {}, [&isa = isa, &proj](std::string_view test) {
-                return levenshteinDistance(isa, test, {}, proj, proj);
+                return levenshteinDistance(*isa, test, {}, proj, proj);
             });
 
         if (pos != supported.end()) {
-            reportUnsupportedDispatch(isa, *pos, supported);
+            reportUnsupportedDispatch(*isa, *pos, supported);
         }
 
-        reportUnsupportedDispatch(isa, supported);
+        reportUnsupportedDispatch(*isa, supported);
     }
 
+    // Exhaused all SIMD features: fallback to generic dispatch
     ModuleDispatch<ISA::Generic>::initialize(m);
 }
 
@@ -180,24 +190,24 @@ void ModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
     using namespace fmt::literals;
     bool initialize = false;
 
-    if (!isa.empty()) {
+    if (isa) {
         const auto proj = [loc = *loc](char ch) {
             return std::tolower(ch, loc);
         };
 
         constexpr std::string_view name = CPUFeature<Type>::name();
 
-        if (std::ranges::equal(isa, name, {}, proj, proj)) {
+        if (std::ranges::equal(*isa, name, {}, proj, proj)) {
             if (!CPUFeature<Type>::supported()) {
                 const auto& supported = supportedCPUFeatureNames();
 
                 if (supported.empty()) {
                     // No dispatch for additional instruction sets defined:
                     // nothing to do
-                    reportUnsupportedDispatch(isa);
+                    reportUnsupportedDispatch(*isa);
                 }
 
-                reportUnsupportedDispatch(isa, supported);
+                reportUnsupportedDispatch(*isa, supported);
             }
 
             debug(
