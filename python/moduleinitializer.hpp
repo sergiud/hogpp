@@ -21,6 +21,7 @@
 #define PYTHON_MODULEINITIALIZER_HPP
 
 #include <locale>
+#include <optional>
 #include <string_view>
 
 #include <pybind11/pybind11.h>
@@ -41,7 +42,7 @@ private:
     void run(CPUFeatures<Type, Types...> /*unused*/) const;
 
     pybind11::module& m;
-    const std::string_view isa;
+    std::optional<const std::string_view> isa;
     pybind11::object logging;
     pybind11::object getLogger;
     pybind11::object moduleName;
