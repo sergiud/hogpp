@@ -200,8 +200,9 @@ void ModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
                 reportUnsupportedDispatch(isa, supported);
             }
 
-            debug(fmt::format(FMT_STRING("found requested ISA {isa}"),
-                              "isa"_a = name));
+            debug(
+                fmt::format(FMT_STRING("found requested instruction set {isa}"),
+                            "isa"_a = name));
             initialize = true;
         }
     }
@@ -212,8 +213,9 @@ void ModuleInitializer::run(CPUFeatures<Type, Types...> /*unused*/) const
     if (initialize) {
         // Make sure the module initialization is defined at compile-time
         if constexpr (ModuleDispatchSupported<Type>) {
-            debug(fmt::format(FMT_STRING("initializing using ISA {isa}"),
-                              "isa"_a = CPUFeature<Type>::name()));
+            debug(fmt::format(
+                FMT_STRING("initializing using {isa} instruction set"),
+                "isa"_a = CPUFeature<Type>::name()));
             ModuleDispatch<Type>::initialize(m);
         }
         else {
