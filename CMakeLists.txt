@@ -514,6 +514,31 @@ if (BUILD_TESTING)
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
       ${hogpp_SOURCE_DIR}/tests/python/module/test_repr.py)
+
+    add_test (NAME python_dispatch_incorrect COMMAND
+      ${CMAKE_COMMAND} -E env
+      PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
+      HOGPP_DISPATCH=foobar
+      ${Python_EXECUTABLE} -W error -c "import hogpp")
+
+    set_tests_properties (python_dispatch_incorrect PROPERTIES
+      PASS_REGULAR_EXPRESSION
+      [=[ImportError: The instruction set specified by the HOGPP_DISPATCH environment variable \("foobar"\) is neither available nor supported\.]=])
+
+    # NOTE: On Windows an empty environment variable might remain undefined:
+    # https://gitlab.kitware.com/cmake/cmake/-/issues/27285
+    add_test (NAME python_dispatch_generic COMMAND
+      ${CMAKE_COMMAND} -E env
+      PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
+      HOGPP_DISPATCH=
+      ${Python_EXECUTABLE} -W error -c "import hogpp")
+
+    add_test (NAME python_dispatch_available COMMAND
+      ${CMAKE_COMMAND} -E env
+      PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
+      ${CMAKE_COMMAND}
+      -D Python_EXECUTABLE=${Python_EXECUTABLE}
+      -P ${hogpp_SOURCE_DIR}/cmake/TestDispatch.cmake)
   endif (TARGET pyhogpp)
 
   if (TARGET type_caster_test AND OpenCV_FOUND)
