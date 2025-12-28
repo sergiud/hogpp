@@ -33,6 +33,10 @@
 #    include <isa_availability.h>
 #endif
 
+#if defined(_M_ARM64)
+#    include <intrin.h>
+#endif
+
 // Cacade macro definition by constraining it to x86/x86-64 instead of checking
 // for the platform inline to avoid unused macro definition warnings.
 #if defined(__i386__) || defined(__x86_64__)
@@ -44,6 +48,28 @@
 #endif
 
 namespace pyhogpp {
+
+#if defined(_M_ARM64)
+//  Test whether Value >= 0 && Value < Max in terms of bits sets except for Max
+//  LSB.
+template<auto Value, decltype(Value) Max>
+concept MaxBits = (Value & ~((1 << Max) - 1)) == 0;
+
+template<unsigned char op0, unsigned char op1, unsigned char CRn,
+         unsigned char CRm, unsigned char op2>
+    requires(MaxBits<op0, 2> && //
+             MaxBits<op1, 3> && //
+             MaxBits<CRn, 4> && //
+             MaxBits<CRm, 4> && //
+             MaxBits<op2, 3>    //
+             )
+inline constexpr unsigned short SysReg = op0 << 14 | //
+                                         op1 << 11 | //
+                                         CRn << 7 |  //
+                                         CRm << 3 |  //
+                                         op2         //
+    ;
+#endif
 
 bool CPUFeature<ISA::SSE2>::supported() noexcept
 {
@@ -163,7 +189,13 @@ bool CPUFeature<ISA::NEON>::supported() noexcept
 
 bool CPUFeature<ISA::SVE>::supported() noexcept
 {
-#if defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) && defined(HWCAP_SVE)
+#if defined(_M_ARM64)
+    constexpr int ID_AA64PFR0_EL1 = SysReg<0b11, 0b000, 0b0000, 0b0100, 0b000>;
+    // AArch64 Processor Feature Register 0
+    const auto value = _ReadStatusReg(ID_AA64PFR0_EL1 & ((1 << 16) - 1));
+    constexpr int FEAT_SVE = 0b0001;
+    return ((value >> 32) & 0b1111) == FEAT_SVE;
+#elif defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) && defined(HWCAP_SVE)
     return (getauxval(AT_HWCAP) & HWCAP_SVE) == HWCAP_SVE;
 #else
     return false;
