@@ -6,6 +6,7 @@ project (hogpp
   HOMEPAGE_URL https://github.com/sergiud/hogpp
 )
 
+# TODO
 option (WITH_DISPATCH "Dynamic ISA dispatch" ON)
 
 # Disable module support since under MinGW Clang compiling fails with the error
