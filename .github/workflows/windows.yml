@@ -38,9 +38,11 @@ jobs:
           install: >-
             mingw-w64-${{matrix.pkg}}-python
             mingw-w64-${{matrix.pkg}}-python-pillow
+            mingw-w64-${{matrix.pkg}}-python-numpy
 
       - name: Build
         run: |
+          python -c 'import numpy'
           uname
           python -c 'from PIL import Image'
 
