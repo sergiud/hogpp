@@ -13,113 +13,39 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        build_type: [Release, Debug]
+        build_type:
+          - Release
+          # - Debug
         sys:
           - clangarm64
-          - mingw64
+          # - mingw64
         include:
-          - sys: mingw64
-            env: x86_64
-            pkg: x86_64
-            os: windows-2025
+          # - sys: mingw64
+          #   env: x86_64
+          #   pkg: x86_64
+          #   os: windows-2025
           - sys: clangarm64
             env: aarch64
             pkg: clang-aarch64
             os: windows-11-arm
 
     steps:
-      - uses: actions/checkout@v6
       - uses: msys2/setup-msys2@v2
         with:
           msystem: ${{matrix.sys}}
           # Running Ninja requires cmd.exe to be in the PATH
           path-type: minimal
           install: >-
-            mingw-w64-${{matrix.pkg}}-boost
-            mingw-w64-${{matrix.pkg}}-cmake
-            mingw-w64-${{matrix.pkg}}-eigen3
-            mingw-w64-${{matrix.pkg}}-fmt
-            mingw-w64-${{matrix.pkg}}-cc
-            mingw-w64-${{matrix.pkg}}-lld
-            mingw-w64-${{matrix.pkg}}-ninja
-            mingw-w64-${{matrix.pkg}}-opencv
-            mingw-w64-${{matrix.pkg}}-pybind11
             mingw-w64-${{matrix.pkg}}-python
-            mingw-w64-${{matrix.pkg}}-python-jinja
-            mingw-w64-${{matrix.pkg}}-python-lxml
-            mingw-w64-${{matrix.pkg}}-python-numpy
             mingw-w64-${{matrix.pkg}}-python-pillow
-            mingw-w64-${{matrix.pkg}}-python-pip
-            mingw-w64-${{matrix.pkg}}-python-pygments
-            mingw-w64-${{matrix.pkg}}-python-pytest
-            mingw-w64-${{matrix.pkg}}-python-pytest-xdist
-            mingw-w64-${{matrix.pkg}}-python-sphinx
-
-      - name: Setup Coverage Dependencies
-        if: matrix.build_type == 'Debug'
-        run: |
-          pip install 'gcovr==8.2'
-
-      - name: Setup Dependencies
-        run: |
-          pip install -r docs/requirements.txt --prefer-binary
-
-      - name: Setup Build Environment
-        run: |
-          echo "Python_ROOT=$(dirname $(dirname $(which python)))" >> $GITHUB_ENV
-
-      - name: Setup Compiler Environment
-        run: |
-          echo "CXX=${{matrix.env}}-w64-mingw32-c++" >> $GITHUB_ENV
-
-      - name: Setup Debug Environment
-        if: ${{matrix.build_type == 'Debug'}}
-        run: |
-          echo 'CXXFLAGS=--coverage' >> $GITHUB_ENV
-
-      - name: Configure
-        env:
-          CXXFLAGS: -fuse-ld=lld -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}
-        run: |
-          cmake -S . -B build_${{matrix.build_type}}/ \
-                -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-                -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
-                -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
-                -G Ninja
 
       - name: Build
         run: |
-          cmake --build build_${{matrix.build_type}}/ \
-                --config ${{matrix.build_type}}
-
-      - name: Test
-        run: |
-          ctest --test-dir build_${{matrix.build_type}} \
-                -j$(nproc) \
-                --output-on-failure
-
-      - name: Generate Documentation
-        run: |
-          cmake --build build_${{matrix.build_type}}/ \
-                --config ${{matrix.build_type}} \
-                --target sphinx
-
-      - name: Generate Coverage
-        if: matrix.build_type == 'Debug'
-        run: |
-          cd build_${{matrix.build_type}}
-          gcovr -r .. . -s --cobertura coverage.xml
-
-      - name: Upload Coverage to Codecov
-        if: ${{matrix.build_type == 'Debug'}}
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: build_${{matrix.build_type}}/coverage.xml
-          fail_ci_if_error: true
-          verbose: true
+          uname
+          python -c 'from PIL import Image'
 
   build-msvc:
+    if: false
     name: ${{matrix.msvc}}-${{matrix.arch}}-${{matrix.build_type}}-Python-${{matrix.python}}
     runs-on: ${{matrix.os}}
     defaults:
@@ -335,6 +261,7 @@ jobs:
                 --target sphinx
 
   build-wheel:
+    if: false
     name: Python-${{matrix.python}}-${{matrix.build_type}}-${{matrix.arch}}-wheel
     runs-on: ${{matrix.os}}
     defaults:

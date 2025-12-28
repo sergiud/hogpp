@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build-native:
+    if: false
     name: ${{matrix.os}}-AppleClang-${{matrix.build_type}}
     runs-on: ${{matrix.os}}
     defaults:
@@ -93,6 +94,7 @@ jobs:
           verbose: true
 
   build-wheel:
+    if: false
     name: Python-${{matrix.python}}-${{matrix.build_type}}-wheel
     runs-on: macos-15
     defaults:

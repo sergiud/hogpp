@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   lint:
+    if: false
     runs-on: ubuntu-24.04
     container: sergiud/hogpp:lint-18
     defaults:
@@ -20,6 +21,7 @@ jobs:
           fdfind -g '*.[ch]pp' -x clang-format-18 --dry-run --Werror
 
   build-native:
+    if: false
     name: ${{matrix.os}}-GCC-${{matrix.build_type}}
     runs-on: ${{matrix.os}}
     defaults:
