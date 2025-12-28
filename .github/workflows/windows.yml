@@ -36,6 +36,7 @@ jobs:
           # Running Ninja requires cmd.exe to be in the PATH
           path-type: minimal
           install: >-
+            mingw-w64-${{matrix.pkg}}-lldb
             mingw-w64-${{matrix.pkg}}-python
             mingw-w64-${{matrix.pkg}}-python-pillow
             mingw-w64-${{matrix.pkg}}-python-numpy
@@ -44,7 +45,9 @@ jobs:
         run: |
           python -c 'import numpy'
           uname
-          python -c 'from PIL import Image'
+          echo r > a.txt
+          echo bt > b.txt
+          lldb --batch --source a.txt --source-on-crash b.txt -- python -c 'from PIL import Image'
 
   build-msvc:
     if: false
