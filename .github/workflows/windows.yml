@@ -36,16 +36,31 @@ jobs:
           # Running Ninja requires cmd.exe to be in the PATH
           path-type: minimal
           install: >-
-            wget
             mingw-w64-${{matrix.pkg}}-cc
+            mingw-w64-${{matrix.pkg}}-freetype
+            mingw-w64-${{matrix.pkg}}-lcms2
+            mingw-w64-${{matrix.pkg}}-libavif
+            mingw-w64-${{matrix.pkg}}-libimagequant
+            mingw-w64-${{matrix.pkg}}-libjpeg
+            mingw-w64-${{matrix.pkg}}-libraqm
+            mingw-w64-${{matrix.pkg}}-libtiff
+            mingw-w64-${{matrix.pkg}}-libwebp
             mingw-w64-${{matrix.pkg}}-lldb
+            mingw-w64-${{matrix.pkg}}-openjpeg2
+            mingw-w64-${{matrix.pkg}}-pybind11
             mingw-w64-${{matrix.pkg}}-python
+            mingw-w64-${{matrix.pkg}}-python-build
+            mingw-w64-${{matrix.pkg}}-python-installer
+            mingw-w64-${{matrix.pkg}}-python-setuptools
+            patch
+            wget
 
       - name: Build
         run: |
           uname
-          wget https://mirror.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-python-pillow-12.0.0-2-any.pkg.tar.zst
-          makepkg -i CFLAGS='-g -O0' CXXFLAGS='-g -O0' mingw-w64-clang-aarch64-python-pillow-12.0.0-2-any.pkg.tar.zst
+          wget https://mirror.msys2.org/mingw/sources/mingw-w64-python-pillow-12.0.0-2.src.tar.zst
+          tar xvf mingw-w64-python-pillow-12.0.0-2.src.tar.zst
+          yes | makepkg --nocheck -i CC=aarch64-w64-mingw32-cc CXX=aarch64-w64-mingw32-c++ CFLAGS='-g -O0' CXXFLAGS='-g -O0' -D mingw-w64-python-pillow/ || true
           echo r > a.txt
           echo bt > b.txt
           lldb --batch --source a.txt --source-on-crash b.txt -- python -c 'from PIL import Image'
