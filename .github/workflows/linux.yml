@@ -122,6 +122,7 @@ jobs:
           verbose: true
 
   build-wheel:
+    if: false
     name: Python-${{matrix.python}}-${{matrix.build_type}}-${{matrix.arch}} wheel
     runs-on: ${{matrix.os}}
     defaults:
