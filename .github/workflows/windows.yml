@@ -63,6 +63,7 @@ jobs:
           yes | makepkg --nocheck -i CC=aarch64-w64-mingw32-cc CXX=aarch64-w64-mingw32-c++ CFLAGS="-g -O0 -fstandalone-debug -fdebug-compilation-dir=$PWD/mingw-w64-python-pillow/ -march=armv8-a -mtune=generic" -D mingw-w64-python-pillow/ || true
           echo r > a.txt
           echo bt >> a.txt
+          echo "image lookup -a 0x7ffb76d55cd4" >> a.txt
           lldb --batch --source a.txt -- python -c 'from PIL import Image'
 
   build-msvc:
