@@ -63,6 +63,7 @@ jobs:
           yes | makepkg --nocheck -i OPTIONS='!strip debug' CC=aarch64-w64-mingw32-cc CXX=aarch64-w64-mingw32-c++ CFLAGS="-g -fstandalone-debug -O0 -fno-inline -fno-omit-frame-pointer" -D mingw-w64-python-pillow/ || true
           echo r > a.txt
           echo bt >> a.txt
+          echo f >> a.txt
           lldb --batch --source a.txt -- python -c 'from PIL import Image'
 
   build-msvc:
