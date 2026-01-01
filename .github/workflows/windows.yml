@@ -60,7 +60,7 @@ jobs:
           uname
           wget https://mirror.msys2.org/mingw/sources/mingw-w64-python-pillow-12.0.0-2.src.tar.zst
           tar xvf mingw-w64-python-pillow-12.0.0-2.src.tar.zst
-          yes | makepkg --nocheck -i CC=aarch64-w64-mingw32-cc CXX=aarch64-w64-mingw32-c++ CFLAGS='-g -O0 -march=armv8-a -mtune=generic' CXXFLAGS='-g -O0 -march=armv8-a -mtune=generic' -D mingw-w64-python-pillow/ || true
+          yes | makepkg --nocheck -i CC=aarch64-w64-mingw32-cc CXX=aarch64-w64-mingw32-c++ CFLAGS='-g -O0 -fstandalone-debug -march=armv8-a -mtune=generic' CXXFLAGS='-g -O0 -fstandalone-debug -march=armv8-a -mtune=generic' -D mingw-w64-python-pillow/ || true
           echo r > a.txt
           echo bt >> a.txt
           lldb --batch --source a.txt -- python -c 'from PIL import Image'
