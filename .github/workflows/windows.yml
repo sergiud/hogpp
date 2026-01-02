@@ -52,7 +52,7 @@ jobs:
             mingw-w64-${{matrix.pkg}}-python-build
             mingw-w64-${{matrix.pkg}}-python-installer
             mingw-w64-${{matrix.pkg}}-python-setuptools
-            mingw-w64-${{matrix.pkg}}-python-pip
+            mingw-w64-${{matrix.pkg}}-python-pipx
             patch
             wget
 
@@ -65,7 +65,7 @@ jobs:
           tar xvf pillow-12.0.0.tar.gz
           cd pillow-12.0.0/
           patch -p1 -i ../0001-Revert-build-Mode.c-as-a-common-library.patch
-          CC=aarch64-w64-mingw32-cc pip install --no-build-isolation --editable .
+          CC=aarch64-w64-mingw32-cc CFLAGS='-g -O0 -fstandalone-debug' pipx install --pip-args=--no-build-isolation --editable .
           echo r > a.txt
           echo bt >> a.txt
           echo "f 1" >> a.txt
