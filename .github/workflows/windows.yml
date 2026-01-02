@@ -52,6 +52,7 @@ jobs:
             mingw-w64-${{matrix.pkg}}-python-build
             mingw-w64-${{matrix.pkg}}-python-installer
             mingw-w64-${{matrix.pkg}}-python-setuptools
+            mingw-w64-${{matrix.pkg}}-python-pip
             patch
             wget
 
@@ -60,7 +61,12 @@ jobs:
           uname
           wget https://mirror.msys2.org/mingw/sources/mingw-w64-python-pillow-12.0.0-2.src.tar.zst
           tar xvf mingw-w64-python-pillow-12.0.0-2.src.tar.zst
-          yes | makepkg --nocheck -i OPTIONS='!strip debug' CC=aarch64-w64-mingw32-cc CXX=aarch64-w64-mingw32-c++ CFLAGS="-g -fstandalone-debug -O0 -fno-inline -fno-omit-frame-pointer" -D mingw-w64-python-pillow/ || true
+          cd mingw-w64-python-pillow/
+          tar xvf pillow-12.0.0.tar.gz
+          cd pillow-12.0.0/
+          patch -p1 -i ../0001-Revert-build-Mode.c-as-a-common-library.patch
+          CC=aarch64-w64-mingw32-cc CFLAGS="-g -fstandalone-debug -O0 -fno-inline -fno-omit-frame-pointer" python -m build --wheel --skip-dependency-check --no-isolation
+          cd build/lib.mingw_aarch64_ucrt_llvm-cpython-312/
           echo r > a.txt
           echo bt >> a.txt
           echo "f 1" >> a.txt
