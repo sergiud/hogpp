@@ -55,23 +55,30 @@ jobs:
             mingw-w64-${{matrix.pkg}}-python-pip
             patch
             wget
+            git
 
       - name: Build
         run: |
           uname
-          wget https://mirror.msys2.org/mingw/sources/mingw-w64-python-pillow-12.0.0-2.src.tar.zst
-          tar xvf mingw-w64-python-pillow-12.0.0-2.src.tar.zst
-          cd mingw-w64-python-pillow/
-          tar xvf pillow-12.0.0.tar.gz
-          cd pillow-12.0.0/
-          patch -p1 -i ../0001-Revert-build-Mode.c-as-a-common-library.patch
-          CC=aarch64-w64-mingw32-cc CFLAGS='-gdwarf-5 -gembed-source -O0 -fstandalone-debug -fno-omit-frame-pointer' pip install --no-build-isolation --verbose --editable .
-          echo r > a.txt
-          echo bt >> a.txt
-          echo "f 1" >> a.txt
-          echo "f 2" >> a.txt
-          echo "f 3" >> a.txt
-          lldb --batch --source a.txt -- python -c 'from PIL import Image'
+          git clone https://github.com/python-pillow/Pillow.git
+          cd Pillow/
+          git bisect start 12.1.0 12.0.0
+          cat >test.sh <<EOF
+          set -eo pipefail
+          AR=ar CC=aarch64-w64-mingw32-cc CFLAGS='-gdwarf-5 -gembed-source -O0 -fstandalone-debug -fno-omit-frame-pointer' pip install --no-build-isolation --verbose --editable .
+          set +e
+          function handle_sigill() {
+            echo 'failing'
+            exit
+          }
+          trap handle_sigill SIGILL
+          if python -c 'from PIL import Image'; then
+            echo succeeding
+            exit 1
+          fi
+          echo indeterminate
+          EOF
+          git bisect run bash ./test.sh
 
   build-msvc:
     if: false
