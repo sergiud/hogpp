@@ -35,6 +35,7 @@ jobs:
           msystem: ${{matrix.sys}}
           # Running Ninja requires cmd.exe to be in the PATH
           path-type: minimal
+          update: true
           install: >-
             mingw-w64-${{matrix.pkg}}-cc
             mingw-w64-${{matrix.pkg}}-freetype
