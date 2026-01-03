@@ -60,9 +60,8 @@ jobs:
       - name: Build
         run: |
           uname
-          git clone https://github.com/python-pillow/Pillow.git
+          git clone https://github.com/python-pillow/Pillow.git --depth=1 -b 12.0.0
           cd Pillow/
-          git bisect start 12.1.0 12.0.0
           cat >test.sh <<EOF
           set -eo pipefail
           AR=ar CC=aarch64-w64-mingw32-cc CFLAGS='-gdwarf-5 -gembed-source -O0 -fstandalone-debug -fno-omit-frame-pointer' pip install --no-build-isolation --verbose --editable .
@@ -78,7 +77,7 @@ jobs:
           fi
           echo indeterminate
           EOF
-          git bisect run bash ./test.sh
+          bash ./test.sh
 
   build-msvc:
     if: false
