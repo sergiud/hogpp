@@ -251,8 +251,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     Python::Module
   )
 
-  # TODO aarch64 Eigen 3.4.0 EIGEN_ARM64_USE_SVE -msve-vector-bits=N
-
   set (_arch
     generic
   )
