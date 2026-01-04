@@ -127,7 +127,6 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
 
   check_cxx_symbol_exists (__check_isa_support "immintrin.h" HAVE___CHECK_ISA_SUPPORT)
   check_cxx_symbol_exists (getauxval "sys/auxv.h" HAVE_GETAUXVAL)
-  check_cxx_symbol_exists (_ReadStatusReg "intrin.h" HAVE___READSTATUSREG)
   check_include_file_cxx ("asm/hwcap.h" HAVE_ASM_HWCAP_H)
   check_include_file_cxx ("sys/auxv.h" HAVE_SYS_AUXV_H)
 

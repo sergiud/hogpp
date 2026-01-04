@@ -60,7 +60,5 @@
 
 // Indicates whether the __check_isa_support function is available.
 #cmakedefine HAVE___CHECK_ISA_SUPPORT
-// Indicates whether the _ReadStatusReg function is available.
-#cmakedefine HAVE___READSTATUSREG
 
 // vim: ft=cpp
