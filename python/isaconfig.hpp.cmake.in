@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,5 +60,7 @@
 
 // Indicates whether the __check_isa_support function is available.
 #cmakedefine HAVE___CHECK_ISA_SUPPORT
+// Indicates whether the _ReadStatusReg function is available.
+#cmakedefine HAVE___READSTATUSREG
 
 // vim: ft=cpp

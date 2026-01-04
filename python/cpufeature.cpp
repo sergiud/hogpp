@@ -49,7 +49,7 @@
 
 namespace pyhogpp {
 
-#if defined(_M_ARM64)
+#if defined(_M_ARM64) && defined(HAVE___READSTATUSREG)
 //  Test whether Value >= 0 && Value < Max in terms of bits sets except for Max
 //  LSB.
 template<auto Value, decltype(Value) Max>
@@ -189,7 +189,7 @@ bool CPUFeature<ISA::NEON>::supported() noexcept
 
 bool CPUFeature<ISA::SVE>::supported() noexcept
 {
-#if defined(_M_ARM64)
+#if defined(_M_ARM64) && defined(HAVE___READSTATUSREG)
     constexpr int ID_AA64PFR0_EL1 = SysReg<0b11, 0b000, 0b0000, 0b0100, 0b000>;
     // AArch64 Processor Feature Register 0
     const auto value = _ReadStatusReg(ID_AA64PFR0_EL1 & ((1 << 16) - 1));
