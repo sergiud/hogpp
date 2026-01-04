@@ -192,7 +192,7 @@ bool CPUFeature<ISA::SVE>::supported() noexcept
 #if defined(_M_ARM64) && defined(_MSC_VER)
     constexpr int ID_AA64PFR0_EL1 = SysReg<0b11, 0b000, 0b0000, 0b0100, 0b000>;
     // AArch64 Processor Feature Register 0
-    const auto value = _ReadStatusReg(ID_AA64PFR0_EL1 & ((1 << 16) - 1));
+    const auto value = _ReadStatusReg(ID_AA64PFR0_EL1 & ((1 << 15) - 1));
     constexpr int FEAT_SVE = 0b0001;
     return ((value >> 32) & 0b1111) == FEAT_SVE;
 #elif defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) && defined(HWCAP_SVE)
