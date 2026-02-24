@@ -21,6 +21,7 @@ sdist.exclude = [
     '!/README.md',
     '!/tests/**',
 ]
+wheel.py-api = "py3"
 
 [tool.scikit-build.cmake]
 version = "CMakeLists.txt"
