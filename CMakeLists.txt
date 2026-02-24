@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.26...3.30)
+cmake_minimum_required (VERSION 3.26...4.2)
 project (hogpp
   VERSION 0.3.0
   LANGUAGES CXX
