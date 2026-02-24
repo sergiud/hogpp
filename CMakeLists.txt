@@ -143,7 +143,7 @@ if (pybind11_FOUND AND Python_Development.SABIModule_FOUND)
     PRIVATE Python::SABIModule
   )
 
-  python_add_library (pyhogpp WITH_SOABI
+  python_add_library (pyhogpp MODULE USE_SABI WITH_SOABI
     python/binning.cpp
     python/binning.hpp
     python/blocknormalizer.cpp
