@@ -30,7 +30,7 @@ set (PYBIND11_NOPYTHON ON)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
-find_package (Python 3.0 COMPONENTS Development.Module Development.SABIModule OPTIONAL_COMPONENTS Interpreter)
+find_package (Python 3.2 COMPONENTS Development.Module Development.SABIModule OPTIONAL_COMPONENTS Interpreter)
 find_package (Sphinx 4.0)
 
 if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
