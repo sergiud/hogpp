@@ -142,16 +142,16 @@ if (pybind11_FOUND AND (Python_Development.Module_FOUND OR Python_Development.SA
     pybind11::headers
   )
 
-  if (TARGET Python::SABIModule)
+  if (Python_INTERPRETER_ID STREQUAL Python AND TARGET Python::SABIModule)
     target_link_libraries (python_type_caster PRIVATE
       Python::SABIModule
     )
-  else (TARGET Python::SABIModule)
+  else (Python_INTERPRETER_ID STREQUAL Python AND TARGET Python::SABIModule)
     target_link_libraries (python_type_caster PRIVATE
       Python::Module
     )
     set (hogpp_module_args USE_SABI WITH_SOABI)
-  endif (TARGET Python::SABIModule)
+  endif (Python_INTERPRETER_ID STREQUAL Python AND TARGET Python::SABIModule)
 
   python_add_library (pyhogpp MODULE ${hogpp_module_args}
     python/binning.cpp
