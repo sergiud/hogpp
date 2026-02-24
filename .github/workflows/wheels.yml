@@ -1,11 +1,11 @@
 name: Wheels
 
 on:
-  schedule:
-    - cron: '42 2 * * *'
+  # schedule:
+  #   - cron: '42 2 * * *'
   push:
-    tags:
-      - v*
+    # tags:
+    #   - v*
 
 jobs:
   build-wheels:
