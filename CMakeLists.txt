@@ -30,7 +30,7 @@ set (PYBIND11_NOPYTHON ON)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
-find_package (Python 3.2 COMPONENTS Development.Module Development.SABIModule OPTIONAL_COMPONENTS Interpreter)
+find_package (Python 3.2 COMPONENTS Development.Module OPTIONAL_COMPONENTS Development.SABIModule Interpreter)
 find_package (Sphinx 4.0)
 
 if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
@@ -119,7 +119,7 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (pybind11_FOUND AND Python_Development.SABIModule_FOUND)
+if (pybind11_FOUND AND Python_Development_FOUND)
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
@@ -140,10 +140,20 @@ if (pybind11_FOUND AND Python_Development.SABIModule_FOUND)
     Eigen3::Eigen
     hogpp::hogpp
     pybind11::headers
-    PRIVATE Python::SABIModule
   )
 
-  python_add_library (pyhogpp MODULE USE_SABI WITH_SOABI
+  if (TARGET Python::SABIModule)
+    target_link_libraries (python_type_caster PRIVATE
+      Python::SABIModule
+    )
+  else (TARGET Python::SABIModule)
+    target_link_libraries (python_type_caster PRIVATE
+      Python::Module
+    )
+    set (hogpp_module_args USE_SABI WITH_SOABI)
+  endif (TARGET Python::SABIModule)
+
+  python_add_library (pyhogpp MODULE ${hogpp_module_args}
     python/binning.cpp
     python/binning.hpp
     python/blocknormalizer.cpp
@@ -195,7 +205,7 @@ if (pybind11_FOUND AND Python_Development.SABIModule_FOUND)
   else (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
   endif (SKBUILD)
-endif (pybind11_FOUND AND Python_Development.SABIModule_FOUND)
+endif (pybind11_FOUND AND Python_Development_FOUND)
 
 if (BUILD_TESTING)
   if (Boost_unit_test_framework_FOUND)
