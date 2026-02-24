@@ -119,7 +119,7 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (pybind11_FOUND AND Python_Development_FOUND)
+if (pybind11_FOUND AND (Python_Development.Module_FOUND OR Python_Development.SABIModule_FOUND))
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
@@ -186,7 +186,7 @@ if (pybind11_FOUND AND Python_Development_FOUND)
     python_type_caster
   )
 
-  python_add_library (type_caster_test WITH_SOABI
+  python_add_library (type_caster_test MODULE ${hogpp_module_args}
     python/type_caster_test.cpp
   )
 
@@ -205,7 +205,7 @@ if (pybind11_FOUND AND Python_Development_FOUND)
   else (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
   endif (SKBUILD)
-endif (pybind11_FOUND AND Python_Development_FOUND)
+endif (pybind11_FOUND AND (Python_Development.Module_FOUND OR Python_Development.SABIModule_FOUND))
 
 if (BUILD_TESTING)
   if (Boost_unit_test_framework_FOUND)
