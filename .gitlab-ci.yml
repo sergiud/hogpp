@@ -238,27 +238,6 @@ lint:python3.14:
   <<: *lint_definition
   needs: []
 
-build:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
-  <<: *skbuild_definition
-
-docs:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
-  <<: *skdocs_definition
-  needs:
-    - build:pypy3.10
-
-test:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
-  <<: *pytest_definition
-  needs:
-    - build:pypy3.10
-
-lint:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
-  <<: *lint_definition
-  needs: []
-
 build:pypy3.11:
   image: sergiud/hogpp:pypy3.11
   <<: *skbuild_definition
