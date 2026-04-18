@@ -78,6 +78,11 @@ jobs:
         run: |
           echo 'CXXFLAGS=--coverage' >> $GITHUB_ENV
 
+      - name: Setup Clang Environment
+        if: ${{matrix.sys == 'clangarm64'}}
+        run: |
+          echo 'CXXFLAGS=-Wno-c2y-extensions' >> $GITHUB_ENV
+
       - name: Configure
         env:
           CXXFLAGS: -fuse-ld=lld -Wall -Wextra -Wpedantic -Wsign-conversion -Wtautological-compare -Wundef -Wfloat-equal -Werror ${{env.CXXFLAGS}}

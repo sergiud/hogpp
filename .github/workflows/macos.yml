@@ -44,6 +44,11 @@ jobs:
           echo 'CXXFLAGS=--coverage' >> $GITHUB_ENV
           echo 'LDFLAGS=--coverage' >> $GITHUB_ENV
 
+      - name: Setup Compiler Environment
+        if: ${{matrix.os != 'macos-14'}}
+        run: |
+          echo 'CXXFLAGS=-Wno-c2y-extensions' >> $GITHUB_ENV
+
       - name: Setup Environment
         run: |
           echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
