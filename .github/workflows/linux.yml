@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload Coverage to Codecov
         if: ${{matrix.build_type == 'Debug'}}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/coverage.xml
@@ -205,7 +205,7 @@ jobs:
           coverage xml
 
       - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
