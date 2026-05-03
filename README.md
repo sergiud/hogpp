@@ -7,12 +7,11 @@
 [![Documentation Status](https://readthedocs.org/projects/hogpp/badge/?version=latest)](https://hogpp.readthedocs.io/en/latest/?badge=latest)
 ![PyPI - Version](https://img.shields.io/pypi/v/hogpp)
 
-This repository contains an implementation of the rectangular histogram of
-oriented gradients feature descriptor (R-HOG) using integral histograms. The
-integral histogram representation allows to quickly compute HOG features in
-subregions of an image in constant time. This is particularly useful if the
-features in an image must be computed repeatedly, e.g., in a sliding window
-manner.
+This repository implements the rectangular histogram of oriented gradients
+feature descriptor (R-HOG) using integral histograms. The integral histogram
+representation allows computing HOG features for any subregion in constant time
+regardless of its size. This is particularly useful when extracting features
+from many overlapping regions, e.g., in sliding-window detection.
 
 ## Features
 

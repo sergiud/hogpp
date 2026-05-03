@@ -8,9 +8,10 @@ HOGpp
 
 HOGpp implements the rectangular histogram of oriented gradients feature
 descriptor (R-HOG) using integral histograms. The integral histogram
-representation allows to quickly compute HOG features in subregions of an image
-in constant time. This is particularly useful if the features in an image must
-be computed repeatedly, e.g., in a sliding window manner.
+representation allows computing HOG features for any subregion in constant time
+regardless of its size. This is particularly useful when extracting features
+from many overlapping regions, e.g., in sliding-window detection.
+
 
 HOG features may be seen as a special case of the Scale-invariant Feature
 Transform (SIFT) computed over a dense grid of keypoints where each block is
