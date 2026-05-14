@@ -37,10 +37,10 @@ jobs:
           update: true
           install: >-
             mingw-w64-${{matrix.pkg}}-boost
+            mingw-w64-${{matrix.pkg}}-cc
             mingw-w64-${{matrix.pkg}}-cmake
             mingw-w64-${{matrix.pkg}}-eigen3
             mingw-w64-${{matrix.pkg}}-fmt
-            mingw-w64-${{matrix.pkg}}-cc
             mingw-w64-${{matrix.pkg}}-lld
             mingw-w64-${{matrix.pkg}}-ninja
             mingw-w64-${{matrix.pkg}}-opencv
@@ -55,6 +55,7 @@ jobs:
             mingw-w64-${{matrix.pkg}}-python-pytest
             mingw-w64-${{matrix.pkg}}-python-pytest-xdist
             mingw-w64-${{matrix.pkg}}-python-sphinx
+            mingw-w64-${{matrix.pkg}}-tbb
 
       - name: Setup Coverage Dependencies
         if: matrix.build_type == 'Debug'
@@ -77,6 +78,11 @@ jobs:
         if: ${{matrix.build_type == 'Debug'}}
         run: |
           echo 'CXXFLAGS=--coverage' >> $GITHUB_ENV
+
+      - name: Setup x86_64 Environment
+        if: ${{matrix.env == 'x86_64'}}
+        run: |
+          echo 'CXXFLAGS=-ltbb12' >> $GITHUB_ENV
 
       - name: Setup Clang Environment
         if: ${{matrix.sys == 'clangarm64'}}
