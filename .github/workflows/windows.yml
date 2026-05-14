@@ -21,7 +21,7 @@ jobs:
           - sys: mingw64
             env: x86_64
             pkg: x86_64
-            os: windows-2025
+            os: windows-2025-vs2026
           - sys: clangarm64
             env: aarch64
             pkg: clang-aarch64
@@ -150,6 +150,7 @@ jobs:
           - Release
         msvc:
           - VS-17-2022
+          - VS-18-2026
         python:
           - '3.10'
           - '3.11'
@@ -162,9 +163,12 @@ jobs:
           - msvc: VS-17-2022
             generator: 'Visual Studio 17 2022'
             marker: vc17
+          - msvc: VS-18-2026
+            generator: 'Visual Studio 18 2026'
+            marker: vc18
+            os: windows-2025-vs2026
           - arch: x64
             address_model: 64
-            os: windows-2025
           - arch: arm64
             address_model: 64
             os: windows-11-arm
@@ -175,6 +179,8 @@ jobs:
             python: pypy3.10
           - arch: arm64
             python: pypy3.11
+          - arch: arm64
+            msvc: VS-18-2026
 
     steps:
       - uses: actions/checkout@v6
@@ -293,13 +299,6 @@ jobs:
         run: |
           pip install -r requirements.txt --prefer-binary
 
-      - name: Setup Dependencies (VC17)
-        if: matrix.msvc == 'VS-17-2022'
-        run: |
-          # pybind11 prior to version 2.9.0 causes compilation erros in debug
-          # builds that use Visual Studio 2022.
-          pip install pybind11>=2.9.0
-
       - name: Setup Environment
         run: |
           echo "Boost_ROOT=${{github.workspace}}/boost" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -364,7 +363,7 @@ jobs:
           - Debug
           - Release
         msvc:
-          - VS-17-2022
+          - VS-18-2026
         python:
           - '3.10'
           - '3.11'
@@ -374,10 +373,10 @@ jobs:
           - 'pypy3.10'
           - 'pypy3.11'
         include:
-          - msvc: VS-17-2022
-            generator: 'Visual Studio 17 2022'
+          - msvc: VS-18-2026
+            generator: 'Visual Studio 18 2026'
           - arch: x64
-            os: windows-2025
+            os: windows-2025-vs2026
           - arch: arm64
             os: windows-11-arm
         exclude:
