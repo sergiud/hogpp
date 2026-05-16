@@ -144,6 +144,7 @@ jobs:
           - Debug
           - Release
         msvc:
+          - VS-17-2022
           - VS-18-2026
         python:
           - '3.10'
@@ -154,15 +155,25 @@ jobs:
           - 'pypy3.10'
           - 'pypy3.11'
         include:
+          - msvc: VS-17-2022
+            generator: 'Visual Studio 17 2022'
+            marker: vc17
+            arch: x64
+            os: windows-2025
+          - msvc: VS-17-2022
+            generator: 'Visual Studio 17 2022'
+            marker: vc17
+            arch: arm64
+            os: windows-11-arm
           - msvc: VS-18-2026
             generator: 'Visual Studio 18 2026'
             marker: vc18
+            os: windows-2025-vs2026
+            arch: arm64
           - arch: x64
             address_model: 64
-            os: windows-2025-vs2026
           - arch: arm64
             address_model: 64
-            os: windows-11-arm
         exclude:
           - arch: arm64
             python: 3.10
@@ -170,6 +181,8 @@ jobs:
             python: pypy3.10
           - arch: arm64
             python: pypy3.11
+          - arch: arm64
+            msvc: VS-18-2026
 
     steps:
       - uses: actions/checkout@v6
