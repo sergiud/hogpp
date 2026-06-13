@@ -165,7 +165,7 @@ jobs:
             marker: vc17
           - arch: x64
             address_model: 64
-            os: windows-2025
+            os: windows-2022
           - arch: arm64
             address_model: 64
             os: windows-11-arm
