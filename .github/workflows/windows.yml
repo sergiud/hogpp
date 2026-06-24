@@ -28,7 +28,7 @@ jobs:
             os: windows-11-arm
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: msys2/setup-msys2@v2
         with:
           msystem: ${{matrix.sys}}
@@ -177,7 +177,7 @@ jobs:
             python: pypy3.11
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # NOTE Extracting Boost using Expand-Archive is very slow taking more than
       # 20 min. whereas 7z takes less than a 1 min.
@@ -389,7 +389,7 @@ jobs:
             python: pypy3.11
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache Eigen
         id: cache-eigen
