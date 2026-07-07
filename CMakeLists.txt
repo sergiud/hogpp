@@ -271,6 +271,10 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_features_block_larger_than_region_but_valid_double COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<double>")
     add_test (NAME descriptor_features_block_larger_than_region_but_valid_long_double COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<long double>")
 
+    add_test (NAME descriptor_nan_pixel_float COMMAND test_descriptor -t "nan_pixel<float>")
+    add_test (NAME descriptor_nan_pixel_double COMMAND test_descriptor -t "nan_pixel<double>")
+    add_test (NAME descriptor_nan_pixel_long_double COMMAND test_descriptor -t "nan_pixel<long double>")
+
     add_executable (test_block_norm tests/cpp/test_block_norm.cpp)
     target_link_libraries (test_block_norm PRIVATE hogpp::hogpp
       Boost::unit_test_framework)

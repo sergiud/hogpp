@@ -293,15 +293,16 @@ public:
 
                 Scalar mag = std::apply(mags, ijk);
 
-                using std::fpclassify;
-
-                if (fpclassify(mag) == FP_ZERO) {
-                    // No gradient; take a shortcut
+                if (!(mag > 0)) {
+                    // No gradient (zero magnitude), or a non-finite value
+                    // propagated from a masked/invalid input pixel; skip
+                    // voting instead of relying on an invariant that would
+                    // otherwise be violated.
                     return;
                 }
 
-                // The gradient magnitude cannot be negative (or zero at this
-                // point)
+                // The gradient magnitude is strictly positive and finite at
+                // this point.
                 HOGPP_ASSUME(mag > 0);
 
                 Scalar dx = std::apply(dxs, ijk);

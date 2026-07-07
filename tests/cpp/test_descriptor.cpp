@@ -19,6 +19,8 @@
 
 #define BOOST_TEST_MODULE hogpp
 
+#include <cmath>
+#include <limits>
 #include <stdexcept>
 
 #include <hogpp/integralhogdescriptor.hpp>
@@ -86,4 +88,35 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region_but_valid,
 
     const auto X = d.features(hogpp::Bounds{0, 0, 3, 3});
     BOOST_TEST(X.size() == 0);
+}
+
+// A single non-finite pixel (e.g. from masked/invalid input data) must
+// not violate the internal "gradient magnitude is strictly positive at
+// this point" invariant used while voting, since that invariant
+// degrades to undefined behavior in release builds.
+BOOST_AUTO_TEST_CASE_TEMPLATE(nan_pixel, Scalar, Scalars)
+{
+    Eigen::Tensor<Scalar, 3> image(3, 3, 1);
+    image.setValues(
+        {{{Scalar(0)}, {Scalar(1)}, {Scalar(2)}},
+         {{Scalar(3)}, {std::numeric_limits<Scalar>::quiet_NaN()}, {Scalar(5)}},
+         {{Scalar(6)}, {Scalar(7)}, {Scalar(8)}}});
+
+    hogpp::IntegralHOGDescriptor<Scalar> d;
+    d.compute(image);
+
+    const Eigen::Tensor<Scalar, 3>& h = d.histogram();
+
+    bool allFinite = true;
+
+    for (Eigen::DenseIndex i = 0; i < h.size(); ++i) {
+        using std::isfinite;
+
+        if (!isfinite(h.data()[i])) {
+            allFinite = false;
+            break;
+        }
+    }
+
+    BOOST_TEST(allFinite);
 }
