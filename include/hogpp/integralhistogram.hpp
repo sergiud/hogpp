@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -118,12 +118,24 @@ template<bool Sign, class Tensor, std::enable_if_t<!Sign>* = nullptr>
     return std::forward<Tensor>(t);
 }
 
+// Inclusion-exclusion sign for the corner reached by offsetting the
+// dimensions selected by the K bit mask, while building the wavefront
+// recurrence over a D-dimensional input space: (-1)^(D - 1 +
+// popcount(K)). Negating only the zero-offset corner (as if D were
+// always 2) is wrong for D == 1 or D >= 3.
+template<std::size_t D>
+[[nodiscard]] constexpr bool cornerSignbit(std::size_t k) noexcept
+{
+    return (D + static_cast<std::size_t>(std::popcount(k))) % 2 == 0;
+}
+
 template<class Tensor, class... Types, std::size_t... Combinations>
 [[nodiscard]] constexpr decltype(auto) propagate(
     Tensor&& t, const std::tuple<Types...>& i,
     std::index_sequence<Combinations...> /*unused*/) noexcept
 {
-    return (negate<Combinations == 0>(
+    constexpr std::size_t D = sizeof...(Types);
+    return (negate<cornerSignbit<D>(Combinations)>(
                 chip(std::forward<Tensor>(t), neighbor<Combinations>(i))) +
             ...);
 }

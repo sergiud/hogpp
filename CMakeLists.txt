@@ -207,6 +207,7 @@ if (BUILD_TESTING)
 
     add_test (NAME integral_histogram_full COMMAND test_integral_histogram -t full)
     add_test (NAME integral_histogram_sub COMMAND test_integral_histogram -t sub)
+    add_test (NAME integral_histogram_volumetric COMMAND test_integral_histogram -t volumetric)
 
     add_executable (test_cartesian_product tests/cpp/test_cartesian_product.cpp)
     target_link_libraries (test_cartesian_product PRIVATE hogpp::hogpp

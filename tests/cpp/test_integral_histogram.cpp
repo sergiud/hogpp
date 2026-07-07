@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2021 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,3 +109,58 @@ BOOST_FIXTURE_TEST_CASE(sub, RandomImage)
 {
     BOOST_TEST(ref_hist2 == computed_hist2, boost::test_tools::per_element());
 }
+
+// The sign of the corners combined while propagating the wavefront
+// scan generalizes to any number of input dimensions.
+BOOST_AUTO_TEST_CASE(volumetric)
+{
+    constexpr Eigen::DenseIndex Nx = 4;
+    constexpr Eigen::DenseIndex Ny = 5;
+    constexpr Eigen::DenseIndex Nz = 6;
+
+    hogpp::IntegralHistogram<long long, 3, 1> ih;
+    ih.resize(std::make_tuple(Nx, Ny, Nz), 1);
+
+    ih.scan([](Eigen::TensorRef<Eigen::Tensor<long long, 1>> h,
+               const std::tuple<Eigen::DenseIndex, Eigen::DenseIndex,
+                                Eigen::DenseIndex>& /*unused*/) {
+        ++h.coeffRef(0);
+    });
+
+    const Eigen::Tensor<long long, 1> full =
+        ih.intersect(std::make_tuple(0, 0, 0), std::make_tuple(Nx, Ny, Nz));
+    BOOST_TEST(full(0) == Nx * Ny * Nz);
+
+    const Eigen::Tensor<long long, 1> sub =
+        ih.intersect(std::make_tuple(1, 1, 1), std::make_tuple(3, 4, 5));
+    BOOST_TEST(sub(0) == (3 - 1) * (4 - 1) * (5 - 1));
+}
+
+// Compile-time check of the corner sign used by the wavefront
+// recurrence, for D == 1, 2 and 3, against a hand-derived truth table
+// (K enumerates every corner but the all-bits-set one, which is the
+// cell being computed rather than a previously computed neighbor).
+static_assert(!hogpp::detail::cornerSignbit<1>(0),
+              "D=1, K=0: the only corner is a positive term");
+
+static_assert(hogpp::detail::cornerSignbit<2>(0),
+              "D=2, K=0: the diagonal corner is a negative term");
+static_assert(!hogpp::detail::cornerSignbit<2>(1),
+              "D=2, K=1: a single-axis corner is a positive term");
+static_assert(!hogpp::detail::cornerSignbit<2>(2),
+              "D=2, K=2: a single-axis corner is a positive term");
+
+static_assert(!hogpp::detail::cornerSignbit<3>(0),
+              "D=3, K=0: the diagonal corner is a positive term");
+static_assert(hogpp::detail::cornerSignbit<3>(1),
+              "D=3, K=1: a single-axis corner is a negative term");
+static_assert(hogpp::detail::cornerSignbit<3>(2),
+              "D=3, K=2: a single-axis corner is a negative term");
+static_assert(!hogpp::detail::cornerSignbit<3>(3),
+              "D=3, K=3: a two-axis corner is a positive term");
+static_assert(hogpp::detail::cornerSignbit<3>(4),
+              "D=3, K=4: a single-axis corner is a negative term");
+static_assert(!hogpp::detail::cornerSignbit<3>(5),
+              "D=3, K=5: a two-axis corner is a positive term");
+static_assert(!hogpp::detail::cornerSignbit<3>(6),
+              "D=3, K=6: a two-axis corner is a positive term");
