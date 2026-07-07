@@ -40,11 +40,22 @@ concept Arithmetic = std::is_arithmetic_v<T>;
 
 namespace detail {
 
-template<class... T>
-concept TupleOfIntegrals = requires {
-    std::tuple<T...>{};
-    (std::is_integral_v<T> && ...);
+template<class T>
+struct IsTupleOfIntegrals : std::false_type
+{
 };
+
+template<class... T>
+struct IsTupleOfIntegrals<std::tuple<T...>>
+    : std::bool_constant<(std::is_integral_v<T> && ...)>
+{
+};
+
+// Satisfied by a std::tuple whose own elements are all integral, e.g. a
+// single corner's per-axis coordinates. Used to constrain each element
+// of an outer tuple of corners (a tuple of such coordinate tuples).
+template<class T>
+concept TupleOfIntegrals = IsTupleOfIntegrals<std::decay_t<T>>::value;
 
 template<std::size_t K, class... Types, std::size_t... Indices>
 [[nodiscard]] constexpr decltype(auto) neighbor(

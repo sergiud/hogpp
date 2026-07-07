@@ -366,3 +366,13 @@ BOOST_AUTO_TEST_CASE(interpolate_unsigned_coordinates_near_lower_boundary)
 
     BOOST_TEST(actual(0) == expected, boost::test_tools::tolerance(Tolerance));
 }
+
+// Compile-time check that TupleOfIntegrals actually evaluates its
+// constraint instead of merely checking the expression compiles.
+static_assert(hogpp::detail::TupleOfIntegrals<std::tuple<int, int>>,
+              "a tuple of integral coordinates must satisfy the concept");
+static_assert(
+    !hogpp::detail::TupleOfIntegrals<std::tuple<double, double>>,
+    "a tuple of non-integral coordinates must not satisfy the concept");
+static_assert(!hogpp::detail::TupleOfIntegrals<int>,
+              "a type that is not a tuple must not satisfy the concept");
