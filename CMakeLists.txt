@@ -262,6 +262,14 @@ if (BUILD_TESTING)
     add_test (NAME gradient_interior_border_magnitude_comparable_double COMMAND test_gradient -t "interior_border_magnitude_comparable<double>")
     add_test (NAME gradient_interior_border_magnitude_comparable_long_double COMMAND test_gradient -t "interior_border_magnitude_comparable<long double>")
 
+    add_test (NAME gradient_single_row_float COMMAND test_gradient -t "single_row<float>")
+    add_test (NAME gradient_single_row_double COMMAND test_gradient -t "single_row<double>")
+    add_test (NAME gradient_single_row_long_double COMMAND test_gradient -t "single_row<long double>")
+
+    add_test (NAME gradient_single_column_float COMMAND test_gradient -t "single_column<float>")
+    add_test (NAME gradient_single_column_double COMMAND test_gradient -t "single_column<double>")
+    add_test (NAME gradient_single_column_long_double COMMAND test_gradient -t "single_column<long double>")
+
     add_executable (test_binning tests/cpp/test_binning.cpp)
     target_link_libraries (test_binning PRIVATE hogpp::hogpp
       Boost::unit_test_framework)

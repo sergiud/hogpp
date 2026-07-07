@@ -56,3 +56,41 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(interior_border_magnitude_comparable, Scalar,
 
     BOOST_TEST(sampler(base, 0, 2, 0) == Scalar(1));
 }
+
+// An axis of size 1 has no well-defined finite difference (the lower- and
+// upper-border conditions are both satisfied by the single valid index at
+// once), and must not read past the end of that axis.
+BOOST_AUTO_TEST_CASE_TEMPLATE(single_row, Scalar, Scalars)
+{
+    Eigen::Tensor<Scalar, 3> image(1, 4, 1);
+    image.setValues({{{Scalar(10)}, {Scalar(20)}, {Scalar(30)}, {Scalar(40)}}});
+
+    hogpp::Gradient<Scalar> gradient;
+
+    Eigen::Tensor<Scalar, 3> dxs;
+    Eigen::Tensor<Scalar, 3> dys;
+
+    std::tie(dxs, dys) = gradient(image);
+
+    for (Eigen::DenseIndex j = 0; j < image.dimension(1); ++j) {
+        BOOST_TEST(dys(0, j, 0) == Scalar(0));
+    }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(single_column, Scalar, Scalars)
+{
+    Eigen::Tensor<Scalar, 3> image(4, 1, 1);
+    image.setValues(
+        {{{Scalar(10)}}, {{Scalar(20)}}, {{Scalar(30)}}, {{Scalar(40)}}});
+
+    hogpp::Gradient<Scalar> gradient;
+
+    Eigen::Tensor<Scalar, 3> dxs;
+    Eigen::Tensor<Scalar, 3> dys;
+
+    std::tie(dxs, dys) = gradient(image);
+
+    for (Eigen::DenseIndex i = 0; i < image.dimension(0); ++i) {
+        BOOST_TEST(dxs(i, 0, 0) == Scalar(0));
+    }
+}
