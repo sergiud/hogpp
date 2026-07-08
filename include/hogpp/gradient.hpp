@@ -210,7 +210,7 @@ using MakeVerticalSampler_t = typename MakeSampler<T, Vertical_t>::type;
 template<class T>
 using MakeHorizontalSampler_t = typename MakeSampler<T, Horizontal_t>::type;
 
-template<class T, class InteriorSampler = DiscretePointDifferences<T>,
+template<class T, class InteriorSampler = CentralDifferences<T>,
          class LowerBoundSampler = ForwardDifferences<T>,
          class UpperBoundSampler = BackwardDifferences<T>>
 class Gradient

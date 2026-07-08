@@ -223,6 +223,14 @@ if (BUILD_TESTING)
     add_test (NAME cartesian_product_loop_counter_type_longlong COMMAND test_cartesian_product -t "loop_counter_type<long long>")
     add_test (NAME cartesian_product_loop_counter_type_ulonglong COMMAND test_cartesian_product -t "loop_counter_type<unsigned long long>")
 
+    add_executable (test_gradient tests/cpp/test_gradient.cpp)
+    target_link_libraries (test_gradient PRIVATE hogpp::hogpp
+      Boost::unit_test_framework)
+
+    add_test (NAME gradient_interior_border_magnitude_comparable_float COMMAND test_gradient -t "interior_border_magnitude_comparable<float>")
+    add_test (NAME gradient_interior_border_magnitude_comparable_double COMMAND test_gradient -t "interior_border_magnitude_comparable<double>")
+    add_test (NAME gradient_interior_border_magnitude_comparable_long_double COMMAND test_gradient -t "interior_border_magnitude_comparable<long double>")
+
     add_executable (test_binning tests/cpp/test_binning.cpp)
     target_link_libraries (test_binning PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
