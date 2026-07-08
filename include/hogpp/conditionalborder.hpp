@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,10 +41,10 @@ struct ConditionalBorder
     template<class... Elements>
     static constexpr auto Size_v = Size_t<Elements...>::value;
 
-    template<class Axis, class Scalar, int DataLayout, class Interior,
-             class AtLowerBorder, class AtUpperBorder, class... Elements>
+    template<class Axis, class Derived, class Interior, class AtLowerBorder,
+             class AtUpperBorder, class... Elements>
     constexpr decltype(auto) select(
-        const Eigen::Tensor<Scalar, Size_v<Elements...>, DataLayout>& image,
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& image,
         Interior&& interior, AtLowerBorder&& atLowerBorder,
         AtUpperBorder&& atUpperBorder, std::tuple<Elements...> idxs) const
     {
@@ -58,17 +58,18 @@ struct ConditionalBorder
             return std::apply(atLowerBorder, args);
         }
 
-        if (i >= static_cast<Index>(image.dimension(Axis::value)) - 1) {
+        if (i >=
+            static_cast<Index>(image.derived().dimension(Axis::value)) - 1) {
             return std::apply(atUpperBorder, args);
         }
 
         return std::apply(interior, args);
     }
 
-    template<class Axis, class Scalar, int DataLayout, class Interior,
-             class AtLowerBorder, class AtUpperBorder, class... Args>
+    template<class Axis, class Derived, class Interior, class AtLowerBorder,
+             class AtUpperBorder, class... Args>
     constexpr decltype(auto) compute(
-        const Eigen::Tensor<Scalar, Size_v<Args...>, DataLayout>& image,
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& image,
         Interior&& interior, AtLowerBorder&& atLowerBorder,
         AtUpperBorder&& atUpperBorder, Args&&... args) const
     {

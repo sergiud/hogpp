@@ -32,7 +32,7 @@ using Scalars = boost::mpl::list<float, double, long double>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(interior_border_magnitude_comparable, Scalar,
                               Scalars)
 {
-    Eigen::Tensor<Scalar, 3> image(1, 6, 1);
+    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<1, 6, 1>> image;
     image.setZero();
 
     for (Eigen::DenseIndex j = 0; j < image.dimension(1); ++j) {
