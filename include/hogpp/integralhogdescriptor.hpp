@@ -226,21 +226,16 @@ public:
     // clang-format off
     template
     <
-          class U
-        , int DataLayout
+          class Tensor
         , class Masking = std::nullptr_t
         , class G = GradientType
         // Enable overload only if Gradient is not void
         , std::enable_if_t<!std::is_void_v<G> >* = nullptr
     >
     // clang-format on
-    void compute(const Eigen::Tensor<U, 3, DataLayout>& image,
-                 Masking&& masked = nullptr)
+    void compute(const Tensor& image, Masking&& masked = nullptr)
     {
-        Eigen::Tensor<Scalar, 3, DataLayout> dxs;
-        Eigen::Tensor<Scalar, 3, DataLayout> dys;
-
-        std::tie(dxs, dys) = this->gradient_(image);
+        auto [dxs, dys] = this->gradient_(image);
 
         assert(dxs.dimension(0) == image.dimension(0));
         assert(dxs.dimension(1) == image.dimension(1));

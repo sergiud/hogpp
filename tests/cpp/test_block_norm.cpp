@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(zero, Norm, PrecisionNorms)
 
     Norm{}(block);
 
-    const Eigen::Tensor<Scalar, 0> s = block.sum();
+    const Eigen::TensorFixedSize<Scalar, Eigen::Sizes<>> s = block.sum();
     BOOST_TEST(s(0) == 0);
 }
 
@@ -73,7 +73,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(negative_near_zero, Norm, PrecisionNorms)
 
     // Division by a near-zero norm must not produce NaN or Inf, and must
     // actually normalize the block rather than leave it unchanged.
-    const Eigen::Tensor<bool, 0> finite = block.isfinite().all();
+    const Eigen::TensorFixedSize<bool, Eigen::Sizes<>> finite =
+        block.isfinite().all();
     BOOST_TEST(finite(0));
     BOOST_TEST(block(0, 0) != original);
 }
@@ -92,7 +93,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(positive_near_zero, Norm, PrecisionNorms)
 
     // Division by a near-zero norm must not produce NaN or Inf, and must
     // actually normalize the block rather than leave it unchanged.
-    const Eigen::Tensor<bool, 0> finite = block.isfinite().all();
+    const Eigen::TensorFixedSize<bool, Eigen::Sizes<>> finite =
+        block.isfinite().all();
     BOOST_TEST(finite(0));
     BOOST_TEST(block(0, 0) != original);
 }

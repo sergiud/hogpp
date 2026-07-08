@@ -30,6 +30,16 @@
 
 using Scalars = boost::mpl::list<float, double, long double>;
 
+template<class Scalar>
+auto makeImage()
+{
+    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<3, 3, 1>> image;
+    image.setValues({{{Scalar(0)}, {Scalar(1)}, {Scalar(2)}},
+                     {{Scalar(3)}, {Scalar(4)}, {Scalar(5)}},
+                     {{Scalar(6)}, {Scalar(7)}, {Scalar(8)}}});
+    return image;
+}
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(empty, Scalar, Scalars)
 {
     BOOST_TEST(hogpp::IntegralHOGDescriptor<Scalar>{}.isEmpty());
@@ -59,10 +69,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(void_gradient, Scalar, Scalars)
 BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region, Scalar,
                               Scalars)
 {
-    Eigen::Tensor<Scalar, 3> image(3, 3, 1);
-    image.setValues({{{Scalar(0)}, {Scalar(1)}, {Scalar(2)}},
-                     {{Scalar(3)}, {Scalar(4)}, {Scalar(5)}},
-                     {{Scalar(6)}, {Scalar(7)}, {Scalar(8)}}});
+    auto image = makeImage<Scalar>();
 
     hogpp::IntegralHOGDescriptor<Scalar> d;
     d.setBlockSize(Eigen::Array2i{100, 100});
@@ -78,10 +85,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region, Scalar,
 BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region_but_valid,
                               Scalar, Scalars)
 {
-    Eigen::Tensor<Scalar, 3> image(3, 3, 1);
-    image.setValues({{{Scalar(0)}, {Scalar(1)}, {Scalar(2)}},
-                     {{Scalar(3)}, {Scalar(4)}, {Scalar(5)}},
-                     {{Scalar(6)}, {Scalar(7)}, {Scalar(8)}}});
+    auto image = makeImage<Scalar>();
 
     hogpp::IntegralHOGDescriptor<Scalar> d;
     d.compute(image);
@@ -96,11 +100,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region_but_valid,
 // degrades to undefined behavior in release builds.
 BOOST_AUTO_TEST_CASE_TEMPLATE(nan_pixel, Scalar, Scalars)
 {
-    Eigen::Tensor<Scalar, 3> image(3, 3, 1);
-    image.setValues(
-        {{{Scalar(0)}, {Scalar(1)}, {Scalar(2)}},
-         {{Scalar(3)}, {std::numeric_limits<Scalar>::quiet_NaN()}, {Scalar(5)}},
-         {{Scalar(6)}, {Scalar(7)}, {Scalar(8)}}});
+    auto image = makeImage<Scalar>();
+    image(1, 1, 0) = std::numeric_limits<Scalar>::quiet_NaN();
 
     hogpp::IntegralHOGDescriptor<Scalar> d;
     d.compute(image);

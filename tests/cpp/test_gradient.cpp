@@ -32,7 +32,7 @@ using Scalars = boost::mpl::list<float, double, long double>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(interior_border_magnitude_comparable, Scalar,
                               Scalars)
 {
-    Eigen::Tensor<Scalar, 3> image(1, 6, 1);
+    Eigen::TensorFixedSize<Scalar, Eigen::Sizes<1, 6, 1>> image;
 
     // Initialize the entire tensor
     for (Eigen::DenseIndex j = 0; j < image.dimension(1); ++j) {
@@ -49,4 +49,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(interior_border_magnitude_comparable, Scalar,
     for (Eigen::DenseIndex j = 0; j < image.dimension(1); ++j) {
         BOOST_TEST(dxs(0, j, 0) == Scalar(1));
     }
+
+    using Derived = decltype(image);
+    const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& base = image;
+    const hogpp::CentralDifferences<Scalar, hogpp::Horizontal_t> sampler;
+
+    BOOST_TEST(sampler(base, 0, 2, 0) == Scalar(1));
 }

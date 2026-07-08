@@ -20,6 +20,7 @@
 #ifndef HOGPP_GRADIENT_HPP
 #define HOGPP_GRADIENT_HPP
 
+#include <Eigen/Core>
 #include <numeric>
 #include <utility>
 
@@ -44,8 +45,9 @@ struct ForwardDifferences<T, Vertical_t>
                                                       Eigen::DenseIndex j,
                                                       Eigen::DenseIndex k) const
     {
-        return Scalar(PrecisionType(image(i + 1, j, k)) -
-                      PrecisionType(image(i, j, k)));
+        const auto& tensor = static_cast<const Tensor&>(image);
+        return Scalar(PrecisionType(tensor(i + 1, j, k)) -
+                      PrecisionType(tensor(i, j, k)));
     }
 };
 
@@ -60,8 +62,9 @@ struct ForwardDifferences<T, Horizontal_t>
                                                       Eigen::DenseIndex j,
                                                       Eigen::DenseIndex k) const
     {
-        return Scalar(PrecisionType(image(i, j + 1, k)) -
-                      PrecisionType(image(i, j, k)));
+        const auto& tensor = static_cast<const Tensor&>(image);
+        return Scalar(PrecisionType(tensor(i, j + 1, k)) -
+                      PrecisionType(tensor(i, j, k)));
     }
 };
 
@@ -79,8 +82,9 @@ struct BackwardDifferences<T, Vertical_t>
                                                       Eigen::DenseIndex j,
                                                       Eigen::DenseIndex k) const
     {
-        return Scalar(PrecisionType(image(i, j, k)) -
-                      PrecisionType(image(i - 1, j, k)));
+        const auto& tensor = static_cast<const Tensor&>(image);
+        return Scalar(PrecisionType(tensor(i, j, k)) -
+                      PrecisionType(tensor(i - 1, j, k)));
     }
 };
 
@@ -95,8 +99,9 @@ struct BackwardDifferences<T, Horizontal_t>
                                                       Eigen::DenseIndex j,
                                                       Eigen::DenseIndex k) const
     {
-        return Scalar(PrecisionType(image(i, j, k)) -
-                      PrecisionType(image(i, j - 1, k)));
+        const auto& tensor = static_cast<const Tensor&>(image);
+        return Scalar(PrecisionType(tensor(i, j, k)) -
+                      PrecisionType(tensor(i, j - 1, k)));
     }
 };
 
@@ -108,15 +113,15 @@ struct CentralDifferences<T, Vertical_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
-    [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
-                                                      Eigen::DenseIndex i,
-                                                      Eigen::DenseIndex j,
-                                                      Eigen::DenseIndex k) const
+    template<class Derived, class PrecisionType = PrecisionType_t<Derived>>
+    [[nodiscard]] constexpr decltype(auto) operator()(
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& image,
+        Eigen::DenseIndex i, Eigen::DenseIndex j, Eigen::DenseIndex k) const
     {
         using std::midpoint;
-        return Scalar(midpoint(-PrecisionType(image(i - 1, j, k)),
-                               +PrecisionType(image(i + 1, j, k))));
+        const auto& tensor = static_cast<const Derived&>(image);
+        return Scalar(midpoint(-PrecisionType(tensor(i - 1, j, k)),
+                               +PrecisionType(tensor(i + 1, j, k))));
     }
 };
 
@@ -125,17 +130,17 @@ struct CentralDifferences<T, Horizontal_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
-    [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
-                                                      Eigen::DenseIndex i,
-                                                      Eigen::DenseIndex j,
-                                                      Eigen::DenseIndex k) const
+    template<class Derived, class PrecisionType = PrecisionType_t<Derived>>
+    [[nodiscard]] constexpr decltype(auto) operator()(
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& image,
+        Eigen::DenseIndex i, Eigen::DenseIndex j, Eigen::DenseIndex k) const
     {
         using std::midpoint;
         // Compute the dot product beween the kernel [-1 0 +1] and
         // the corresponding row (neighbor) pixels.
-        return Scalar(midpoint(-PrecisionType(image(i, j - 1, k)),
-                               +PrecisionType(image(i, j + 1, k))));
+        const auto& tensor = static_cast<const Derived&>(image);
+        return Scalar(midpoint(-PrecisionType(tensor(i, j - 1, k)),
+                               +PrecisionType(tensor(i, j + 1, k))));
     }
 };
 
@@ -147,14 +152,14 @@ struct DiscretePointDifferences<T, Vertical_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
-    [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
-                                                      Eigen::DenseIndex i,
-                                                      Eigen::DenseIndex j,
-                                                      Eigen::DenseIndex k) const
+    template<class Derived, class PrecisionType = PrecisionType_t<Derived>>
+    [[nodiscard]] constexpr decltype(auto) operator()(
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& image,
+        Eigen::DenseIndex i, Eigen::DenseIndex j, Eigen::DenseIndex k) const
     {
-        return Scalar(PrecisionType(image(i + 1, j, k)) -
-                      PrecisionType(image(i - 1, j, k)));
+        const auto& tensor = static_cast<const Derived&>(image);
+        return Scalar(PrecisionType(tensor(i + 1, j, k)) -
+                      PrecisionType(tensor(i - 1, j, k)));
     }
 };
 
@@ -163,14 +168,14 @@ struct DiscretePointDifferences<T, Horizontal_t>
 {
     using Scalar = T;
 
-    template<class Tensor, class PrecisionType = PrecisionType_t<Tensor>>
-    [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image,
-                                                      Eigen::DenseIndex i,
-                                                      Eigen::DenseIndex j,
-                                                      Eigen::DenseIndex k) const
+    template<class Derived, class PrecisionType = PrecisionType_t<Derived>>
+    [[nodiscard]] constexpr decltype(auto) operator()(
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& image,
+        Eigen::DenseIndex i, Eigen::DenseIndex j, Eigen::DenseIndex k) const
     {
-        return Scalar(PrecisionType(image(i, j + 1, k)) -
-                      PrecisionType(image(i, j - 1, k)));
+        const auto& tensor = static_cast<const Derived&>(image);
+        return Scalar(PrecisionType(tensor(i, j + 1, k)) -
+                      PrecisionType(tensor(i, j - 1, k)));
     }
 };
 
@@ -218,12 +223,18 @@ class Gradient
 public:
     using Scalar = T;
 
-    template<class U, int DataLayout>
+    template<class Derived>
     [[nodiscard]] constexpr decltype(auto) operator()(
-        const Eigen::Tensor<U, 3, DataLayout>& image) const
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& image) const
     {
-        Eigen::Tensor<Scalar, 3, DataLayout> dxs;
-        Eigen::Tensor<Scalar, 3, DataLayout> dys;
+        return (*this)(static_cast<const Derived&>(image));
+    }
+
+    template<class Tensor>
+    [[nodiscard]] constexpr decltype(auto) operator()(const Tensor& image) const
+    {
+        Eigen::Tensor<Scalar, 3, Tensor::Options> dxs;
+        Eigen::Tensor<Scalar, 3, Tensor::Options> dys;
 
         dxs.resize(image.dimensions());
         dys.resize(image.dimensions());
@@ -253,10 +264,10 @@ private:
     // (primary, secondary) pair used by the sweep to the (i, j) order
     // Eigen::Tensor::operator() expects, resolved entirely at compile time via
     // Axis::value.
-    template<class Axis, class U, int DataLayout, class Interior,
-             class LowerBound, class UpperBound>
-    constexpr void sweep(const Eigen::Tensor<U, 3, DataLayout>& image,
-                         Eigen::Tensor<Scalar, 3, DataLayout>& out,
+    template<class Axis, class Tensor, class Interior, class LowerBound,
+             class UpperBound>
+    constexpr void sweep(const Tensor& image,
+                         Eigen::Tensor<Scalar, 3, Tensor::Options>& out,
                          const Interior& interior, const LowerBound& lower,
                          const UpperBound& upper) const
     {
