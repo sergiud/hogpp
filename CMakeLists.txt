@@ -212,6 +212,12 @@ if (BUILD_TESTING)
     target_link_libraries (test_cartesian_product PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
 
+    if (MSVC)
+      set (_long_long_name __int64)
+    else (MSVC)
+      set (_long_long_name "long long")
+    endif (MSVC)
+
     add_test (NAME cartesian_product_loop_counter_type_schar COMMAND test_cartesian_product -t "loop_counter_type<signed char>")
     add_test (NAME cartesian_product_loop_counter_type_uchar COMMAND test_cartesian_product -t "loop_counter_type<unsigned char>")
     add_test (NAME cartesian_product_loop_counter_type_short COMMAND test_cartesian_product -t "loop_counter_type<short>")
@@ -220,8 +226,10 @@ if (BUILD_TESTING)
     add_test (NAME cartesian_product_loop_counter_type_uint COMMAND test_cartesian_product -t "loop_counter_type<unsigned int>")
     add_test (NAME cartesian_product_loop_counter_type_long COMMAND test_cartesian_product -t "loop_counter_type<long>")
     add_test (NAME cartesian_product_loop_counter_type_ulong COMMAND test_cartesian_product -t "loop_counter_type<unsigned long>")
-    add_test (NAME cartesian_product_loop_counter_type_longlong COMMAND test_cartesian_product -t "loop_counter_type<long long>")
-    add_test (NAME cartesian_product_loop_counter_type_ulonglong COMMAND test_cartesian_product -t "loop_counter_type<unsigned long long>")
+    add_test (NAME cartesian_product_loop_counter_type_longlong COMMAND test_cartesian_product -t "loop_counter_type<${_long_long_name}>")
+    add_test (NAME cartesian_product_loop_counter_type_ulonglong COMMAND test_cartesian_product -t "loop_counter_type<unsigned ${_long_long_name}>")
+
+    unset (_long_long_name)
 
     add_executable (test_gradient tests/cpp/test_gradient.cpp)
     target_link_libraries (test_gradient PRIVATE hogpp::hogpp
