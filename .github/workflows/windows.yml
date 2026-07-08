@@ -149,7 +149,7 @@ jobs:
           - Debug
           - Release
         msvc:
-          - VS-17-2022
+          - VS-18-2026
         python:
           - '3.10'
           - '3.11'
@@ -159,15 +159,15 @@ jobs:
           - 'pypy3.10'
           - 'pypy3.11'
         include:
-          - msvc: VS-17-2022
-            generator: 'Visual Studio 17 2022'
-            marker: vc17
+          - msvc: VS-18-2026
+            generator: 'Visual Studio 18 2026'
+            marker: vc18
           - arch: x64
             address_model: 64
-            os: windows-2022
+            os: windows-2025-vs2026
           - arch: arm64
             address_model: 64
-            os: windows-11-arm
+            os: windows-11-vs2026-arm
         exclude:
           - arch: arm64
             python: 3.10
@@ -293,8 +293,8 @@ jobs:
         run: |
           pip install -r requirements.txt --prefer-binary
 
-      - name: Setup Dependencies (VC17)
-        if: matrix.msvc == 'VS-17-2022'
+      - name: Setup Dependencies (VC18)
+        if: matrix.msvc == 'VS-18-2026'
         run: |
           # pybind11 prior to version 2.9.0 causes compilation erros in debug
           # builds that use Visual Studio 2022.
@@ -364,7 +364,7 @@ jobs:
           - Debug
           - Release
         msvc:
-          - VS-17-2022
+          - VS-18-2026
         python:
           - '3.10'
           - '3.11'
@@ -374,12 +374,12 @@ jobs:
           - 'pypy3.10'
           - 'pypy3.11'
         include:
-          - msvc: VS-17-2022
-            generator: 'Visual Studio 17 2022'
+          - msvc: VS-18-2026
+            generator: 'Visual Studio 18 2026'
           - arch: x64
-            os: windows-2025
+            os: windows-2025-vs2026
           - arch: arm64
-            os: windows-11-arm
+            os: windows-11-vs2026-arm
         exclude:
           - arch: arm64
             python: 3.10
