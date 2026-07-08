@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container: sergiud/hogpp:lint-18
     defaults:
       run:
@@ -32,12 +32,12 @@ jobs:
           - Release
           - Debug
         os:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-26.04
             arch: x86_64
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-26.04-arm
             arch: arm64
 
     steps:
@@ -132,8 +132,8 @@ jobs:
           - Release
           - Debug
         os:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
         python:
           - '3.10'
           - '3.11'
@@ -143,9 +143,9 @@ jobs:
           - 'pypy3.10'
           - 'pypy3.11'
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-26.04
             arch: x86_64
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-26.04-arm
             arch: arm64
 
     steps:
