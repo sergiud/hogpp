@@ -44,7 +44,8 @@ constexpr void cartesianProduct(
         Index,
         Indices...> /*unused*/) noexcept(noexcept(body(std::declval<std::tuple<Sizes...>>())))
 {
-    for (auto i = 0; i < std::get<Index>(s); ++i) {
+    for (std::tuple_element_t<Index, std::tuple<Sizes...>> i = 0;
+         i < std::get<Index>(s); ++i) {
         cartesianProduct(s, std::tuple_cat(l, std::make_tuple(i)),
                          std::forward<Body>(body),
                          std::index_sequence<Indices...>{});

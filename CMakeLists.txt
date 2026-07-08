@@ -208,6 +208,21 @@ if (BUILD_TESTING)
     add_test (NAME integral_histogram_full COMMAND test_integral_histogram -t full)
     add_test (NAME integral_histogram_sub COMMAND test_integral_histogram -t sub)
 
+    add_executable (test_cartesian_product tests/cpp/test_cartesian_product.cpp)
+    target_link_libraries (test_cartesian_product PRIVATE hogpp::hogpp
+      Boost::unit_test_framework)
+
+    add_test (NAME cartesian_product_loop_counter_type_schar COMMAND test_cartesian_product -t "loop_counter_type<signed char>")
+    add_test (NAME cartesian_product_loop_counter_type_uchar COMMAND test_cartesian_product -t "loop_counter_type<unsigned char>")
+    add_test (NAME cartesian_product_loop_counter_type_short COMMAND test_cartesian_product -t "loop_counter_type<short>")
+    add_test (NAME cartesian_product_loop_counter_type_ushort COMMAND test_cartesian_product -t "loop_counter_type<unsigned short>")
+    add_test (NAME cartesian_product_loop_counter_type_int COMMAND test_cartesian_product -t "loop_counter_type<int>")
+    add_test (NAME cartesian_product_loop_counter_type_uint COMMAND test_cartesian_product -t "loop_counter_type<unsigned int>")
+    add_test (NAME cartesian_product_loop_counter_type_long COMMAND test_cartesian_product -t "loop_counter_type<long>")
+    add_test (NAME cartesian_product_loop_counter_type_ulong COMMAND test_cartesian_product -t "loop_counter_type<unsigned long>")
+    add_test (NAME cartesian_product_loop_counter_type_longlong COMMAND test_cartesian_product -t "loop_counter_type<long long>")
+    add_test (NAME cartesian_product_loop_counter_type_ulonglong COMMAND test_cartesian_product -t "loop_counter_type<unsigned long long>")
+
     add_executable (test_binning tests/cpp/test_binning.cpp)
     target_link_libraries (test_binning PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
