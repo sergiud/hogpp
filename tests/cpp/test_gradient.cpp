@@ -33,8 +33,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(interior_border_magnitude_comparable, Scalar,
                               Scalars)
 {
     Eigen::Tensor<Scalar, 3> image(1, 6, 1);
-    image.setZero();
 
+    // Initialize the entire tensor
     for (Eigen::DenseIndex j = 0; j < image.dimension(1); ++j) {
         image(0, j, 0) = static_cast<Scalar>(j);
     }

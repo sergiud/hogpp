@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@
 #define HOGPP_GRADIENT_HPP
 
 #include <numeric>
+#include <utility>
 
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include <hogpp/axis.hpp>
-#include <hogpp/conditionalborder.hpp>
 #include <hogpp/precision.hpp>
 
 namespace hogpp {
@@ -228,19 +228,14 @@ public:
         dxs.resize(image.dimensions());
         dys.resize(image.dimensions());
 
-        // Process each channel separately
-        for (Eigen::DenseIndex k = 0; k < image.dimension(2); ++k) {
-            for (Eigen::DenseIndex i = 0; i < image.dimension(0); ++i) {
-                for (Eigen::DenseIndex j = 0; j < image.dimension(1); ++j) {
-                    dxs(i, j, k) = border_.template compute<Horizontal_t>(
-                        image, interiorX_, atLowerBorderX_, atUpperBorderX_, i,
-                        j, k);
-                    dys(i, j, k) = border_.template compute<Vertical_t>(
-                        image, interiorY_, atLowerBorderY_, atUpperBorderY_, i,
-                        j, k);
-                }
-            }
-        }
+        // Each derivative is swept as a lower-border, an interior, and an
+        // upper-border pass along its own axis, so every call site resolves to
+        // a single sampler at compile time instead of dispatching on a runtime
+        // border check for every pixel.
+        sweep<Horizontal_t>(image, dxs, interiorX_, atLowerBorderX_,
+                            atUpperBorderX_);
+        sweep<Vertical_t>(image, dys, interiorY_, atLowerBorderY_,
+                          atUpperBorderY_);
 
         return std::make_tuple(dxs, dys);
     }
@@ -253,7 +248,63 @@ private:
     using UpperBoundSamplerX = MakeHorizontalSampler_t<UpperBoundSampler>;
     using UpperBoundSamplerY = MakeVerticalSampler_t<UpperBoundSampler>;
 
-    ConditionalBorder border_;
+    // Sweeps the derivative along Axis (the dimension being differentiated),
+    // holding the other dimension fixed as the outer loop. coord() maps the
+    // (primary, secondary) pair used by the sweep to the (i, j) order
+    // Eigen::Tensor::operator() expects, resolved entirely at compile time via
+    // Axis::value.
+    template<class Axis, class U, int DataLayout, class Interior,
+             class LowerBound, class UpperBound>
+    constexpr void sweep(const Eigen::Tensor<U, 3, DataLayout>& image,
+                         Eigen::Tensor<Scalar, 3, DataLayout>& out,
+                         const Interior& interior, const LowerBound& lower,
+                         const UpperBound& upper) const
+    {
+        constexpr Eigen::DenseIndex Secondary = 1 - Axis::value;
+
+        const Eigen::DenseIndex n = image.dimension(Axis::value);
+        const Eigen::DenseIndex m = image.dimension(Secondary);
+        const Eigen::DenseIndex channels = image.dimension(2);
+
+        auto coord = [](Eigen::DenseIndex primary,
+                        Eigen::DenseIndex secondary) {
+            if constexpr (Axis::value == 0) {
+                return std::pair{primary, secondary};
+            }
+
+            return std::pair{secondary, primary};
+        };
+
+        for (Eigen::DenseIndex k = 0; k < channels; ++k) {
+            for (Eigen::DenseIndex s = 0; s < m; ++s) {
+                if (n == 0) {
+                    continue;
+                }
+
+                if (n == 1) {
+                    const auto [i, j] = coord(0, s);
+                    out(i, j, k) = Scalar{0};
+                    continue;
+                }
+
+                {
+                    const auto [i, j] = coord(0, s);
+                    out(i, j, k) = lower(image, i, j, k);
+                }
+
+                for (Eigen::DenseIndex p = 1; p + 1 < n; ++p) {
+                    const auto [i, j] = coord(p, s);
+                    out(i, j, k) = interior(image, i, j, k);
+                }
+
+                {
+                    const auto [i, j] = coord(n - 1, s);
+                    out(i, j, k) = upper(image, i, j, k);
+                }
+            }
+        }
+    }
+
     InteriorSamplerX interiorX_;
     InteriorSamplerY interiorY_;
     LowerBoundSamplerX atLowerBorderX_;
