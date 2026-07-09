@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region, Scalar,
     d.setBlockStride(Eigen::Array2i{1, 1});
     d.compute(image);
 
-    BOOST_CHECK_THROW(d.features(hogpp::Bounds{0, 0, 3, 3}),
+    BOOST_CHECK_THROW((void)d.features(hogpp::Bounds{0, 0, 3, 3}),
                       std::invalid_argument);
 }
 
