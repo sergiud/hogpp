@@ -263,6 +263,14 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_void_gradient_double COMMAND test_descriptor -t "void_gradient<double>")
     add_test (NAME descriptor_void_gradient_long_double COMMAND test_descriptor -t "void_gradient<long double>")
 
+    add_test (NAME descriptor_features_block_larger_than_region_float COMMAND test_descriptor -t "features_block_larger_than_region<float>")
+    add_test (NAME descriptor_features_block_larger_than_region_double COMMAND test_descriptor -t "features_block_larger_than_region<double>")
+    add_test (NAME descriptor_features_block_larger_than_region_long_double COMMAND test_descriptor -t "features_block_larger_than_region<long double>")
+
+    add_test (NAME descriptor_features_block_larger_than_region_but_valid_float COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<float>")
+    add_test (NAME descriptor_features_block_larger_than_region_but_valid_double COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<double>")
+    add_test (NAME descriptor_features_block_larger_than_region_but_valid_long_double COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<long double>")
+
     add_executable (test_block_norm tests/cpp/test_block_norm.cpp)
     target_link_libraries (test_block_norm PRIVATE hogpp::hogpp
       Boost::unit_test_framework)

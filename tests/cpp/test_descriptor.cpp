@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2024 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@
 //
 
 #define BOOST_TEST_MODULE hogpp
+
+#include <stdexcept>
 
 #include <hogpp/integralhogdescriptor.hpp>
 
@@ -46,4 +48,42 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(void_gradient, Scalar, Scalars)
     d.compute(dxs, dys, nullptr);
 
     BOOST_TEST(d.isEmpty());
+}
+
+// A block size far larger than the region, combined with a small
+// stride, drives numBlocks negative rather than just to zero, and
+// must be rejected rather than passed on to a Tensor resize with a
+// negative dimension.
+BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region, Scalar,
+                              Scalars)
+{
+    Eigen::Tensor<Scalar, 3> image(3, 3, 1);
+    image.setValues({{{Scalar(0)}, {Scalar(1)}, {Scalar(2)}},
+                     {{Scalar(3)}, {Scalar(4)}, {Scalar(5)}},
+                     {{Scalar(6)}, {Scalar(7)}, {Scalar(8)}}});
+
+    hogpp::IntegralHOGDescriptor<Scalar> d;
+    d.setBlockSize(Eigen::Array2i{100, 100});
+    d.setBlockStride(Eigen::Array2i{1, 1});
+    d.compute(image);
+
+    BOOST_CHECK_THROW(d.features(hogpp::Bounds{0, 0, 3, 3}),
+                      std::invalid_argument);
+}
+
+// A region smaller than the (default) block size is valid on its own:
+// it simply yields no blocks, and must not be rejected.
+BOOST_AUTO_TEST_CASE_TEMPLATE(features_block_larger_than_region_but_valid,
+                              Scalar, Scalars)
+{
+    Eigen::Tensor<Scalar, 3> image(3, 3, 1);
+    image.setValues({{{Scalar(0)}, {Scalar(1)}, {Scalar(2)}},
+                     {{Scalar(3)}, {Scalar(4)}, {Scalar(5)}},
+                     {{Scalar(6)}, {Scalar(7)}, {Scalar(8)}}});
+
+    hogpp::IntegralHOGDescriptor<Scalar> d;
+    d.compute(image);
+
+    const auto X = d.features(hogpp::Bounds{0, 0, 3, 3});
+    BOOST_TEST(X.size() == 0);
 }

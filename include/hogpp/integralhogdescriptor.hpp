@@ -2,7 +2,7 @@
 // HOGpp - Fast histogram of oriented gradients computation using integral
 // histograms
 //
-// Copyright 2025 Sergiu Deitsch <sergiu.deitsch@gmail.com>
+// Copyright 2026 Sergiu Deitsch <sergiu.deitsch@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -415,6 +415,22 @@ public:
 
         const Eigen::Array2i numBlocks = (dims - blockSize_) / blockStride_ + 1;
         const Eigen::Array2i numCells = blockSize_ / cellSize_;
+
+        // A region smaller than the block size is valid and simply
+        // yields no blocks (numBlocks == 0). Only reject the case that
+        // cannot be represented as a tensor dimension.
+        if ((numBlocks < 0).any()) {
+            using namespace fmt::literals;
+
+            throw std::invalid_argument{fmt::format(
+                "IntegralHOGDescriptor features region {region} cannot be "
+                "smaller than the block size {block_size}",
+                "region"_a =
+                    fmt::join(dims.data(), dims.data() + dims.size(), ", "),
+                "block_size"_a =
+                    fmt::join(blockSize_.data(),
+                              blockSize_.data() + blockSize_.size(), ", "))};
+        }
 
         // Organize the features in a 5-D tensor (blocks (x,y), cells (x,y) and
         // bins).
