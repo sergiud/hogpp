@@ -34,7 +34,6 @@ CMAKE_REQUIRE_FIND_PACKAGE_pybind11 = true
 
 [tool.cibuildwheel]
 enable = [
-    'cpython-freethreading',
     'pypy',
 ]
 test-requires = [
