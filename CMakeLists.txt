@@ -211,15 +211,17 @@ if (nanobind_FOUND)
   # headers (e.g. Python's or nanobind's own), since those are reached via
   # a SYSTEM include directory. It cannot silence warnings from code
   # written directly in nanobind's own .cpp sources, e.g. a sign
-  # conversion in nb_func.cpp. That source isn't ours to fix, so treating
-  # warnings as errors is disabled for nanobind's compiled library
-  # specifically, without weakening warnings for hogpp's own targets.
+  # conversion in nb_func.cpp. That source isn't ours to fix, so warnings
+  # are disabled outright for nanobind's compiled library specifically,
+  # without weakening warnings for hogpp's own targets. This also covers
+  # warnings a newer compiler than what nanobind was written against might
+  # introduce, since none are emitted for that code in the first place.
   foreach (_hogpp_nanobind_lib nanobind-static nanobind-static-abi3 nanobind-static-ft)
     if (TARGET ${_hogpp_nanobind_lib})
       if (MSVC)
-        target_compile_options (${_hogpp_nanobind_lib} PRIVATE /WX-)
+        target_compile_options (${_hogpp_nanobind_lib} PRIVATE /w)
       else (MSVC)
-        target_compile_options (${_hogpp_nanobind_lib} PRIVATE -Wno-error)
+        target_compile_options (${_hogpp_nanobind_lib} PRIVATE -w)
       endif (MSVC)
     endif (TARGET ${_hogpp_nanobind_lib})
   endforeach (_hogpp_nanobind_lib)
