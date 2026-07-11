@@ -30,15 +30,21 @@ import copy
 import numpy as np
 import pytest
 
+# On platforms where long double is genuine extended precision (e.g., x86
+# Linux/macOS, but not Windows, where MSVC's long double is just double),
 # numpy refuses to export longdouble/float128 arrays via __dlpack__ ("DLPack
 # only supports IEEE floating point types without padding"), and nanobind's
 # buffer-protocol fallback does not recognize format code 'g' (long double).
 # hogpp's C++ library still fully supports long double, but nanobind cannot
-# hand it a longdouble numpy array at all, so the precision is unreachable
-# through the Python bindings.
+# hand it such an array at all, so the precision is unreachable through the
+# Python bindings there.
+_HAS_EXTENDED_LONGDOUBLE = (
+    np.dtype(np.longdouble).itemsize > np.dtype(np.float64).itemsize
+)
 _LONGDOUBLE = pytest.param(
     np.longdouble,
     marks=pytest.mark.xfail(
+        condition=_HAS_EXTENDED_LONGDOUBLE,
         reason='nanobind cannot ingest numpy longdouble/float128 arrays',
         strict=True,
     ),

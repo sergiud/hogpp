@@ -69,6 +69,10 @@ jobs:
       - name: Setup Build Environment
         run: |
           echo "Python_ROOT=$(dirname $(dirname $(which python)))" >> $GITHUB_ENV
+          # mingw-w64's nanobind package installs its CMake config under
+          # site-packages, which isn't a location find_package() searches
+          # by default.
+          echo "nanobind_ROOT=$(python -c 'import nanobind; print(nanobind.cmake_dir())')" >> $GITHUB_ENV
 
       - name: Setup Compiler Environment
         run: |
