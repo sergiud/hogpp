@@ -20,23 +20,21 @@
 #ifndef PYTHON_TYPE_CASTER_BOUNDS_HPP
 #define PYTHON_TYPE_CASTER_BOUNDS_HPP
 
-// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
-#include <algorithm>
-
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 #include <hogpp/bounds.hpp>
 
 template<>
-class pybind11::detail::type_caster<hogpp::Bounds>
+class nanobind::detail::type_caster<hogpp::Bounds>
 {
 public:
-    PYBIND11_TYPE_CASTER(hogpp::Bounds, _("Bounds"));
+    NB_TYPE_CASTER(hogpp::Bounds, const_name("Bounds"));
 
-    bool load(handle src, bool /*unused*/);
+    bool from_python(handle src, std::uint8_t /*flags*/,
+                     cleanup_list* /*cleanup*/) noexcept;
 
-    static handle cast(const hogpp::Bounds& in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    static handle from_cpp(const hogpp::Bounds& in, rv_policy /*policy*/,
+                           cleanup_list* /*cleanup*/);
 };
 
 #endif // PYTHON_TYPE_CASTER_BOUNDS_HPP

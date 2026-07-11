@@ -24,7 +24,7 @@
 
 #include <fmt/format.h>
 
-#include <pybind11/cast.h>
+#include <nanobind/nanobind.h>
 
 #if defined(FMT_VERSION) && FMT_VERSION >= 110000
 #    define HOGPP_FORMATTER_FORMAT_CONST const
@@ -33,40 +33,40 @@
 #endif // defined(FMT_VERSION) && FMT_VERSION >= 110000
 
 template<>
-struct fmt::formatter<pybind11::str> : formatter<string_view>
+struct fmt::formatter<nanobind::str> : formatter<string_view>
 {
     template<class FormatContext>
     [[nodiscard]] constexpr auto format(
-        const pybind11::str& s, FormatContext& ctx) HOGPP_FORMATTER_FORMAT_CONST
+        const nanobind::str& s, FormatContext& ctx) HOGPP_FORMATTER_FORMAT_CONST
     {
-        return formatter<string_view>::format(s.cast<std::string_view>(), ctx);
+        return formatter<string_view>::format(std::string_view{s.c_str()}, ctx);
     }
 };
 
 template<>
-struct fmt::formatter<pybind11::handle> : formatter<pybind11::str>
+struct fmt::formatter<nanobind::handle> : formatter<nanobind::str>
 {
     template<class FormatContext>
-    [[nodiscard]] constexpr auto format(const pybind11::handle& o,
+    [[nodiscard]] constexpr auto format(const nanobind::handle& o,
                                         FormatContext& ctx)
         HOGPP_FORMATTER_FORMAT_CONST
     {
-        return formatter<pybind11::str>::format(pybind11::repr(o), ctx);
+        return formatter<nanobind::str>::format(nanobind::repr(o), ctx);
     }
 };
 
 template<>
-struct fmt::formatter<pybind11::object> : formatter<pybind11::handle>
+struct fmt::formatter<nanobind::object> : formatter<nanobind::handle>
 {
 };
 
 template<>
-struct fmt::formatter<pybind11::float_> : formatter<pybind11::object>
+struct fmt::formatter<nanobind::float_> : formatter<nanobind::object>
 {
 };
 
 template<>
-struct fmt::formatter<pybind11::int_> : formatter<pybind11::object>
+struct fmt::formatter<nanobind::int_> : formatter<nanobind::object>
 {
 };
 

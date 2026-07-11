@@ -16,7 +16,10 @@ from many overlapping regions, e.g., in sliding-window detection.
 ## Features
 
 * C++ templated implementation
-* Python support for 32, 64, and 80 bit floating point precision
+* Python support for 32 and 64 bit floating point precision (the C++ library
+  additionally supports 80 bit extended precision; nanobind, which the Python
+  bindings are built on, cannot exchange numpy `longdouble`/`float128` arrays
+  with C++, so this precision is not reachable from Python)
 * Unrestricted input size (e.g., OpenCV as of version 4.5.5 requires the input
   to be a [multiple of the block
   size](https://github.com/opencv/opencv/blob/5f249a3e67bfe3627e184bf5535da64daeaeb1c8/modules/objdetect/src/hog.cpp#L95-L96))

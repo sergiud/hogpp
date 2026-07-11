@@ -15,9 +15,9 @@ libopencv-dev \
 mold \
 ninja-build \
 python3-dev \
+python3-nanobind \
 python3-numpy \
 python3-pillow \
-python3-pybind11 \
 python3-pytest \
 python3-pytest-xdist \
 python3-sphinx \

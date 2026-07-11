@@ -26,11 +26,24 @@ check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
 check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 
-set (PYBIND11_NOPYTHON ON)
-
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
-find_package (Python 3.0 COMPONENTS Development.Module OPTIONAL_COMPONENTS Interpreter)
+
+# Development.SABIModule provides the Python::SABIModule target nanobind
+# needs to build stable ABI (abi3) extension modules. The component was
+# only added to FindPython in CMake 3.26 (see issue #73 for the tracked
+# bump of the minimum required CMake version), and older CMake releases
+# reject unrecognized component names outright, so it can only be
+# requested conditionally for now.
+set (HOGPP_PYTHON_OPTIONAL_COMPONENTS)
+
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.26)
+  list (APPEND HOGPP_PYTHON_OPTIONAL_COMPONENTS Development.SABIModule)
+endif (CMAKE_VERSION VERSION_GREATER_EQUAL 3.26)
+
+find_package (Python 3.10 COMPONENTS Interpreter Development.Module
+  OPTIONAL_COMPONENTS ${HOGPP_PYTHON_OPTIONAL_COMPONENTS})
+
 find_package (Sphinx 4.0)
 
 if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
@@ -69,27 +82,13 @@ else (NOT CIBUILDWHEEL)
   FetchContent_MakeAvailable (fmt)
 endif (NOT CIBUILDWHEEL)
 
-if (SKBUILD_SOABI)
-  set (Python_SOABI ${SKBUILD_SOABI})
-else (SKBUILD_SOABI)
-  if (Python_INTERPRETER_ID STREQUAL "PyPy")
-    # Correct SOABI which is missing the platform tag. See
-    # https://github.com/pypy/pypy/issues/3815.
-    execute_process (COMMAND
-      ${Python_EXECUTABLE} -c
-      "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX').split('.')[1])"
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      OUTPUT_VARIABLE Python_SOABI
-      # FIXME: Use COMMAND_ERROR_IS_FATAL ANY when CMake >= 3.19
-    )
-  endif (Python_INTERPRETER_ID STREQUAL "PyPy")
-endif (SKBUILD_SOABI)
-
-if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
-  find_package (pybind11 2.9.0 NO_MODULE)
-else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
-  find_package (pybind11 2.6.2 NO_MODULE)
-endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+if (Python_Interpreter_FOUND AND Python_Development.Module_FOUND)
+  # nanobind's config computes the extension suffix itself (querying
+  # sysconfig directly when SKBUILD_SOABI/Python_SOABI is unavailable or, as
+  # on PyPy, missing the platform tag), so no manual SOABI handling is
+  # needed here.
+  find_package (nanobind 2.2.0 CONFIG)
+endif (Python_Interpreter_FOUND AND Python_Development.Module_FOUND)
 
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
 
@@ -116,8 +115,15 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (pybind11_FOUND AND Python_Development.Module_FOUND)
-  add_library (python_type_caster STATIC
+if (nanobind_FOUND)
+  # Shared between the pyhogpp extension module and the type_caster_test
+  # module used by the internal type caster tests. Each nanobind_add_module()
+  # call below compiles its own private copy: nanobind extension modules are
+  # self-contained shared objects, so there is no ODR concern, and it avoids
+  # having to keep a helper static library in lockstep with whichever
+  # STABLE_ABI/FREE_THREADED nanobind core library flavor each module ends up
+  # linking against.
+  set (HOGPP_PYTHON_TYPE_CASTER_SOURCES
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
     python/type_caster/stride.hpp
@@ -126,21 +132,18 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   )
 
   if (OpenCV_FOUND)
-    target_sources (python_type_caster PRIVATE
+    list (APPEND HOGPP_PYTHON_TYPE_CASTER_SOURCES
       python/type_caster/opencv.cpp
       python/type_caster/opencv.hpp
     )
-    target_link_libraries (python_type_caster PUBLIC opencv_core)
   endif (OpenCV_FOUND)
 
-  target_link_libraries (python_type_caster PUBLIC
-    Eigen3::Eigen
-    hogpp::hogpp
-    pybind11::headers
-    PRIVATE Python::Module
-  )
-
-  python_add_library (pyhogpp WITH_SOABI
+  # STABLE_ABI/FREE_THREADED are no-ops (silently ignored) when the
+  # configured Python interpreter cannot support them, e.g. below Python
+  # 3.12, PyPy, or a free-threaded build for STABLE_ABI; a non-free-threaded
+  # build for FREE_THREADED.
+  nanobind_add_module (pyhogpp STABLE_ABI FREE_THREADED
+    ${HOGPP_PYTHON_TYPE_CASTER_SOURCES}
     python/binning.cpp
     python/binning.hpp
     python/blocknormalizer.cpp
@@ -156,12 +159,11 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
 
   if (HAVE_MBIG_OBJ)
     set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
-  elseif (HAVE_BIGOBJ)
-    set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS /bigobj)
   endif (HAVE_MBIG_OBJ)
 
   if (OpenCV_FOUND)
     target_compile_definitions (pyhogpp PRIVATE HAVE_OPENCV)
+    target_link_libraries (pyhogpp PRIVATE opencv_core)
   endif (OpenCV_FOUND)
 
   if (HAVE_EXECUTION)
@@ -170,20 +172,26 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
 
   target_link_libraries (pyhogpp PRIVATE
     hogpp::hogpp
-    python_type_caster
+    Eigen3::Eigen
   )
 
-  python_add_library (type_caster_test WITH_SOABI
+  nanobind_add_module (type_caster_test STABLE_ABI FREE_THREADED
+    ${HOGPP_PYTHON_TYPE_CASTER_SOURCES}
     python/type_caster_test.cpp
   )
 
+  if (HAVE_MBIG_OBJ)
+    set_property (TARGET type_caster_test APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
+  endif (HAVE_MBIG_OBJ)
+
   target_link_libraries (type_caster_test PRIVATE
-    python_type_caster
+    hogpp::hogpp
     Eigen3::Eigen
   )
 
   if (OpenCV_FOUND)
     target_compile_definitions (type_caster_test PRIVATE HAVE_OPENCV)
+    target_link_libraries (type_caster_test PRIVATE opencv_core)
   endif (OpenCV_FOUND)
 
   if (SKBUILD)
@@ -192,7 +200,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   else (SKBUILD)
     set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
   endif (SKBUILD)
-endif (pybind11_FOUND AND Python_Development.Module_FOUND)
+endif (nanobind_FOUND)
 
 if (BUILD_TESTING)
   if (Boost_unit_test_framework_FOUND)
