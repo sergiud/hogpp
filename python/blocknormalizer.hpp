@@ -51,7 +51,7 @@ template<>
 class type_caster<BlockNormalizerType>
 {
 public:
-    NB_TYPE_CASTER(BlockNormalizerType, const_name("BlockNormalizer"));
+    NB_TYPE_CASTER(BlockNormalizerType, const_name("BlockNormalizer"))
 
     bool from_python(handle src, std::uint8_t flags,
                      cleanup_list* cleanup) noexcept;

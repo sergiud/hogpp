@@ -68,12 +68,12 @@ template<>
 class type_caster<cv::Mat>
 {
 public:
-    NB_TYPE_CASTER(cv::Mat, const_name("numpy.ndarray"));
+    NB_TYPE_CASTER(cv::Mat, const_name("numpy.ndarray"))
 
     bool from_python(handle src, std::uint8_t flags,
                      cleanup_list* /*cleanup*/) noexcept
     {
-        const bool convert = (flags & (std::uint8_t)cast_flags::convert) != 0;
+        const bool convert = (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
 
         nanobind::ndarray<nanobind::ro> a;
 
@@ -310,7 +310,7 @@ template<class T>
 class type_caster<cv::Rect_<T>>
 {
 public:
-    NB_TYPE_CASTER(cv::Rect_<T>, const_name("Rect"));
+    NB_TYPE_CASTER(cv::Rect_<T>, const_name("Rect"))
 
     bool from_python(handle src, std::uint8_t /*flags*/,
                      cleanup_list* /*cleanup*/) noexcept

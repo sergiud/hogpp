@@ -28,7 +28,7 @@ template<>
 class nanobind::detail::type_caster<hogpp::Bounds>
 {
 public:
-    NB_TYPE_CASTER(hogpp::Bounds, const_name("Bounds"));
+    NB_TYPE_CASTER(hogpp::Bounds, const_name("Bounds"))
 
     bool from_python(handle src, std::uint8_t /*flags*/,
                      cleanup_list* /*cleanup*/) noexcept;

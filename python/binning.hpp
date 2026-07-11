@@ -41,7 +41,7 @@ template<>
 class type_caster<BinningType>
 {
 public:
-    NB_TYPE_CASTER(BinningType, const_name("Binning"));
+    NB_TYPE_CASTER(BinningType, const_name("Binning"))
 
     bool from_python(handle src, std::uint8_t flags,
                      cleanup_list* cleanup) noexcept;
