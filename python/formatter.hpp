@@ -39,7 +39,7 @@ struct fmt::formatter<nanobind::str> : formatter<string_view>
     [[nodiscard]] constexpr auto format(
         const nanobind::str& s, FormatContext& ctx) HOGPP_FORMATTER_FORMAT_CONST
     {
-        return formatter<string_view>::format(std::string_view{s.c_str()}, ctx);
+        return formatter<string_view>::format(s.c_str(), ctx);
     }
 };
 
