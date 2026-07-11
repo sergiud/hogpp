@@ -177,7 +177,8 @@ private:
             const Norm& norm) const noexcept
         {
             using Scalar = Demote_t<typename Norm::Scalar>;
-            return nanobind::float_{Scalar(norm.clip())};
+            return nanobind::float_{
+                static_cast<double>(Scalar(norm.clip()))};
         }
 
         template<class Norm, std::enable_if_t<!HasClip_v<Norm>>* = nullptr>
@@ -203,7 +204,8 @@ private:
             [[maybe_unused]] const Norm& norm) const noexcept
         {
             using Scalar = Demote_t<typename Norm::Scalar>;
-            return nanobind::float_{Scalar(norm.regularization())};
+            return nanobind::float_{
+                static_cast<double>(Scalar(norm.regularization()))};
         }
 
         template<class Norm,
