@@ -287,6 +287,20 @@ if (WITH_PYTHON AND Python_FOUND AND nanobind_FOUND)
     Eigen3::Eigen
   )
 
+  if (MINGW)
+    # MinGW's libstdc++-6.dll import library does not export every
+    # vague-linkage symbol (e.g. the out-of-line instantiation of
+    # std::string's move constructor pulled in through fmt::format() and
+    # std::vector<std::string>::push_back() in repr()), which otherwise
+    # fails at link time with an undefined reference. Statically linking
+    # the runtime instead pulls those symbols in directly, the same
+    # workaround nanobind itself applies for musllinux wheels via
+    # nanobind_musl_static_libcpp().
+    target_link_options (pyhogpp PRIVATE -static-libstdc++ -static-libgcc)
+    target_link_options (type_caster_test PRIVATE -static-libstdc++
+      -static-libgcc)
+  endif (MINGW)
+
   # NB_SUPPRESS_WARNINGS above only silences warnings that originate in
   # headers (e.g. Python's or nanobind's own), since those are reached via
   # a SYSTEM include directory. It cannot silence warnings from code
