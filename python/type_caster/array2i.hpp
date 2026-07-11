@@ -48,7 +48,8 @@ public:
         std::pair<int, int> p;
 
         if (!try_cast(src, p,
-                      (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
+                      (flags &
+                       static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
             return false;
         }
 

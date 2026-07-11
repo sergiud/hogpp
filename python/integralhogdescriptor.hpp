@@ -119,7 +119,8 @@ public:
     [[nodiscard]] bool from_python(handle in, std::uint8_t flags,
                                    cleanup_list* /*cleanup*/) noexcept
     {
-        const bool convert = (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
+        const bool convert =
+            (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
 
         nanobind::ndarray<nanobind::ro> a;
 
@@ -161,13 +162,13 @@ class nanobind::detail::type_caster<RankNTensorPair<Ranks...>>
 public:
     NB_TYPE_CASTER(
         RankNTensorPair<Ranks...>,
-        const_name(
-            "Tuple[numpy.ndarray[n, m[, o]], numpy.ndarray[n, m[, o]]]"))
+        const_name("Tuple[numpy.ndarray[n, m[, o]], numpy.ndarray[n, m[, o]]]"))
 
     [[nodiscard]] bool from_python(handle in, std::uint8_t flags,
                                    cleanup_list* /*cleanup*/) noexcept
     {
-        const bool convert = (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
+        const bool convert =
+            (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
 
         std::tuple<RankNTensor<Ranks...>, RankNTensor<Ranks...>> pair;
 

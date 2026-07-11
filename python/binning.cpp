@@ -30,8 +30,9 @@ bool type_caster<BinningType>::from_python(handle src, std::uint8_t flags,
 {
     std::string name;
 
-    if (!try_cast(src, name,
-                  (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
+    if (!try_cast(
+            src, name,
+            (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
         return false;
     }
 
