@@ -44,7 +44,7 @@ template<>
 class type_caster<MagnitudeType>
 {
 public:
-    NB_TYPE_CASTER(MagnitudeType, const_name("Magnitude"));
+    NB_TYPE_CASTER(MagnitudeType, const_name("Magnitude"))
 
     bool from_python(handle src, std::uint8_t flags,
                      cleanup_list* cleanup) noexcept;

@@ -40,7 +40,7 @@ template<>
 class nanobind::detail::type_caster<Eigen::Array2i>
 {
 public:
-    NB_TYPE_CASTER(Eigen::Array2i, const_name("tuple[int, int]"));
+    NB_TYPE_CASTER(Eigen::Array2i, const_name("tuple[int, int]"))
 
     bool from_python(handle src, std::uint8_t flags,
                      cleanup_list* /*cleanup*/) noexcept
@@ -48,7 +48,7 @@ public:
         std::pair<int, int> p;
 
         if (!try_cast(src, p,
-                      (flags & (std::uint8_t)cast_flags::convert) != 0)) {
+                      (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
             return false;
         }
 
