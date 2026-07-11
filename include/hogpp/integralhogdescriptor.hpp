@@ -148,8 +148,8 @@ public:
     template<class... Args>
     [[nodiscard]] explicit IntegralHOGDescriptorBase(
         Gradient gradient = Gradient{}, Args&&... args)
-        : IntegralHOGDescriptorBase<Derived, Derived>{
-              std::forward<Args>(args)...}
+        : IntegralHOGDescriptorBase<Derived, Derived>{std::forward<Args>(
+              args)...}
         , gradient_{std::move(gradient)}
     {
     }
