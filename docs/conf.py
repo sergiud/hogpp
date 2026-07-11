@@ -48,7 +48,12 @@ todo_include_todos = True
 autodoc_typehints = 'none'
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
-napoleon_use_ivar = False
+
+# Numpydoc-style "Attributes" sections are rendered as :ivar: fields inline
+# in the docstring instead of separate `.. py:attribute::` directives, since
+# the latter duplicate the object descriptions autodoc already generates for
+# the real property descriptors picked up through :members:.
+napoleon_use_ivar = True
 
 intersphinx_mapping = {
     'numpy': ('https://numpy.org/doc/stable', None),
