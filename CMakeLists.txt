@@ -214,8 +214,11 @@ if (WITH_PYTHON AND Python_FOUND AND nanobind_FOUND)
   # STABLE_ABI/FREE_THREADED are no-ops (silently ignored) when the
   # configured Python interpreter cannot support them, e.g. below Python
   # 3.12, PyPy, or a free-threaded build for STABLE_ABI; a non-free-threaded
-  # build for FREE_THREADED.
-  nanobind_add_module (pyhogpp STABLE_ABI FREE_THREADED
+  # build for FREE_THREADED. NB_SUPPRESS_WARNINGS marks nanobind's (and
+  # transitively Python's) include directories as SYSTEM, so warnings
+  # originating in their headers, rather than in hogpp's own code, don't
+  # trip project-level -Werror/-Wx builds.
+  nanobind_add_module (pyhogpp STABLE_ABI FREE_THREADED NB_SUPPRESS_WARNINGS
     ${HOGPP_PYTHON_TYPE_CASTER_SOURCES}
     python/binning.cpp
     python/blocknormalizer.cpp
@@ -262,7 +265,7 @@ if (WITH_PYTHON AND Python_FOUND AND nanobind_FOUND)
     Eigen3::Eigen
   )
 
-  nanobind_add_module (type_caster_test STABLE_ABI FREE_THREADED
+  nanobind_add_module (type_caster_test STABLE_ABI FREE_THREADED NB_SUPPRESS_WARNINGS
     ${HOGPP_PYTHON_TYPE_CASTER_SOURCES}
     python/type_caster_test.cpp
   )
@@ -283,6 +286,24 @@ if (WITH_PYTHON AND Python_FOUND AND nanobind_FOUND)
     hogpp::hogpp
     Eigen3::Eigen
   )
+
+  # NB_SUPPRESS_WARNINGS above only silences warnings that originate in
+  # headers (e.g. Python's or nanobind's own), since those are reached via
+  # a SYSTEM include directory. It cannot silence warnings from code
+  # written directly in nanobind's own .cpp sources, e.g. a sign
+  # conversion in nb_func.cpp. That source isn't ours to fix, so treating
+  # warnings as errors is disabled for nanobind's compiled library
+  # specifically, without weakening warnings for hogpp's own targets.
+  foreach (_hogpp_nanobind_lib nanobind-static nanobind-static-abi3 nanobind-static-ft)
+    if (TARGET ${_hogpp_nanobind_lib})
+      if (MSVC)
+        target_compile_options (${_hogpp_nanobind_lib} PRIVATE /WX-)
+      else (MSVC)
+        target_compile_options (${_hogpp_nanobind_lib} PRIVATE -Wno-error)
+      endif (MSVC)
+    endif (TARGET ${_hogpp_nanobind_lib})
+  endforeach (_hogpp_nanobind_lib)
+  unset (_hogpp_nanobind_lib)
 
   # macOS resolves Python symbols at load time only if the linker is told about
   # them. nanobind selects a list of PyPy-prefixed C API names for PyPy, but
