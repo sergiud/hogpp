@@ -27,9 +27,9 @@
 
 namespace {
 
-// Defined outside of pybind11, whose inline literals namespace would otherwise
+// Defined outside of nanobind, whose inline literals namespace would otherwise
 // hide the named argument literal of fmt.
-[[nodiscard]] std::string invalidMaskMessage(pybind11::handle mask)
+[[nodiscard]] std::string invalidMaskMessage(nanobind::handle mask)
 {
     using namespace fmt::literals;
 
@@ -38,12 +38,12 @@ namespace {
                    "callable or provide an indexer in terms of a __getitem__ "
                    "method that accepts a 2-tuple, e.g., a numpy.ndarray "
                    "instance, but a {type} object was given"),
-        "type"_a = pybind11::type::handle_of(mask));
+        "type"_a = mask.type());
 }
 
 } // namespace
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
 type_caster<std::optional<pyhogpp::MaskingRef>>::Indexer::Indexer(
     object getitem) noexcept
@@ -54,11 +54,11 @@ type_caster<std::optional<pyhogpp::MaskingRef>>::Indexer::Indexer(
 bool type_caster<std::optional<pyhogpp::MaskingRef>>::Indexer::operator()(
     Eigen::DenseIndex i, Eigen::DenseIndex j) const
 {
-    return bool_(getitem_(make_tuple(i, j)));
+    return static_cast<bool>(bool_(getitem_(make_tuple(i, j))));
 }
 
-bool type_caster<std::optional<pyhogpp::MaskingRef>>::load(handle src,
-                                                           bool /*unused*/)
+bool type_caster<std::optional<pyhogpp::MaskingRef>>::from_python(
+    handle src, std::uint8_t /*flags*/, cleanup_list* /*cleanup*/) noexcept
 {
     if (src.is_none()) {
         return true;
@@ -70,15 +70,25 @@ bool type_caster<std::optional<pyhogpp::MaskingRef>>::load(handle src,
     }
     else if (hasattr(src, "__call__")) {
         // mask is a callable
-        indexer_.emplace(reinterpret_borrow<object>(src));
+        indexer_.emplace(borrow<object>(src));
     }
     else {
-        throw type_error{invalidMaskMessage(src)};
+        invalid_ = borrow<object>(src);
+        return true;
     }
 
-    value.emplace(*indexer_);
+    value_.emplace(*indexer_);
 
     return true;
 }
 
-} // namespace pybind11::detail
+auto type_caster<std::optional<pyhogpp::MaskingRef>>::validated() -> Value&
+{
+    if (invalid_.is_valid()) {
+        throw type_error(invalidMaskMessage(invalid_).c_str());
+    }
+
+    return value_;
+}
+
+} // namespace nanobind::detail

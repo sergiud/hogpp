@@ -19,13 +19,24 @@
 
 #include <hogpp/prefix.hpp>
 
+#include <string>
+
+#include <nanobind/stl/string.h>
+
 #include "interpolation.hpp"
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
-bool type_caster<InterpolationType>::load(handle src, bool /*unused*/)
+bool type_caster<InterpolationType>::from_python(
+    handle src, std::uint8_t flags, cleanup_list* /*cleanup*/) noexcept
 {
-    auto name = pybind11::cast<std::string>(src);
+    std::string name;
+
+    if (!try_cast(
+            src, name,
+            (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
+        return false;
+    }
 
     if (name == "orientation") {
         value = InterpolationType::Orientation;
@@ -40,24 +51,24 @@ bool type_caster<InterpolationType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<InterpolationType>::cast(InterpolationType in,
-                                            return_value_policy /*policy*/,
-                                            handle /*parent*/)
+handle type_caster<InterpolationType>::from_cpp(InterpolationType in,
+                                                rv_policy /*policy*/,
+                                                cleanup_list* /*cleanup*/)
 {
     str result;
 
     switch (in) {
         case InterpolationType::Orientation:
-            result = "orientation";
+            result = str{"orientation"};
             break;
         case InterpolationType::Trilinear:
-            result = "trilinear";
+            result = str{"trilinear"};
             break;
     }
 
     return result.release();
 }
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 #include <hogpp/suffix.hpp>

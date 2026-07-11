@@ -20,14 +20,12 @@
 #ifndef PYTHON_TYPE_CASTER_MASKINGREF_HPP
 #define PYTHON_TYPE_CASTER_MASKINGREF_HPP
 
-// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
-#include <algorithm>
+#include <cstdint>
 #include <optional>
 
 #include <Eigen/Core>
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
 
 #include "../maskingref.hpp"
 
@@ -39,24 +37,40 @@
  * 2-tuple. Any other object raises a `TypeError` naming its type.
  *
  * This specialization replaces the generic `std::optional` caster of
- * pybind11, which loads the contained value through a temporary caster and
- * would leave the MaskingRef referring to a destroyed indexer. Here, the
+ * nanobind, which loads the contained value through a nested caster. Here, the
  * MaskingRef refers to the indexer owned by this caster, so the converted
- * value is valid only as long as the caster, which pybind11 keeps alive for
+ * value is valid only as long as the caster, which nanobind keeps alive for
  * the duration of the bound function call. The converted value must therefore
- * not be obtained through pybind11::cast, which returns it after destroying
+ * not be obtained through nanobind::cast, which returns it after destroying
  * the caster.
  *
- * @note The lifetime of argument casters is specific to pybind11 and must be
+ * nanobind requires from_python() to be noexcept. An invalid mask is therefore
+ * accepted by from_python() and rejected with a `TypeError` once the bound
+ * function retrieves the converted value. Rejecting it in from_python()
+ * instead would only produce the generic overload resolution error of
+ * nanobind, which does not name the type of the mask.
+ *
+ * @note The lifetime of argument casters is specific to nanobind and must be
  * revisited for other binding libraries.
  */
 template<>
-class pybind11::detail::type_caster<std::optional<pyhogpp::MaskingRef>>
+class nanobind::detail::type_caster<std::optional<pyhogpp::MaskingRef>>
 {
 public:
-    PYBIND11_TYPE_CASTER(
-        std::optional<pyhogpp::MaskingRef>,
-        _("Optional[Union[Callable[[Tuple[int, int]], bool], numpy.ndarray]]"));
+    using Value = std::optional<pyhogpp::MaskingRef>;
+
+    static constexpr auto Name = const_name(
+        "collections.abc.Callable[[tuple[int, int]], bool] | numpy.ndarray | "
+        "None");
+
+    template<class T>
+    using Cast = movable_cast_t<T>;
+
+    template<class T>
+    [[nodiscard]] static constexpr bool can_cast() noexcept
+    {
+        return true;
+    }
 
     type_caster() = default;
     type_caster(const type_caster& other) = delete;
@@ -65,7 +79,23 @@ public:
     type_caster& operator=(type_caster&& other) = delete;
     ~type_caster() = default;
 
-    bool load(handle src, bool /*unused*/);
+    bool from_python(handle src, std::uint8_t flags,
+                     cleanup_list* cleanup) noexcept;
+
+    explicit operator Value*()
+    {
+        return &validated();
+    }
+
+    explicit operator Value&()
+    {
+        return validated();
+    }
+
+    explicit operator Value&&()
+    {
+        return std::move(validated());
+    }
 
 private:
     class Indexer
@@ -80,7 +110,12 @@ private:
         object getitem_;
     };
 
+    [[nodiscard]] Value& validated();
+
     std::optional<Indexer> indexer_;
+    // Mask that provides neither an indexer nor a call operator.
+    object invalid_;
+    Value value_;
 };
 
 #endif // PYTHON_TYPE_CASTER_MASKINGREF_HPP

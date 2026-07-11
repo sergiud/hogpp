@@ -23,6 +23,7 @@
 #include <opencv2/core/core.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -30,9 +31,11 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <vector>
 
-#include <pybind11/cast.h>
-#include <pybind11/numpy.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+#include <nanobind/stl/tuple.h>
 
 #include <hogpp/cartesianproduct.hpp>
 #include <hogpp/prefix.hpp>
@@ -40,62 +43,79 @@
 #include "stride.hpp"
 #include "typesequence.hpp"
 
-[[noreturn]] inline std::string depthToFormat(
+[[noreturn]] inline nanobind::dlpack::dtype depthToDtype(
     [[maybe_unused]] int depth, [[maybe_unused]] TypeSequence<> /*unused*/)
 {
     throw std::invalid_argument{
-        "cannot find the appropriate OpenCV depth to NumPy format mapping"};
+        "cannot find the appropriate OpenCV depth to NumPy dtype mapping"};
 }
 
 template<class Type, class... Types>
-[[nodiscard]] constexpr auto
-depthToFormat(int depth, TypeSequence<Type, Types...> /*unused*/) noexcept(
-    noexcept(depthToFormat(depth, TypeSequence<Types...>{})))
+[[nodiscard]] constexpr nanobind::dlpack::dtype
+depthToDtype(int depth, TypeSequence<Type, Types...> /*unused*/) noexcept(
+    noexcept(depthToDtype(depth, TypeSequence<Types...>{})))
 {
     if (depth == cv::DataDepth<Type>::value) {
-        return pybind11::format_descriptor<Type>::format();
+        return nanobind::dtype<Type>();
     }
 
-    return depthToFormat(depth, TypeSequence<Types...>{});
+    return depthToDtype(depth, TypeSequence<Types...>{});
 }
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
 template<>
 class type_caster<cv::Mat>
 {
 public:
-    PYBIND11_TYPE_CASTER(cv::Mat, _("numpy.ndarray"));
+    NB_TYPE_CASTER(cv::Mat, const_name("numpy.ndarray"));
 
-    bool load(handle in, bool /*unused*/)
+    bool from_python(handle src, std::uint8_t flags,
+                     cleanup_list* /*cleanup*/) noexcept
     {
-        auto a = reinterpret_borrow<array>(in);
-        auto info = a.request();
+        const bool convert = (flags & (std::uint8_t)cast_flags::convert) != 0;
 
-        return tryConvert(info, OpenCVTypes{});
-    }
+        nanobind::ndarray<nanobind::ro> a;
 
-    static handle cast(const cv::Mat& in, return_value_policy /*policy*/,
-                       handle /*parent*/)
-    {
-        array result;
-
-        const pybind11::dtype dt{depthToFormat(in.depth(), OpenCVTypes{})};
-
-        if (in.total() != 0) {
-            array::ShapeContainer shape{{in.rows, in.cols}};
-            array::StridesContainer strides{std::begin(in.step.buf),
-                                            std::end(in.step.buf)};
-
-            if (in.channels() > 1) {
-                shape->push_back(in.channels());
-                strides->push_back(static_cast<ssize_t>(in.elemSize1()));
-            }
-
-            result = array(dt, shape, strides, in.ptr());
+        if (!try_cast(src, a, convert)) {
+            return false;
         }
 
-        return result.release();
+        return tryConvert(a, OpenCVTypes{});
+    }
+
+    static handle from_cpp(const cv::Mat& in, rv_policy /*policy*/,
+                           cleanup_list* /*cleanup*/)
+    {
+        if (in.total() == 0) {
+            return nanobind::none().release();
+        }
+
+        // Deep-copy into a freshly allocated, contiguous buffer so the
+        // returned array is independent of the source cv::Mat, matching the
+        // value semantics NumPy callers expect.
+        auto* clone = new cv::Mat{in.clone()}; // NOLINT
+
+        nanobind::capsule owner{
+            clone, [](void* p) noexcept { delete static_cast<cv::Mat*>(p); }};
+
+        const nanobind::dlpack::dtype dt =
+            depthToDtype(clone->depth(), OpenCVTypes{});
+
+        std::size_t ndim = 2;
+        std::array<std::size_t, 3> shape{static_cast<std::size_t>(clone->rows),
+                                         static_cast<std::size_t>(clone->cols),
+                                         1};
+
+        if (clone->channels() > 1) {
+            ndim = 3;
+            shape[2] = static_cast<std::size_t>(clone->channels());
+        }
+
+        nanobind::ndarray<nanobind::numpy> result{
+            clone->ptr(), ndim, shape.data(), owner, nullptr, dt};
+
+        return result.cast().release();
     }
 
 private:
@@ -103,14 +123,21 @@ private:
                                      std::int16_t, std::int32_t, float, double>;
 
     template<class T>
-    static decltype(auto) make(const buffer_info& info)
+    static decltype(auto) make(const nanobind::ndarray<nanobind::ro>& a)
     {
-        const auto& shape = info.shape;
-        const auto& strides = info.strides;
+        const std::size_t ndim = a.ndim();
 
-        const int channels = shape.size() == 3
-                                 ? static_cast<int>(shape.back())
-                                 : 1; // static_cast<int>(info.strides.back());
+        std::vector<std::int64_t> shape(ndim);
+        std::vector<std::int64_t> byteStrides(ndim);
+
+        for (std::size_t i = 0; i != ndim; ++i) {
+            shape[i] = static_cast<std::int64_t>(a.shape(i));
+            byteStrides[i] = static_cast<std::int64_t>(a.stride(i)) *
+                             static_cast<std::int64_t>(sizeof(T));
+        }
+
+        const int channels =
+            shape.size() == 3 ? static_cast<int>(shape.back()) : 1;
         constexpr int depth = cv::DataDepth<T>::value;
 
         const int type = CV_MAKETYPE(depth, channels);
@@ -122,31 +149,33 @@ private:
 
         switch (shape.size()) {
             case 2: {
-                if (strides[0] > 0 && strides[1] == sizeof(T)) {
+                if (byteStrides[0] > 0 &&
+                    byteStrides[1] == static_cast<std::int64_t>(sizeof(T))) {
                     std::vector<int> sizes;
                     sizes.resize(shape.size());
 
                     std::transform(shape.begin(), shape.end(), sizes.begin(),
-                                   [](pybind11::ssize_t value) constexpr {
+                                   [](std::int64_t value) constexpr {
                                        return static_cast<int>(value);
                                    });
 
-                    std::vector<std::size_t> steps{strides.begin(),
-                                                   strides.end()};
+                    std::vector<std::size_t> steps{byteStrides.begin(),
+                                                   byteStrides.end()};
 
-                    in = cv::Mat{2, sizes.data(), type, info.ptr, steps.data()};
+                    in = cv::Mat{2, sizes.data(), type,
+                                 const_cast<void*>(a.data()), steps.data()};
                 }
                 else {
                     const auto* const p =
-                        static_cast<const std::uint8_t*>(info.ptr);
+                        static_cast<const std::uint8_t*>(a.data());
 
                     in.create(static_cast<int>(shape[0]),
                               static_cast<int>(shape[1]), type);
 
                     hogpp::cartesianProduct(
                         std::make_tuple(shape[0], shape[1]),
-                        [&in, p, strides](const auto& i) constexpr {
-                            assign<T>(in, p, i, strides);
+                        [&in, p, &byteStrides](const auto& i) constexpr {
+                            assign<T>(in, p, i, byteStrides);
                         });
                 }
             } break;
@@ -155,34 +184,36 @@ private:
                     success = false;
                 }
                 else {
-                    if (strides[0] > 0 &&
-                        strides[1] == static_cast<long>(sizeof(T)) * channels &&
-                        strides[2] == static_cast<long>(sizeof(T))) {
+                    if (byteStrides[0] > 0 &&
+                        byteStrides[1] ==
+                            static_cast<std::int64_t>(sizeof(T)) * channels &&
+                        byteStrides[2] ==
+                            static_cast<std::int64_t>(sizeof(T))) {
                         std::vector<int> sizes;
                         sizes.resize(shape.size());
 
                         std::transform(shape.begin(), shape.end(),
                                        sizes.begin(),
-                                       [](pybind11::ssize_t value) constexpr {
+                                       [](std::int64_t value) constexpr {
                                            return static_cast<int>(value);
                                        });
-                        std::vector<std::size_t> steps{strides.begin(),
-                                                       strides.end()};
+                        std::vector<std::size_t> steps{byteStrides.begin(),
+                                                       byteStrides.end()};
 
-                        in = cv::Mat{2, sizes.data(), type, info.ptr,
-                                     steps.data()};
+                        in = cv::Mat{2, sizes.data(), type,
+                                     const_cast<void*>(a.data()), steps.data()};
                     }
                     else {
                         const auto* const p =
-                            static_cast<const std::uint8_t*>(info.ptr);
+                            static_cast<const std::uint8_t*>(a.data());
 
                         in.create(static_cast<int>(shape[0]),
                                   static_cast<int>(shape[1]), type);
 
                         hogpp::cartesianProduct(
                             std::make_tuple(shape[0], shape[1], shape[2]),
-                            [&in, p, strides](const auto& i) constexpr {
-                                assign<T>(in, p, i, strides);
+                            [&in, p, &byteStrides](const auto& i) constexpr {
+                                assign<T>(in, p, i, byteStrides);
                             });
                     }
                 }
@@ -219,7 +250,7 @@ private:
     template<class T, class... Loops, std::size_t... Indices>
     constexpr static void assign(cv::Mat& in, const std::uint8_t* p,
                                  const std::tuple<Loops...>& i,
-                                 const std::vector<ssize_t>& strides,
+                                 const std::vector<std::int64_t>& strides,
                                  std::index_sequence<Indices...> idxs)
     {
         assign<T>(in, p, i, std::make_tuple(strides[Indices]...), idxs);
@@ -234,38 +265,39 @@ private:
     }
 
     template<class T>
-    bool convert(const buffer_info& info)
+    bool convert(const nanobind::ndarray<nanobind::ro>& a)
     {
-        if (dtype{info}.equal(dtype::of<T>())) {
-            if (info.ndim == 1) {
-                cv::Mat_<T> in{1, static_cast<int>(info.shape[0]),
-                               static_cast<T*>(info.ptr)};
+        if (nanobind::dtype<T>() != a.dtype()) {
+            return false;
+        }
 
-                value = in;
-            }
-            else if (info.ndim == 2 || info.ndim == 3) {
-                auto&& [in, success] = make<T>(info);
+        if (a.ndim() == 1) {
+            cv::Mat_<T> in{1, static_cast<int>(a.shape(0)),
+                           const_cast<T*>(static_cast<const T*>(a.data()))};
 
-                if (!success) {
-                    return false;
-                }
+            value = in;
+        }
+        else if (a.ndim() == 2 || a.ndim() == 3) {
+            auto&& [in, success] = make<T>(a);
 
-                value = in;
-            }
-            else {
+            if (!success) {
                 return false;
             }
 
-            return true;
+            value = in;
+        }
+        else {
+            return false;
         }
 
-        return false;
+        return true;
     }
 
     template<class... Types>
-    bool tryConvert(const buffer_info& info, TypeSequence<Types...> /*unused*/)
+    bool tryConvert(const nanobind::ndarray<nanobind::ro>& a,
+                    TypeSequence<Types...> /*unused*/)
     {
-        return (convert<Types>(info) || ...);
+        return (convert<Types>(a) || ...);
     }
 };
 
@@ -278,23 +310,27 @@ template<class T>
 class type_caster<cv::Rect_<T>>
 {
 public:
-    PYBIND11_TYPE_CASTER(cv::Rect_<T>, _("Rect"));
+    NB_TYPE_CASTER(cv::Rect_<T>, const_name("Rect"));
 
-    bool load(handle src, bool /*unused*/)
+    bool from_python(handle src, std::uint8_t /*flags*/,
+                     cleanup_list* /*cleanup*/) noexcept
     {
         try {
             std::tie(value.y, value.x, value.height, value.width) =
-                pybind11::cast<std::tuple<T, T, T, T>>(src);
+                nanobind::cast<std::tuple<T, T, T, T>>(src);
         }
-        catch (const pybind11::builtin_exception&) {
+        catch (const nanobind::python_error&) {
+            return false;
+        }
+        catch (const nanobind::cast_error&) {
             return false;
         }
 
         return true;
     }
 
-    static handle cast(const cv::Rect_<T>& in, return_value_policy /*policy*/,
-                       handle /*parent*/)
+    static handle from_cpp(const cv::Rect_<T>& in, rv_policy /*policy*/,
+                           cleanup_list* /*cleanup*/)
     {
         return make_tuple(in.y, in.x, in.height, in.width).release();
     }
@@ -302,7 +338,7 @@ public:
 
 extern template class type_caster<cv::Rect>;
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 #include <hogpp/suffix.hpp>
 

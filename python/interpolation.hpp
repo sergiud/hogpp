@@ -20,7 +20,9 @@
 #ifndef PYTHON_HOGPP_INTERPOLATION_HPP
 #define PYTHON_HOGPP_INTERPOLATION_HPP
 
-#include <pybind11/pybind11.h>
+#include <cstdint>
+
+#include <nanobind/nanobind.h>
 
 // Selects the hogpp::IntegralHOGDescriptor spatial interpolation trait.
 // A compile-time template parameter of the descriptor, not a runtime
@@ -31,20 +33,20 @@ enum class InterpolationType
     Trilinear
 };
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
 template<>
 class type_caster<InterpolationType>
 {
 public:
-    bool load(handle src, bool);
-    static handle cast(InterpolationType in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    NB_TYPE_CASTER(InterpolationType, const_name("Interpolation"))
 
-private:
-    PYBIND11_TYPE_CASTER(InterpolationType, _("Interpolation"));
+    bool from_python(handle src, std::uint8_t flags,
+                     cleanup_list* cleanup) noexcept;
+    static handle from_cpp(InterpolationType in, rv_policy /*policy*/,
+                           cleanup_list* /*cleanup*/);
 };
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 #endif // PYTHON_HOGPP_INTERPOLATION_HPP

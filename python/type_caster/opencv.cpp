@@ -19,4 +19,8 @@
 
 #include "opencv.hpp"
 
-template class pybind11::detail::type_caster<cv::Rect>;
+namespace nanobind::detail {
+
+template class type_caster<cv::Rect>;
+
+} // namespace nanobind::detail

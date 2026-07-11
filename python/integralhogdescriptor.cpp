@@ -21,6 +21,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string>
 #include <tuple>
@@ -34,8 +35,13 @@
 
 #include <fmt/format.h>
 
-#include <pybind11/eigen.h>
-#include <pybind11/stl.h>
+#include "type_caster/array2i.hpp"
+
+#include <nanobind/eigen/dense.h>
+#include <nanobind/ndarray.h>
+#include <nanobind/stl/optional.h>
+#include <nanobind/stl/tuple.h>
+#include <nanobind/stl/variant.h>
 
 #include "formatter.hpp"
 #include "integralhogdescriptor.hpp"
@@ -68,13 +74,13 @@ struct NativeScalar : NativeScalar<std::decay_t<T>>
 };
 
 template<>
-struct NativeScalar<pybind11::float_>
+struct NativeScalar<nanobind::float_>
 {
     using type = double;
 };
 
 template<>
-struct NativeScalar<pybind11::int_>
+struct NativeScalar<nanobind::int_>
 {
     using type = int;
 };
@@ -135,67 +141,79 @@ template<class Function, class Arg, class... Args>
 #endif // defined(HAVE_OPENCV)
 
 template<class Function>
-void bufferToTensor( // LCOV_EXCL_LINE
-    [[maybe_unused]] const pybind11::buffer& image,
-    [[maybe_unused]] const pybind11::buffer_info& info,
+void objectToTensor( // LCOV_EXCL_LINE
+    [[maybe_unused]] const nanobind::object& image,
+    [[maybe_unused]] std::size_t ndim,
+    [[maybe_unused]] const nanobind::dlpack::dtype& dt,
     [[maybe_unused]] Function&& func, TypeSequence<> /*unused*/)
 {
 }
 
 template<class Arg>
-[[nodiscard]] Eigen::Tensor<Arg, 3> extend(const pybind11::buffer& image,
-                                           const pybind11::buffer_info& info)
+[[nodiscard]] Eigen::Tensor<Arg, 3> extend(const nanobind::object& image,
+                                           std::size_t ndim)
 {
     using Tensor2 = Eigen::Tensor<Arg, 2>;
     using Tensor3 = Eigen::Tensor<Arg, 3>;
 
-    if (info.ndim == 2) {
-        auto tmp = pybind11::cast<Tensor2>(image);
+    if (ndim == 2) {
+        auto tmp = nanobind::cast<Tensor2>(image);
         // Extend rank-2 arrays by a third dimension.
         return tmp.reshape(std::array{tmp.dimension(0), tmp.dimension(1),
                                       typename Tensor2::Index{1}});
     }
 
-    return pybind11::cast<Tensor3>(image);
+    return nanobind::cast<Tensor3>(image);
 }
 
 template<class Function, class Arg, class... Args>
-void bufferToTensor(const pybind11::buffer& image,
-                    const pybind11::buffer_info& info, Function&& func,
+void objectToTensor(const nanobind::object& image, std::size_t ndim,
+                    const nanobind::dlpack::dtype& dt, Function&& func,
                     TypeSequence<Arg, Args...> /*unused*/)
 {
-    if (!pybind11::dtype{info}.equal(pybind11::dtype::of<Arg>())) {
-        bufferToTensor(image, info, std::forward<Function>(func),
+    if (nanobind::dtype<Arg>() != dt) {
+        objectToTensor(image, ndim, dt, std::forward<Function>(func),
                        TypeSequence<Args...>{});
     }
     else {
-        func(extend<Arg>(image, info));
+        func(extend<Arg>(image, ndim));
     }
 }
 
 template<long... Ranks, class Function, class... Args>
-void bufferToTensor(const RankNTensorPair<Ranks...>& p,
-                    const pybind11::buffer_info& info, Function&& func,
+void objectToTensor(const RankNTensorPair<Ranks...>& p, std::size_t ndim,
+                    const nanobind::dlpack::dtype& dt, Function&& func,
                     TypeSequence<Args...> types)
 {
-    auto convert = [&p, &func, &info](const auto& t) {
+    auto convert = [&p, &func, ndim](const auto& t) {
         using T = typename std::decay_t<decltype(t)>::Scalar;
-        func(t, extend<T>(p.buf1.buf, info));
+        func(t, extend<T>(p.buf1.buf, ndim));
     };
 
     // Assume [dys, dxs] ordering
-    bufferToTensor(p.buf2.buf, info, convert, types);
+    objectToTensor(p.buf2.buf, ndim, dt, convert, types);
+}
+
+[[nodiscard]] nanobind::ndarray<nanobind::ro> probe(const nanobind::object& buf)
+{
+    nanobind::ndarray<nanobind::ro> a;
+
+    // The buffer was already validated by RankNTensor's own caster when the
+    // argument was bound, so this cannot fail in practice.
+    nanobind::try_cast(buf, a);
+
+    return a;
 }
 
 template<class T>
-[[nodiscard]] pybind11::object asTuple(const std::optional<T>& value)
+[[nodiscard]] nanobind::object asTuple(const std::optional<T>& value)
 {
     if (value) {
-        pybind11::object tmp = pybind11::cast(value);
-        return pybind11::tuple(tmp);
+        nanobind::object tmp = nanobind::cast(value);
+        return nanobind::tuple(tmp);
     }
 
-    return pybind11::none{};
+    return nanobind::none();
 }
 
 // Converts a positive sigma to the working precision.
@@ -260,35 +278,34 @@ template<class Scalar>
     return Descriptor<Scalar>{};
 }
 
-// Converts a single element of a pickled state. pybind11 reports a failed
-// conversion of the whole state as a RuntimeError that names neither the
-// offending element nor its type.
+// Converts a single element of a pickled state. Converting the whole state at
+// once fails without naming the offending element or its type.
 template<class T>
-[[nodiscard]] T castStateElement(const pybind11::tuple& value,
+[[nodiscard]] T castStateElement(const nanobind::tuple& value,
                                  std::size_t index)
 {
-    const pybind11::handle element = value[index];
+    const nanobind::handle element = value[index];
+    T result;
 
-    try {
-        return pybind11::cast<T>(element);
-    }
-    catch (const pybind11::cast_error&) {
+    if (!nanobind::try_cast(element, result)) {
         using namespace fmt::literals;
 
-        // pybind11::type_id is specific to pybind11. nanobind provides
-        // nanobind::type_name instead.
-        throw pybind11::type_error{fmt::format(
-            "IntegralHOGDescriptor state element {index} of type {actual} "
-            "cannot be converted to {expected}",
-            "index"_a = index,
-            "actual"_a = pybind11::cast<std::string>(
-                pybind11::type::handle_of(element).attr("__name__")),
-            "expected"_a = pybind11::type_id<T>())};
+        throw nanobind::type_error(
+            fmt::format(
+                "IntegralHOGDescriptor state element {index} of type {actual} "
+                "cannot be converted to {expected}",
+                "index"_a = index,
+                "actual"_a =
+                    nanobind::borrow<nanobind::type_object>(element.type()),
+                "expected"_a = nanobind::detail::make_caster<T>::Name.text)
+                .c_str());
     }
+
+    return result;
 }
 
 template<class Tuple, std::size_t... Indices>
-[[nodiscard]] Tuple castState(const pybind11::tuple& value,
+[[nodiscard]] Tuple castState(const nanobind::tuple& value,
                               std::index_sequence<Indices...> /*unused*/)
 {
     return Tuple{castStateElement<std::tuple_element_t<Indices, Tuple>>(
@@ -296,7 +313,7 @@ template<class Tuple, std::size_t... Indices>
 }
 
 template<class Tuple>
-[[nodiscard]] Tuple castState(const pybind11::tuple& value)
+[[nodiscard]] Tuple castState(const nanobind::tuple& value)
 {
     return castState<Tuple>(
         value, std::make_index_sequence<std::tuple_size_v<Tuple>>{});
@@ -308,13 +325,13 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     const std::optional<Eigen::Array2i>& cellSize,
     const std::optional<Eigen::Array2i>& blockSize,
     const std::optional<Eigen::Array2i>& blockStride,
-    const std::optional<pybind11::int_>& numBins,
+    const std::optional<nanobind::int_>& numBins,
     const std::optional<MagnitudeType>& magnitude,
     const std::optional<BinningType>& binning,
     const std::optional<BlockNormalizerType>& blockNorm,
-    const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
+    const std::optional<std::variant<nanobind::int_, nanobind::float_>>&
         clipNorm,
-    const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
+    const std::optional<std::variant<nanobind::int_, nanobind::float_>>&
         epsilon,
     double sigma, const std::optional<InterpolationType>& interpolation)
     : cellSize_{cellSize}
@@ -341,11 +358,10 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
                         if (!(value >
                               std::decay_t<decltype(value)>{
                                   NativeScalar_t<decltype(value)>{0}})) {
-                            throw pybind11::cast_error{
-                                "clip_norm is 0 or negative"};
+                            throw nanobind::cast_error{};
                         }
                     }
-                    catch (const pybind11::cast_error&) {
+                    catch (const nanobind::cast_error&) {
                         throw std::invalid_argument{fmt::format(
                             "IntegralHOGDescriptor clip_norm can only "
                             "be a positive floating point value but {} was "
@@ -365,11 +381,10 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
                     try {
                         if (value < std::decay_t<decltype(value)>{
                                         NativeScalar_t<decltype(value)>{0}}) {
-                            throw pybind11::cast_error{
-                                "clip_norm is 0 or negative"};
+                            throw nanobind::cast_error{};
                         }
                     }
-                    catch (const pybind11::cast_error&) {
+                    catch (const nanobind::cast_error&) {
                         throw std::invalid_argument{fmt::format(
                             "IntegralHOGDescriptor epsilon can be either 0 or "
                             "a positive floating point value but {} was "
@@ -415,8 +430,8 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
 namespace {
 
 [[nodiscard]] DescriptorVariant makeDescriptor(
-    [[maybe_unused]] const pybind11::dtype& dt, TypeSequence<> /*unused*/,
-    double sigma, InterpolationType interpolation)
+    [[maybe_unused]] const nanobind::dlpack::dtype& dt,
+    TypeSequence<> /*unused*/, double sigma, InterpolationType interpolation)
 {
     // Default descriptor instance if floating point was not matched against
     // supported types.
@@ -425,10 +440,11 @@ namespace {
 
 template<class Scalar, class... Scalars>
 [[nodiscard]] DescriptorVariant makeDescriptor(
-    const pybind11::dtype& dt, TypeSequence<Scalar, Scalars...> /*unused*/,
-    double sigma, InterpolationType interpolation)
+    const nanobind::dlpack::dtype& dt,
+    TypeSequence<Scalar, Scalars...> /*unused*/, double sigma,
+    InterpolationType interpolation)
 {
-    if (dt.equal(pybind11::dtype::of<Scalar>())) {
+    if (nanobind::dtype<Scalar>() == dt) {
         return makeDescriptor<Scalar>(sigma, interpolation);
     }
 
@@ -442,26 +458,27 @@ void IntegralHOGDescriptor::compute(
 {
     // TODO Maybe support dtype parameter?
 
-    pybind11::buffer image = t.buf;
-    pybind11::buffer_info info = image.request();
+    const nanobind::ndarray<nanobind::ro> image = probe(t.buf);
 
-    update(pybind11::dtype{info});
+    update(image.dtype());
 
     std::visit(
-        [&image, &info, &mask](auto& descriptor) {
+        [&t, &image, &mask](auto& descriptor) {
             if (mask) {
                 auto convert = [&descriptor, &mask](const auto& t) {
                     descriptor.compute(t, *mask);
                 };
 
-                bufferToTensor(image, info, convert, SupportedTypes{});
+                objectToTensor(t.buf, image.ndim(), image.dtype(), convert,
+                               SupportedTypes{});
             }
             else {
                 auto convert = [&descriptor](const auto& t) {
                     descriptor.compute(t);
                 };
 
-                bufferToTensor(image, info, convert, SupportedTypes{});
+                objectToTensor(t.buf, image.ndim(), image.dtype(), convert,
+                               SupportedTypes{});
             }
         },
         descriptor_);
@@ -471,12 +488,12 @@ void IntegralHOGDescriptor::compute(
     const Rank2Or3TensorPair& dydx,
     const std::optional<pyhogpp::MaskingRef>& mask)
 {
-    pybind11::buffer_info info = dydx.buf1.buf.request();
+    const nanobind::ndarray<nanobind::ro> image = probe(dydx.buf1.buf);
 
-    update(pybind11::dtype{info});
+    update(image.dtype());
 
     std::visit(
-        [&dydx, &info, &mask](auto& descriptor) {
+        [&dydx, &image, &mask](auto& descriptor) {
             using Scalar = typename std::decay_t<decltype(descriptor)>::Scalar;
 
             if (mask) {
@@ -488,7 +505,8 @@ void IntegralHOGDescriptor::compute(
                     descriptor.compute(dxs, dys, *mask);
                 };
 
-                bufferToTensor(dydx, info, convert, SupportedTypes{});
+                objectToTensor(dydx, image.ndim(), image.dtype(), convert,
+                               SupportedTypes{});
             }
             else {
                 auto convert = [&descriptor](const auto& dx, const auto& dy) {
@@ -498,42 +516,51 @@ void IntegralHOGDescriptor::compute(
                     descriptor.compute(dxs, dys, nullptr);
                 };
 
-                bufferToTensor(dydx, info, convert, SupportedTypes{});
+                objectToTensor(dydx, image.ndim(), image.dtype(), convert,
+                               SupportedTypes{});
             }
         },
         descriptor_);
 }
 
-pybind11::object IntegralHOGDescriptor::features() const
+nanobind::object IntegralHOGDescriptor::features() const
 {
-    return isEmpty()
-               ? pybind11::none{}
-               : std::visit(
-                     [](auto& descriptor) {
-                         return pybind11::cast(
-                             descriptor.features(),
-                             pybind11::return_value_policy::reference_internal);
-                     },
-                     descriptor_);
+    return isEmpty() ? nanobind::none()
+                     : std::visit(
+                           [](auto& descriptor) {
+                               return nanobind::cast(
+                                   descriptor.features(),
+                                   nanobind::rv_policy::reference_internal);
+                           },
+                           descriptor_);
 }
 
-pybind11::object IntegralHOGDescriptor::featuresROI(
+nanobind::object IntegralHOGDescriptor::featuresROI(
     const hogpp::Bounds& rect) const
 {
-    return isEmpty() ? pybind11::none{}
-           : rect.area() == 0
-               ? pybind11::array{}
-               : std::visit(
-                     [&rect](auto& descriptor) {
-                         return pybind11::cast(
-                             descriptor.features(rect),
-                             pybind11::return_value_policy::move);
-                     },
-                     descriptor_);
+    if (isEmpty()) {
+        return nanobind::none();
+    }
+
+    return std::visit(
+        [&rect](auto& descriptor) -> nanobind::object {
+            using Tensor = std::decay_t<decltype(descriptor.features(rect))>;
+
+            if (rect.area() == 0) {
+                // A default-constructed dynamic-size Eigen::Tensor has all
+                // dimensions set to 0, i.e., it is an empty tensor of the
+                // correct rank.
+                return nanobind::cast(Tensor{});
+            }
+
+            return nanobind::cast(descriptor.features(rect),
+                                  nanobind::rv_policy::move);
+        },
+        descriptor_);
 }
 
-pybind11::object IntegralHOGDescriptor::featuresROIs(
-    const pybind11::iterable& rects) const
+nanobind::object IntegralHOGDescriptor::featuresROIs(
+    const nanobind::iterable& rects) const
 {
     auto extract = [&rects](auto& descriptor) {
         using Scalar = typename std::decay_t<decltype(descriptor)>::Scalar;
@@ -541,7 +568,7 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
             std::declval<hogpp::Bounds>()))>;
         constexpr auto NumDimensions = Tensor::NumDimensions;
 
-        const std::size_t n = pybind11::len(rects);
+        const std::size_t n = nanobind::len(rects);
         Eigen::Tensor<Scalar, NumDimensions + 1> features;
 
         // Greedily convert bounds to be able to release the GIL for
@@ -550,8 +577,8 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
         bounds.resize(n);
 
         std::transform(rects.begin(), rects.end(), bounds.begin(),
-                       [](const pybind11::handle& rect) {
-                           return pybind11::cast<hogpp::Bounds>(rect);
+                       [](const nanobind::handle& rect) {
+                           return nanobind::cast<hogpp::Bounds>(rect);
                        });
 
         hogpp::Bounds firstBounds;
@@ -572,13 +599,15 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
             if (pos != bounds.end()) {
                 auto index = std::distance(bounds.begin(), pos);
 
-                throw pybind11::value_error{fmt::format(
-                    "IntegralHOGDescriptor extraction of features from "
-                    "multiple regions requires all bounds to be of the same "
-                    "dimensions. however, the bounds at index 0 are different "
-                    "from those at index {} ({} vs. {})",
-                    index, pybind11::cast(bounds.front()),
-                    pybind11::cast(*pos))};
+                throw nanobind::value_error(
+                    fmt::format(
+                        "IntegralHOGDescriptor extraction of features from "
+                        "multiple regions requires all bounds to be of the "
+                        "same dimensions. however, the bounds at index 0 are "
+                        "different from those at index {} ({} vs. {})",
+                        index, nanobind::cast(bounds.front()),
+                        nanobind::cast(*pos))
+                        .c_str());
             }
         }
 
@@ -626,9 +655,9 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
         };
 
         {
-#if !defined(HOGPP_GIL_DISABLED)
-            pybind11::gil_scoped_release release;
-#endif // !defined(HOGPP_GIL_DISABLED)
+#if !defined(NB_FREE_THREADED)
+            nanobind::gil_scoped_release release;
+#endif // !defined(NB_FREE_THREADED)
 
             // Process the remaining bounds
             std::for_each(
@@ -638,10 +667,10 @@ pybind11::object IntegralHOGDescriptor::featuresROIs(
                 first, idxs.cend(), assign);
         }
 
-        return pybind11::cast(std::move(features));
+        return nanobind::cast(std::move(features));
     };
 
-    return isEmpty() ? pybind11::none{} : std::visit(extract, descriptor_);
+    return isEmpty() ? nanobind::none() : std::visit(extract, descriptor_);
 }
 
 std::tuple<int, int> IntegralHOGDescriptor::cellSize() const
@@ -680,24 +709,24 @@ Eigen::DenseIndex IntegralHOGDescriptor::numBins() const
                       descriptor_);
 }
 
-pybind11::object IntegralHOGDescriptor::histogram() const
+nanobind::object IntegralHOGDescriptor::histogram() const
 {
-    return isEmpty() ? pybind11::none{}
+    return isEmpty() ? nanobind::none()
                      : std::visit(
                            [](auto& descriptor) {
-                               return pybind11::cast(descriptor.histogram());
+                               return nanobind::cast(descriptor.histogram());
                            },
                            descriptor_);
 }
 
-pybind11::object IntegralHOGDescriptor::weightedHistogram() const
+nanobind::object IntegralHOGDescriptor::weightedHistogram() const
 {
     if (isEmpty()) {
-        return pybind11::none{};
+        return nanobind::none();
     }
 
     return std::visit(
-        [](auto& descriptor) -> pybind11::object {
+        [](auto& descriptor) -> nanobind::object {
             if constexpr (requires {
                               descriptor.spatialWeightingState()
                                   .weightedHistogram();
@@ -706,11 +735,11 @@ pybind11::object IntegralHOGDescriptor::weightedHistogram() const
                     descriptor.spatialWeightingState().weightedHistogram();
 
                 if (W.size() > 0) {
-                    return pybind11::cast(W);
+                    return nanobind::cast(W);
                 }
             }
 
-            return pybind11::none{};
+            return nanobind::none();
         },
         descriptor_);
 }
@@ -732,7 +761,8 @@ void IntegralHOGDescriptor::update()
             }
 
             if (numBins_) {
-                descriptor.setNumBins(*numBins_);
+                descriptor.setNumBins(
+                    static_cast<Eigen::DenseIndex>(*numBins_));
             }
 
             using Descriptor = std::decay_t<decltype(descriptor)>;
@@ -749,14 +779,19 @@ void IntegralHOGDescriptor::update()
 
             if (blockNormalizerType_) {
                 auto optionalNumber =
-                    [](const auto& value) -> std::optional<pybind11::float_> {
-                    return pybind11::cast<pybind11::float_>(value);
+                    [](const auto& value) -> std::optional<nanobind::float_> {
+                    // nanobind::float_'s caster (unlike pybind11::float_'s)
+                    // requires an exact Python float and does not implicitly
+                    // convert an int, and int_'s own conversion operator
+                    // disables numeric conversion. nanobind::cast<double>
+                    // enables it, correctly handling both int_ and float_.
+                    return nanobind::float_{nanobind::cast<double>(value)};
                 };
 
-                std::optional<pybind11::float_> clipNorm =
+                std::optional<nanobind::float_> clipNorm =
                     !clipNorm_ ? std::nullopt
                                : std::visit(optionalNumber, *clipNorm_);
-                std::optional<pybind11::float_> epsilon =
+                std::optional<nanobind::float_> epsilon =
                     !epsilon_ ? std::nullopt
                               : std::visit(optionalNumber, *epsilon_);
 
@@ -768,7 +803,7 @@ void IntegralHOGDescriptor::update()
         descriptor_);
 }
 
-void IntegralHOGDescriptor::update(const pybind11::dtype& dt)
+void IntegralHOGDescriptor::update(const nanobind::dlpack::dtype& dt)
 {
     descriptor_ = makeDescriptor(
         dt, PrecisionTypes{}, sigma_,
@@ -818,9 +853,9 @@ bool IntegralHOGDescriptor::isEmpty() const noexcept
         descriptor_);
 }
 
-pybind11::object IntegralHOGDescriptor::clipNorm() const noexcept
+nanobind::object IntegralHOGDescriptor::clipNorm() const noexcept
 {
-    pybind11::object result = std::visit(
+    nanobind::object result = std::visit(
         [](const auto& descriptor) {
             return descriptor.blockNormalizer().clip();
         },
@@ -829,13 +864,13 @@ pybind11::object IntegralHOGDescriptor::clipNorm() const noexcept
     return !result.is_none() ? result
            : clipNorm_       ? std::visit(
                                    [](const auto& value) {
-                                 return pybind11::cast<pybind11::object>(value);
+                                 return nanobind::cast<nanobind::object>(value);
                                    },
                                    *clipNorm_)
-                             : pybind11::none{};
+                             : nanobind::none();
 }
 
-pybind11::object IntegralHOGDescriptor::epsilon() const noexcept
+nanobind::object IntegralHOGDescriptor::epsilon() const noexcept
 {
     // Every block normalizer provides regularization; no additional checks
     // required unless a different block normalizer is implemented.
@@ -880,7 +915,7 @@ IntegralHOGDescriptor::State IntegralHOGDescriptor::state() const
 }
 
 IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
-    const pybind11::tuple& value)
+    const nanobind::tuple& value)
 {
     constexpr std::size_t LegacySize = std::tuple_size_v<LegacyState>;
     constexpr std::size_t WeightedSize = std::tuple_size_v<WeightedState>;
@@ -892,7 +927,7 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
         // Pickled without spatial weighting and interpolation
         return fromState(std::tuple_cat(
             castState<LegacyState>(value),
-            std::make_tuple(0.0, pybind11::object{pybind11::none{}},
+            std::make_tuple(0.0, nanobind::object{nanobind::none()},
                             std::optional<InterpolationType>{})));
     }
 
@@ -909,11 +944,13 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
 
     using namespace fmt::literals;
 
-    throw pybind11::type_error{fmt::format(
-        "IntegralHOGDescriptor state must consist of {legacy}, {weighted} or "
-        "{current} elements but {actual} were given",
-        "legacy"_a = LegacySize, "weighted"_a = WeightedSize,
-        "current"_a = Size, "actual"_a = size)};
+    throw nanobind::type_error(
+        fmt::format(
+            "IntegralHOGDescriptor state must consist of {legacy}, {weighted} "
+            "or {current} elements but {actual} were given",
+            "legacy"_a = LegacySize, "weighted"_a = WeightedSize,
+            "current"_a = Size, "actual"_a = size)
+            .c_str());
 }
 
 IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
@@ -929,26 +966,31 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
         std::forward_as_tuple(std::get<SigmaIndex>(value),
                               std::get<InterpolationIndex>(value))));
 
-    pybind11::object histogram = std::get<HistogramIndex>(value);
+    nanobind::object histogram = std::get<HistogramIndex>(value);
 
     if (!histogram.is_none()) {
-        auto X = pybind11::cast<pybind11::buffer>(histogram);
-        const pybind11::buffer_info& info = X.request();
+        nanobind::ndarray<nanobind::ro> a;
+
+        if (!nanobind::try_cast(histogram, a)) {
+            throw std::invalid_argument{
+                "IntegralHOGDescriptor histogram state must be a "
+                "numpy.ndarray-like buffer"};
+        }
 
         // Histogram floating point type defines descriptor's working precision
-        result.update(pybind11::dtype{info});
+        result.update(a.dtype());
 
-        const pybind11::object& weighted =
+        const nanobind::object& weighted =
             std::get<WeightedHistogramIndex>(value);
 
         std::visit(
-            [&X, &weighted](auto& descriptor) {
+            [&histogram, &weighted](auto& descriptor) {
                 using Tensor = std::decay_t<decltype(descriptor.histogram())>;
 
                 if (weighted.is_none()) {
                     // The weighted votes are recovered from the integral
                     // histogram if the block layout does not integrate them.
-                    descriptor.setHistogram(pybind11::cast<Tensor>(X));
+                    descriptor.setHistogram(nanobind::cast<Tensor>(histogram));
                     return;
                 }
 
@@ -956,8 +998,8 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
                                   descriptor.spatialWeightingState()
                                       .weightedHistogram();
                               }) {
-                    descriptor.setHistogram(pybind11::cast<Tensor>(X),
-                                            pybind11::cast<Tensor>(weighted));
+                    descriptor.setHistogram(nanobind::cast<Tensor>(histogram),
+                                            nanobind::cast<Tensor>(weighted));
                 }
                 else {
                     throw std::invalid_argument{
@@ -973,10 +1015,10 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
 
 std::string IntegralHOGDescriptor::repr() const
 {
-    auto val = [](const auto& v) -> pybind11::object { return v; };
+    auto val = [](const auto& v) -> nanobind::object { return v; };
 
-    pybind11::object clipNorm;
-    pybind11::object epsilon;
+    nanobind::object clipNorm;
+    nanobind::object epsilon;
 
     if (clipNorm_) {
         clipNorm = std::visit(val, *clipNorm_);
@@ -986,26 +1028,26 @@ std::string IntegralHOGDescriptor::repr() const
         epsilon = std::visit(val, *epsilon_);
     }
 
-    pybind11::object sigma = pybind11::none{};
+    nanobind::object sigma = nanobind::none();
 
     if (sigma_ > 0) {
-        sigma = pybind11::float_{sigma_};
+        sigma = nanobind::float_{sigma_};
     }
 
     constexpr std::size_t NumCtorArgs = 11;
-    const std::array<std::pair<std::string_view, pybind11::object>, NumCtorArgs>
+    const std::array<std::pair<std::string_view, nanobind::object>, NumCtorArgs>
         args{{
             {"cell_size", asTuple(cellSize_)},
             {"block_size", asTuple(blockSize_)},
             {"block_stride", asTuple(blockStride_)},
-            {"n_bins", pybind11::cast(numBins_)},
-            {"magnitude", pybind11::cast(magnitudeType_)},
-            {"binning", pybind11::cast(binningType_)},
-            {"block_norm", pybind11::cast(blockNormalizerType_)},
-            {"clip_norm", pybind11::cast(clipNorm_)},
-            {"epsilon", pybind11::cast(epsilon_)},
+            {"n_bins", nanobind::cast(numBins_)},
+            {"magnitude", nanobind::cast(magnitudeType_)},
+            {"binning", nanobind::cast(binningType_)},
+            {"block_norm", nanobind::cast(blockNormalizerType_)},
+            {"clip_norm", nanobind::cast(clipNorm_)},
+            {"epsilon", nanobind::cast(epsilon_)},
             {"sigma", sigma},
-            {"interpolation", pybind11::cast(interpolationType_)},
+            {"interpolation", nanobind::cast(interpolationType_)},
         }};
 
     std::vector<std::string> argvals;

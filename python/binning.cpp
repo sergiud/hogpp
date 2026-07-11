@@ -19,13 +19,21 @@
 
 #include <hogpp/prefix.hpp>
 
+#include <nanobind/stl/string.h>
+
 #include "binning.hpp"
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
-bool type_caster<BinningType>::load(handle src, bool /*unused*/)
+bool type_caster<BinningType>::from_python(handle src, std::uint8_t flags,
+                                           cleanup_list* /*cleanup*/) noexcept
 {
-    auto name = pybind11::cast<std::string>(src);
+    std::string name;
+
+    if (!try_cast(src, name,
+                  (flags & (std::uint8_t)cast_flags::convert) != 0)) {
+        return false;
+    }
 
     if (name == "signed") {
         value = BinningType::Signed;
@@ -40,25 +48,24 @@ bool type_caster<BinningType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<BinningType>::cast(BinningType in,
-                                      return_value_policy /*policy*/,
-                                      handle /*parent*/)
+handle type_caster<BinningType>::from_cpp(BinningType in, rv_policy /*policy*/,
+                                          cleanup_list* /*cleanup*/)
 {
     str result;
 
     switch (in) {
         case BinningType::Signed:
-            result = "signed";
+            result = str{"signed"};
             break;
         case BinningType::Unsigned:
-            result = "unsigned";
+            result = str{"unsigned"};
             break;
     }
 
     return result.release();
 }
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 template class Binning<float>;
 template class Binning<double>;
