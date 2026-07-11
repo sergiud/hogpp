@@ -198,14 +198,10 @@ if (nanobind_FOUND)
   endif (OpenCV_FOUND)
 
   if (MINGW)
-    # MinGW's libstdc++-6.dll import library does not export every
-    # vague-linkage symbol (e.g. the out-of-line instantiation of
-    # std::string's move constructor pulled in through fmt::format() and
-    # std::vector<std::string>::push_back() in repr()), which otherwise
-    # fails at link time with an undefined reference. Statically linking
-    # the runtime instead pulls those symbols in directly, the same
-    # workaround nanobind itself applies for musllinux wheels via
-    # nanobind_musl_static_libcpp().
+    # Statically linking the runtime, the same workaround nanobind itself
+    # applies for musllinux wheels via nanobind_musl_static_libcpp(), makes
+    # the module self-contained and avoids depending on the matching
+    # libstdc++-6.dll/libgcc_s_seh-1.dll being present at import time.
     target_link_options (pyhogpp PRIVATE -static-libstdc++ -static-libgcc)
     target_link_options (type_caster_test PRIVATE -static-libstdc++
       -static-libgcc)

@@ -742,11 +742,11 @@ nanobind::object IntegralHOGDescriptor::clipNorm() const noexcept
 
     return !result.is_none() ? result
            : clipNorm_       ? std::visit(
-                                   [](const auto& value) {
+                             [](const auto& value) {
                                  return nanobind::cast<nanobind::object>(value);
-                                   },
-                                   *clipNorm_)
-                             : nanobind::none();
+                             },
+                             *clipNorm_)
+                       : nanobind::none();
 }
 
 nanobind::object IntegralHOGDescriptor::epsilon() const noexcept
@@ -818,6 +818,17 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
 
     return result;
 }
+
+#if defined(__MINGW32__)
+// MinGW fails to resolve std::string's move constructor invoked below
+// through fmt::format() and std::vector<std::string>::push_back() as an
+// undefined reference, since the compiler defers it to implicit (vague
+// linkage) template instantiation instead of emitting it here directly.
+// Explicitly instantiating the class forces a non-weak definition of all
+// its members, sidestepping the missing symbol regardless of how any
+// other translation unit's implicit instantiation gets linked in.
+template class std::basic_string<char>;
+#endif // defined(__MINGW32__)
 
 std::string IntegralHOGDescriptor::repr() const
 {
