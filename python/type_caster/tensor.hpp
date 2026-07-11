@@ -345,7 +345,7 @@ private:
 
         for (std::size_t i = 0; i != N; ++i) {
             shape[i] =
-                static_cast<std::size_t>(t.dimension(static_cast<int>(i)));
+                static_cast<std::size_t>(t.dimension(i));
             elementStrides[i] = static_cast<std::int64_t>(
                 byteStrides[i] /
                 static_cast<Eigen::DenseIndex>(sizeof(TensorScalar)));
@@ -403,7 +403,7 @@ private:
 
         for (std::size_t i = 0; i != NumDimensions; ++i) {
             shape[i] =
-                static_cast<std::size_t>(p->dimension(static_cast<int>(i)));
+                static_cast<std::size_t>(p->dimension(i));
             elementStrides[i] = static_cast<std::int64_t>(
                 byteStrides[i] /
                 static_cast<Eigen::DenseIndex>(sizeof(Scalar)));
