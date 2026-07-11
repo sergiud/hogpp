@@ -30,8 +30,9 @@ bool type_caster<BlockNormalizerType>::from_python(
 {
     std::string name;
 
-    if (!try_cast(src, name,
-                  (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
+    if (!try_cast(
+            src, name,
+            (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0)) {
         return false;
     }
 

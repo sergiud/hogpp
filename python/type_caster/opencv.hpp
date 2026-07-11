@@ -73,7 +73,8 @@ public:
     bool from_python(handle src, std::uint8_t flags,
                      cleanup_list* /*cleanup*/) noexcept
     {
-        const bool convert = (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
+        const bool convert =
+            (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
 
         nanobind::ndarray<nanobind::ro> a;
 

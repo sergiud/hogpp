@@ -134,7 +134,8 @@ public:
                      cleanup_list* /*cleanup*/) noexcept
     {
         // TODO Support float32
-        const bool convert = (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
+        const bool convert =
+            (flags & static_cast<std::uint8_t>(cast_flags::convert)) != 0;
 
         if constexpr (Tensor::NumDimensions == 0) {
             if (!isinstance<nanobind::float_>(src)) {
