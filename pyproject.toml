@@ -42,14 +42,18 @@ test-requires = [
 ]
 test-command = 'pytest -W error {project}/tests/python/module'
 
-# Build a single stable ABI (abi3) wheel for non-free-threaded CPython >=
-# 3.12 (identifiers cp312-*/cp313-*/cp314-*; the free-threaded cp313t-*/
-# cp314t-* identifiers don't match this pattern and keep building their own
-# per-version wheel, same as CPython 3.10/3.11 and PyPy, none of which can
-# use the stable ABI). SKBUILD_WHEEL_PY_API is scikit-build-core's
+# Non-free-threaded CPython >= 3.12 (identifier cp312-*) builds a single
+# stable ABI (abi3) wheel that covers 3.12 and later, so cp313-*/cp314-*
+# would otherwise redundantly rebuild an equivalent abi3 wheel and are
+# skipped. The free-threaded cp313t-*/cp314t-* identifiers aren't matched
+# by either pattern (the "t" replaces the dash) and keep building their
+# own per-version wheel, same as CPython 3.10/3.11 and PyPy, none of
+# which can use the stable ABI. SKBUILD_WHEEL_PY_API is scikit-build-core's
 # environment override for the wheel.py-api setting.
+skip = ["cp313-*", "cp314-*"]
+
 [[tool.cibuildwheel.overrides]]
-select = "cp312-* cp313-* cp314-*"
+select = "cp312-*"
 inherit.environment = "append"
 environment = { SKBUILD_WHEEL_PY_API = "cp312" }
 
