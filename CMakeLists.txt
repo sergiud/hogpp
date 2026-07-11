@@ -83,22 +83,19 @@ endif (BUILD_DEPS)
 find_package (OpenCV 4.0 CONFIG COMPONENTS core)
 
 if (WITH_PYTHON)
-  set (PYBIND11_NOPYTHON ON)
+  # Development.SABIModule provides the Python::SABIModule target nanobind
+  # needs to build stable ABI (abi3) extension modules. The component is not
+  # available for PyPy.
+  find_package (Python 3.11 COMPONENTS Interpreter Development.Module
+    OPTIONAL_COMPONENTS Development.SABIModule)
 
-  # Python precedes pybind11 whose package configuration otherwise searches
-  # for Python itself.
-  find_package (Python 3.11 COMPONENTS Development.Module
-    OPTIONAL_COMPONENTS Interpreter)
-
-  if (SKBUILD_SOABI)
-    set (Python_SOABI ${SKBUILD_SOABI})
-  endif (SKBUILD_SOABI)
-
-  if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
-    find_package (pybind11 2.9.0 CONFIG)
-  else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
-    find_package (pybind11 2.6.2 CONFIG)
-  endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+  # nanobind's config computes the extension suffix itself (querying
+  # sysconfig directly when SKBUILD_SOABI/Python_SOABI is unavailable or, as
+  # on PyPy, missing the platform tag), so no manual SOABI handling is
+  # needed here.
+  if (Python_FOUND)
+    find_package (nanobind 2.2.0 CONFIG)
+  endif (Python_FOUND)
 
   find_package (Sphinx 4.0)
 endif (WITH_PYTHON)
@@ -115,7 +112,6 @@ set (hogpp_package_dir ${CMAKE_INSTALL_DATADIR}/cmake/hogpp)
 
 check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
-check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
 
 # Replacing the allocation functions of glibc allows tests to observe the heap.
@@ -189,40 +185,38 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
-  add_library (python_type_caster STATIC
+if (WITH_PYTHON AND Python_FOUND AND nanobind_FOUND)
+  # Shared between the pyhogpp extension module and the type_caster_test
+  # module used by the internal type caster tests. Each nanobind_add_module()
+  # call below compiles its own private copy: nanobind extension modules are
+  # self-contained shared objects, so there is no ODR concern, and it avoids
+  # having to keep a helper static library in lockstep with whichever
+  # STABLE_ABI/FREE_THREADED nanobind core library flavor each module ends up
+  # linking against.
+  set (HOGPP_PYTHON_TYPE_CASTER_SOURCES
     python/type_caster/bounds.cpp
     python/type_caster/maskingref.cpp
   )
-
-  target_sources (python_type_caster PRIVATE FILE_SET HEADERS
-    BASE_DIRS python
-    FILES
-      python/type_caster/bounds.hpp
-      python/type_caster/maskingref.hpp
-      python/type_caster/stride.hpp
-      python/type_caster/tensor.hpp
-      python/type_caster/typesequence.hpp
+  set (HOGPP_PYTHON_TYPE_CASTER_HEADERS
+    python/type_caster/array2i.hpp
+    python/type_caster/bounds.hpp
+    python/type_caster/maskingref.hpp
+    python/type_caster/stride.hpp
+    python/type_caster/tensor.hpp
+    python/type_caster/typesequence.hpp
   )
 
   if (OpenCV_FOUND)
-    target_sources (python_type_caster PRIVATE python/type_caster/opencv.cpp)
-    target_sources (python_type_caster PRIVATE FILE_SET HEADERS
-      FILES python/type_caster/opencv.hpp
-    )
-    target_link_libraries (python_type_caster PUBLIC opencv_core)
+    list (APPEND HOGPP_PYTHON_TYPE_CASTER_SOURCES python/type_caster/opencv.cpp)
+    list (APPEND HOGPP_PYTHON_TYPE_CASTER_HEADERS python/type_caster/opencv.hpp)
   endif (OpenCV_FOUND)
 
-  target_link_libraries (python_type_caster
-    PUBLIC
-      Eigen3::Eigen
-      hogpp::hogpp
-      pybind11::headers
-    PRIVATE
-      Python::Module
-  )
-
-  python_add_library (pyhogpp MODULE WITH_SOABI
+  # STABLE_ABI/FREE_THREADED are no-ops (silently ignored) when the
+  # configured Python interpreter cannot support them, e.g. below Python
+  # 3.12, PyPy, or a free-threaded build for STABLE_ABI; a non-free-threaded
+  # build for FREE_THREADED.
+  nanobind_add_module (pyhogpp STABLE_ABI FREE_THREADED
+    ${HOGPP_PYTHON_TYPE_CASTER_SOURCES}
     python/binning.cpp
     python/blocknormalizer.cpp
     python/hogpp.cpp
@@ -234,6 +228,7 @@ if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
   target_sources (pyhogpp PRIVATE FILE_SET HEADERS
     BASE_DIRS python
     FILES
+      ${HOGPP_PYTHON_TYPE_CASTER_HEADERS}
       python/binning.hpp
       python/blocknormalizer.hpp
       python/formatter.hpp
@@ -245,14 +240,9 @@ if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
 
   hogpp_enable_big_obj (pyhogpp)
 
-  # The conforming preprocessor of MSVC evaluates the variadic macros of the
-  # free-threading support.
-  if (HAVE_ZC_PREPROCESSOR)
-    target_compile_options (pyhogpp PRIVATE /Zc:preprocessor)
-  endif (HAVE_ZC_PREPROCESSOR)
-
   if (OpenCV_FOUND)
     target_compile_definitions (pyhogpp PRIVATE HAVE_OPENCV)
+    target_link_libraries (pyhogpp PRIVATE opencv_core)
   endif (OpenCV_FOUND)
 
   if (HAVE_EXECUTION)
@@ -269,22 +259,42 @@ if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
 
   target_link_libraries (pyhogpp PRIVATE
     hogpp::hogpp
-    python_type_caster
+    Eigen3::Eigen
   )
 
-  python_add_library (type_caster_test MODULE WITH_SOABI
+  nanobind_add_module (type_caster_test STABLE_ABI FREE_THREADED
+    ${HOGPP_PYTHON_TYPE_CASTER_SOURCES}
     python/type_caster_test.cpp
   )
 
+  target_sources (type_caster_test PRIVATE FILE_SET HEADERS
+    BASE_DIRS python
+    FILES ${HOGPP_PYTHON_TYPE_CASTER_HEADERS}
+  )
+
+  hogpp_enable_big_obj (type_caster_test)
+
   if (OpenCV_FOUND)
     target_compile_definitions (type_caster_test PRIVATE HAVE_OPENCV)
+    target_link_libraries (type_caster_test PRIVATE opencv_core)
   endif (OpenCV_FOUND)
 
   target_link_libraries (type_caster_test PRIVATE
+    hogpp::hogpp
     Eigen3::Eigen
-    python_type_caster
   )
-endif (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
+
+  # macOS resolves Python symbols at load time only if the linker is told about
+  # them. nanobind selects a list of PyPy-prefixed C API names for PyPy, but
+  # PyPy 3.12 exports most of its C API under the names CPython uses. A module
+  # references names from both lists, and names it does not use are ignored.
+  if (APPLE AND Python_INTERPRETER_ID STREQUAL "PyPy")
+    foreach (_hogpp_python_module IN ITEMS pyhogpp type_caster_test)
+      target_link_options (${_hogpp_python_module} PRIVATE
+        "-Wl,@${NB_DIR}/cmake/darwin-ld-cpython.sym")
+    endforeach (_hogpp_python_module IN ITEMS pyhogpp type_caster_test)
+  endif (APPLE AND Python_INTERPRETER_ID STREQUAL "PyPy")
+endif (WITH_PYTHON AND Python_FOUND AND nanobind_FOUND)
 
 if (hogpp_BUILD_TESTS)
   # Each public header compiles on its own.

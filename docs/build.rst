@@ -14,8 +14,7 @@ Optional dependencies:
 -  `OpenCV <https://github.com/opencv/opencv>`__ 4.0
 -  `Boost <https://www.boost.org>`__ 1.70
 -  `Python <https://www.python.org>`__ 3.11
--  `pybind11 <https://github.com/pybind/pybind11>`__ 2.6.2 (version
-   2.9.0 is required for use with Visual Studio 17 2022 and above)
+-  `nanobind <https://github.com/wjakob/nanobind>`__ 2.2.0
 
 More recent versions of the above are expected to work as well.
 
@@ -23,7 +22,7 @@ Options
 -------
 
 ``WITH_PYTHON``
-   Builds the Python module if Python and pybind11 are found. Defaults to
+   Builds the Python module if Python and nanobind are found. Defaults to
    ``ON`` unless hogpp is added to another project as a subdirectory.
 
 ``BUILD_DEPS``

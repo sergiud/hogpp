@@ -20,12 +20,11 @@
 #ifndef PYTHON_HOGPP_MAGNITUDE_HPP
 #define PYTHON_HOGPP_MAGNITUDE_HPP
 
-// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
-#include <algorithm>
+#include <cstdint>
 #include <type_traits>
 #include <variant>
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 #include <hogpp/gradientmagnitude.hpp>
 #include <hogpp/gradientsqrtmagnitude.hpp>
@@ -39,21 +38,21 @@ enum class MagnitudeType
     Sqrt
 };
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
 template<>
 class type_caster<MagnitudeType>
 {
 public:
-    bool load(handle src, bool);
-    static handle cast(MagnitudeType in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    NB_TYPE_CASTER(MagnitudeType, const_name("Magnitude"));
 
-private:
-    PYBIND11_TYPE_CASTER(MagnitudeType, _("Magnitude"));
+    bool from_python(handle src, std::uint8_t flags,
+                     cleanup_list* cleanup) noexcept;
+    static handle from_cpp(MagnitudeType in, rv_policy /*policy*/,
+                           cleanup_list* /*cleanup*/);
 };
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 template<class T>
 class Magnitude

@@ -131,6 +131,6 @@ dtype_names = {
 def test_docstring_describes_dtype_and_rank(style, dtype, rank):
     dims = ', '.join(['?'] * rank)
     descriptor = f'numpy.ndarray[{dtype_names[dtype]}[{dims}]]'
-    expected = f'pass_(arg0: {descriptor}) -> {descriptor}'
+    expected = f'pass_(arg: {descriptor}, /) -> {descriptor}'
 
     assert expected in style.pass_.__doc__

@@ -20,11 +20,10 @@
 #ifndef PYTHON_HOGPP_BINNING_HPP
 #define PYTHON_HOGPP_BINNING_HPP
 
-// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
-#include <algorithm>
+#include <cstdint>
 #include <variant>
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 #include <hogpp/prefix.hpp>
 #include <hogpp/signedgradient.hpp>
@@ -36,21 +35,21 @@ enum class BinningType
     Unsigned
 };
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
 template<>
 class type_caster<BinningType>
 {
 public:
-    bool load(handle src, bool);
-    static handle cast(BinningType in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    NB_TYPE_CASTER(BinningType, const_name("Binning"));
 
-private:
-    PYBIND11_TYPE_CASTER(BinningType, _("Binning"));
+    bool from_python(handle src, std::uint8_t flags,
+                     cleanup_list* cleanup) noexcept;
+    static handle from_cpp(BinningType in, rv_policy /*policy*/,
+                           cleanup_list* /*cleanup*/);
 };
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 template<class T>
 class Binning

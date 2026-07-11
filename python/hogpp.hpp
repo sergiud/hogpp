@@ -20,17 +20,6 @@
 #ifndef PYTHON_HOGPP_HPP
 #define PYTHON_HOGPP_HPP
 
-#include <pybind11/pybind11.h>
-
-#define HOGPP_PYBIND11_MAKE_VERSION(major, minor, patch) \
-    ((major) << 16 | (minor) << 8 | (patch))
-
-#define HOGPP_PYBIND11_VERSION_AT_LEAST(...)          \
-    (((PYBIND11_VERSION_HEX & 0xFF'FF'FF'00) >> 8) >= \
-     HOGPP_PYBIND11_MAKE_VERSION(__VA_ARGS__))
-
-#if defined(Py_GIL_DISABLED) && HOGPP_PYBIND11_VERSION_AT_LEAST(2, 13, 0)
-#    define HOGPP_GIL_DISABLED
-#endif // (defined(Py_GIL_DISABLED) && HOGPP_PYBIND11_AT_LEAST(2, 13, 0))
+#include <nanobind/nanobind.h>
 
 #endif // PYTHON_HOGPP_HPP

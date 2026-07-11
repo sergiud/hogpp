@@ -44,8 +44,8 @@ build:
     - python -m venv .env/
   script:
     - source .env/bin/activate
-    - export pybind11_DIR=$(pybind11-config --cmakedir)
     - pip install -r requirements.txt --prefer-binary
+    - export nanobind_DIR=$(python -c "import nanobind; print(nanobind.cmake_dir())")
     - pip install --no-build-isolation
       --config-settings build-dir=build/
       --config-settings cmake.build-type=Debug
@@ -98,10 +98,10 @@ build:trixie:
   image: sergiud/hogpp:trixie
   stage: build
   script:
-    - export pybind11_DIR=$(pybind11-config --cmakedir)
+    - export nanobind_DIR=$(python3 -c "import nanobind; print(nanobind.cmake_dir())")
     - cmake . -B build/
       -DCMAKE_BUILD_TYPE=Debug
-      -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON
+      -DCMAKE_REQUIRE_FIND_PACKAGE_nanobind=ON
       -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON
       -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON
       -GNinja

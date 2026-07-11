@@ -19,26 +19,34 @@
 
 #include "bounds.hpp"
 
-namespace pybind11::detail {
+#include <tuple>
 
-bool type_caster<hogpp::Bounds>::load(handle src, bool /*unused*/)
+#include <nanobind/stl/tuple.h>
+
+namespace nanobind::detail {
+
+bool type_caster<hogpp::Bounds>::from_python(handle src, std::uint8_t /*flags*/,
+                                             cleanup_list* /*cleanup*/) noexcept
 {
     try {
         std::tie(value.y, value.x, value.height, value.width) =
-            pybind11::cast<std::tuple<int, int, int, int>>(src);
+            nanobind::cast<std::tuple<int, int, int, int>>(src);
     }
-    catch (const pybind11::builtin_exception&) {
+    catch (const nanobind::python_error&) {
+        return false;
+    }
+    catch (const nanobind::cast_error&) {
         return false;
     }
 
     return true;
 }
 
-handle type_caster<hogpp::Bounds>::cast(const hogpp::Bounds& in,
-                                        return_value_policy /*policy*/,
-                                        handle /*parent*/)
+handle type_caster<hogpp::Bounds>::from_cpp(const hogpp::Bounds& in,
+                                            rv_policy /*policy*/,
+                                            cleanup_list* /*cleanup*/)
 {
     return make_tuple(in.y, in.x, in.height, in.width).release();
 }
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
