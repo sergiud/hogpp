@@ -16,9 +16,9 @@ jobs:
       CIBW_ARCHS_MACOS: auto64
       CIBW_ARCHS_WINDOWS: auto64
       CIBW_CACHE_PATH: ${{github.workspace}}/.cibuildwheel/
-      CIBW_ENVIRONMENT_LINUX: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES"
-      CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto -DPYBIND11_DETAILED_ERROR_MESSAGES" MACOSX_DEPLOYMENT_TARGET=11.0
-      CIBW_ENVIRONMENT_WINDOWS: CXXFLAGS="/GL /DPYBIND11_DETAILED_ERROR_MESSAGES" LDFLAGS=/LTCG
+      CIBW_ENVIRONMENT_LINUX: CXXFLAGS="-flto=auto"
+      CIBW_ENVIRONMENT_MACOS: CXXFLAGS="-flto=auto" MACOSX_DEPLOYMENT_TARGET=11.0
+      CIBW_ENVIRONMENT_WINDOWS: CXXFLAGS="/GL" LDFLAGS=/LTCG
       # As for Pillow 11.3.0, there is no Windows arm64 wheel for PyPy.
       # Additionally, NumPy releases supporting Python 3.10 do not provide arm64
       # wheels for Windows either. We therefore skip the tests to avoid

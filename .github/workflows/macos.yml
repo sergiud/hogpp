@@ -51,7 +51,7 @@ jobs:
 
       - name: Setup Environment
         run: |
-          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
+          echo "nanobind_ROOT=$(python -c 'import nanobind; print(nanobind.cmake_dir())')" >> $GITHUB_ENV
 
       - name: Configure
         env:
@@ -59,7 +59,7 @@ jobs:
           Python_ROOT: ${{github.workspace}}/.env/
         run: |
           cmake -S . -B build/  \
-                -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
+                -DCMAKE_REQUIRE_FIND_PACKAGE_nanobind=ON \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON \
                 -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON \
                 -G Ninja
@@ -142,7 +142,7 @@ jobs:
         run: |
           echo 'Eigen3_ROOT=${{github.workspace}}/eigen' >> $GITHUB_ENV
           echo 'fmt_ROOT=${{github.workspace}}/fmt' >> $GITHUB_ENV
-          echo "pybind11_ROOT=$(pybind11-config --cmakedir)" >> $GITHUB_ENV
+          echo "nanobind_ROOT=$(python -c 'import nanobind; print(nanobind.cmake_dir())')" >> $GITHUB_ENV
 
       - name: Build
         env:

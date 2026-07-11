@@ -17,12 +17,8 @@
 // limitations under the License.
 //
 
-// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
-#include <algorithm>
-
-#include <pybind11/cast.h>
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 
 #include "type_caster/bounds.hpp"
 #if defined(HAVE_OPENCV)
@@ -39,7 +35,7 @@ T pass(const T& a)
 }
 
 #if defined(HAVE_OPENCV)
-void init_opencv(pybind11::module& m)
+void init_opencv(nanobind::module_& m)
 {
     // clang-format off
     m.def
@@ -68,7 +64,7 @@ void init_opencv(pybind11::module& m)
 #endif // defined(HAVE_OPENCV)
 
 template<int Options>
-void init_tensor(pybind11::module& m)
+void init_tensor(nanobind::module_& m)
 {
     // clang-format off
     m.def
@@ -141,7 +137,7 @@ void init_tensor(pybind11::module& m)
 
 } // namespace
 
-PYBIND11_MODULE(type_caster_test, m)
+NB_MODULE(type_caster_test, m)
 {
     auto tensor = m.def_submodule("tensor");
     auto f_style = tensor.def_submodule("f_style");

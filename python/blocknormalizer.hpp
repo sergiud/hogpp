@@ -20,13 +20,12 @@
 #ifndef PYTHON_HOGPP_BLOCKNORMALIZER_HPP
 #define PYTHON_HOGPP_BLOCKNORMALIZER_HPP
 
-// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
-#include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <type_traits>
 #include <variant>
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 #include <hogpp/l1hys.hpp>
 #include <hogpp/l1norm.hpp>
@@ -46,21 +45,21 @@ enum class BlockNormalizerType
     L2Hys
 };
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
 template<>
 class type_caster<BlockNormalizerType>
 {
 public:
-    bool load(handle src, bool);
-    static handle cast(BlockNormalizerType in, return_value_policy /*policy*/,
-                       handle /*parent*/);
+    NB_TYPE_CASTER(BlockNormalizerType, const_name("BlockNormalizer"));
 
-private:
-    PYBIND11_TYPE_CASTER(BlockNormalizerType, _("BlockNormalizer"));
+    bool from_python(handle src, std::uint8_t flags,
+                     cleanup_list* cleanup) noexcept;
+    static handle from_cpp(BlockNormalizerType in, rv_policy /*policy*/,
+                           cleanup_list* /*cleanup*/);
 };
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 template<class T>
 class BlockNormalizer
@@ -74,33 +73,33 @@ public:
 
     [[nodiscard]] explicit BlockNormalizer(
         BlockNormalizerType type = BlockNormalizerType::L2Hys,
-        const std::optional<pybind11::float_>& clip = std::nullopt,
-        const std::optional<pybind11::float_>& epsilon = std::nullopt)
+        const std::optional<nanobind::float_>& clip = std::nullopt,
+        const std::optional<nanobind::float_>& epsilon = std::nullopt)
     {
         // TODO L1|L2Norm -> L1|L2
         switch (type) {
             case BlockNormalizerType::L1:
-                norm_ = L1{epsilon ? pybind11::cast<T>(*epsilon)
+                norm_ = L1{epsilon ? nanobind::cast<T>(*epsilon)
                                    : L1::Traits::regularization()};
                 break;
             case BlockNormalizerType::L1Hys:
                 norm_ = L1Hys{
-                    clip ? pybind11::cast<T>(*clip) : L1Hys::Traits::clip(),
-                    epsilon ? pybind11::cast<T>(*epsilon)
+                    clip ? nanobind::cast<T>(*clip) : L1Hys::Traits::clip(),
+                    epsilon ? nanobind::cast<T>(*epsilon)
                             : L1Hys::Traits::regularization()};
                 break;
             case BlockNormalizerType::L2:
-                norm_ = L2{epsilon ? pybind11::cast<T>(*epsilon)
+                norm_ = L2{epsilon ? nanobind::cast<T>(*epsilon)
                                    : L2::Traits::regularization()};
                 break;
             case BlockNormalizerType::L2Hys:
                 norm_ = L2Hys{
-                    clip ? pybind11::cast<T>(*clip) : L2Hys::Traits::clip(),
-                    epsilon ? pybind11::cast<T>(*epsilon)
+                    clip ? nanobind::cast<T>(*clip) : L2Hys::Traits::clip(),
+                    epsilon ? nanobind::cast<T>(*epsilon)
                             : L2Hys::Traits::regularization()};
                 break;
             case BlockNormalizerType::L1sqrt:
-                norm_ = L1Sqrt{epsilon ? pybind11::cast<T>(*epsilon)
+                norm_ = L1Sqrt{epsilon ? nanobind::cast<T>(*epsilon)
                                        : L1Sqrt::Traits::regularization()};
                 break;
         }
@@ -117,12 +116,12 @@ public:
         return std::visit(BlockNormalizerVisitor{}, norm_);
     }
 
-    [[nodiscard]] pybind11::object clip() const noexcept
+    [[nodiscard]] nanobind::object clip() const noexcept
     {
         return std::visit(ClipVisitor{}, norm_);
     }
 
-    [[nodiscard]] pybind11::object epsilon() const noexcept
+    [[nodiscard]] nanobind::object epsilon() const noexcept
     {
         return std::visit(RegularizationVisitor{}, norm_);
     }
@@ -174,25 +173,25 @@ private:
     struct ClipVisitor
     {
         template<class Norm, std::enable_if_t<HasClip_v<Norm>>* = nullptr>
-        [[nodiscard]] pybind11::object operator()(
+        [[nodiscard]] nanobind::object operator()(
             const Norm& norm) const noexcept
         {
             using Scalar = Demote_t<typename Norm::Scalar>;
-            return pybind11::float_{Scalar(norm.clip())};
+            return nanobind::float_{Scalar(norm.clip())};
         }
 
         template<class Norm, std::enable_if_t<!HasClip_v<Norm>>* = nullptr>
-        [[nodiscard]] pybind11::object operator()(
+        [[nodiscard]] nanobind::object operator()(
             [[maybe_unused]] const Norm& norm) const noexcept
         {
-            return pybind11::none{};
+            return nanobind::none();
         }
     };
 
     struct RegularizationVisitor
     {
         template<class Norm, std::enable_if_t<HasNorm_v<Norm>>* = nullptr>
-        [[nodiscard]] pybind11::object operator()(
+        [[nodiscard]] nanobind::object operator()(
             const Norm& norm) const noexcept
         {
             return (*this)(norm.norm());
@@ -200,20 +199,20 @@ private:
 
         template<class Norm,
                  std::enable_if_t<HasRegularization_v<Norm>>* = nullptr>
-        [[nodiscard]] pybind11::object operator()(
+        [[nodiscard]] nanobind::object operator()(
             [[maybe_unused]] const Norm& norm) const noexcept
         {
             using Scalar = Demote_t<typename Norm::Scalar>;
-            return pybind11::float_{Scalar(norm.regularization())};
+            return nanobind::float_{Scalar(norm.regularization())};
         }
 
         template<class Norm,
                  std::enable_if_t<!HasNorm_v<Norm> &&
                                   !HasRegularization_v<Norm>>* = nullptr>
-        [[nodiscard]] pybind11::object operator()(
+        [[nodiscard]] nanobind::object operator()(
             [[maybe_unused]] const Norm& norm) const noexcept
         {
-            return pybind11::none{};
+            return nanobind::none();
         }
     };
 

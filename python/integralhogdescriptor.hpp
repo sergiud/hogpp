@@ -22,13 +22,14 @@
 
 #include <Eigen/Core>
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 #include <variant>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 
 #include <hogpp/bounds.hpp>
 #include <hogpp/integralhogdescriptor.hpp>
@@ -36,6 +37,7 @@
 #include "binning.hpp"
 #include "blocknormalizer.hpp"
 #include "magnitude.hpp"
+#include "type_caster/array2i.hpp"
 #include "type_caster/typesequence.hpp"
 
 template<class T>
@@ -93,7 +95,11 @@ using SupportedTypes = TypeSequence
 template<long... Ranks>
 struct RankNTensor
 {
-    pybind11::buffer buf;
+    // The original Python object is retained (rather than an already-parsed
+    // nanobind::ndarray<nanobind::ro>) so that consumers can independently
+    // re-derive a properly Scalar-typed view via their own caster, mirroring
+    // how the descriptor's compute() overloads dispatch across SupportedTypes.
+    nanobind::object buf;
 };
 
 template<long... Ranks>
@@ -104,86 +110,115 @@ struct RankNTensorPair
 };
 
 template<long... Ranks>
-class pybind11::detail::type_caster<RankNTensor<Ranks...>>
+class nanobind::detail::type_caster<RankNTensor<Ranks...>>
 {
 public:
-    PYBIND11_TYPE_CASTER(RankNTensor<Ranks...>, _("numpy.ndarray[n, m[, o]]"));
+    NB_TYPE_CASTER(RankNTensor<Ranks...>,
+                   const_name("numpy.ndarray[n, m[, o]]"));
 
-    [[nodiscard]] bool load(handle in, bool /*unused*/)
+    [[nodiscard]] bool from_python(handle in, std::uint8_t flags,
+                                   cleanup_list* /*cleanup*/) noexcept
     {
-        try {
-            auto a = pybind11::cast<pybind11::buffer>(in);
-            auto info = a.request();
+        const bool convert = (flags & (std::uint8_t)cast_flags::convert) != 0;
 
-            bool supported = ((info.ndim == Ranks) || ...) &&
-                             compatible(dtype{info}, SupportedTypes{});
+        nanobind::ndarray<nanobind::ro> a;
 
-            if (supported) {
-                value.buf = a;
-            }
-
-            return supported;
-        }
-        catch (const pybind11::builtin_exception&) {
+        if (!try_cast(in, a, convert)) {
+            return false;
         }
 
-        return false;
+        const bool supported =
+            ((static_cast<long>(a.ndim()) == Ranks) || ...) &&
+            compatible(a.dtype(), SupportedTypes{});
+
+        if (supported) {
+            value.buf = nanobind::borrow<nanobind::object>(in);
+        }
+
+        return supported;
     }
 
-    [[nodiscard]] static handle cast(const RankNTensor<Ranks...>& in,
-                                     return_value_policy /*policy*/,
-                                     handle /*parent*/)
+    [[nodiscard]] static handle from_cpp(const RankNTensor<Ranks...>& in,
+                                         rv_policy /*policy*/,
+                                         cleanup_list* /*cleanup*/)
     {
-        return in.buf.release();
+        return nanobind::object{in.buf}.release();
     }
 
 private:
     template<class... T>
     [[nodiscard]] static constexpr bool compatible(
-        const dtype& dt, TypeSequence<T...> /*unused*/) noexcept
+        const nanobind::dlpack::dtype& dt,
+        TypeSequence<T...> /*unused*/) noexcept
     {
-        return (dt.equal(dtype::of<T>()) || ...);
+        return ((nanobind::dtype<T>() == dt) || ...);
     }
 };
 
 template<long... Ranks>
-class pybind11::detail::type_caster<RankNTensorPair<Ranks...>>
+class nanobind::detail::type_caster<RankNTensorPair<Ranks...>>
 {
 public:
-    PYBIND11_TYPE_CASTER(
+    NB_TYPE_CASTER(
         RankNTensorPair<Ranks...>,
-        _("Tuple[numpy.ndarray[n, m[, o]], numpy.ndarray[n, m[, o]]]"));
+        const_name(
+            "Tuple[numpy.ndarray[n, m[, o]], numpy.ndarray[n, m[, o]]]"));
 
-    [[nodiscard]] bool load(handle in, bool /*unused*/)
+    [[nodiscard]] bool from_python(handle in, std::uint8_t flags,
+                                   cleanup_list* /*cleanup*/) noexcept
     {
-        try {
-            auto [buf1, buf2] = pybind11::cast<
-                std::tuple<RankNTensor<Ranks...>, RankNTensor<Ranks...>>>(in);
-            auto info1 = buf1.buf.request();
-            auto info2 = buf2.buf.request();
+        const bool convert = (flags & (std::uint8_t)cast_flags::convert) != 0;
 
-            bool supported = info1.ndim == info2.ndim &&
-                             info1.format == info2.format &&
-                             info1.shape == info2.shape;
+        std::tuple<RankNTensor<Ranks...>, RankNTensor<Ranks...>> pair;
 
-            if (supported) {
-                value.buf1 = std::move(buf1);
-                value.buf2 = std::move(buf2);
-            }
-
-            return supported;
-        }
-        catch (const pybind11::builtin_exception&) {
+        if (!try_cast(in, pair, convert)) {
+            return false;
         }
 
-        return false;
+        auto& [buf1, buf2] = pair;
+
+        nanobind::ndarray<nanobind::ro> a1;
+        nanobind::ndarray<nanobind::ro> a2;
+
+        const bool supported = try_cast(buf1.buf, a1) &&
+                               try_cast(buf2.buf, a2) &&
+                               a1.ndim() == a2.ndim() &&
+                               a1.dtype() == a2.dtype() && shapesEqual(a1, a2);
+
+        if (supported) {
+            value.buf1 = std::move(buf1);
+            value.buf2 = std::move(buf2);
+        }
+
+        return supported;
     }
 
-    [[nodiscard]] static handle cast(const RankNTensorPair<Ranks...>& in,
-                                     return_value_policy /*policy*/,
-                                     handle /*parent*/)
+    [[nodiscard]] static handle from_cpp(const RankNTensorPair<Ranks...>& in,
+                                         rv_policy policy,
+                                         cleanup_list* cleanup)
     {
-        return pybind11::make_tuple(in.buf1, in.buf2).release();
+        return nanobind::make_tuple(
+                   nanobind::detail::make_caster<
+                       RankNTensor<Ranks...>>::from_cpp(in.buf1, policy,
+                                                        cleanup),
+                   nanobind::detail::make_caster<
+                       RankNTensor<Ranks...>>::from_cpp(in.buf2, policy,
+                                                        cleanup))
+            .release();
+    }
+
+private:
+    [[nodiscard]] static bool shapesEqual(
+        const nanobind::ndarray<nanobind::ro>& a,
+        const nanobind::ndarray<nanobind::ro>& b) noexcept
+    {
+        for (std::size_t i = 0; i != a.ndim(); ++i) {
+            if (a.shape(i) != b.shape(i)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 };
 
@@ -204,13 +239,13 @@ public:
           std::optional<Eigen::Array2i>
         , std::optional<Eigen::Array2i>
         , std::optional<Eigen::Array2i>
-        , std::optional<pybind11::int_>
+        , std::optional<nanobind::int_>
         , std::optional<MagnitudeType>
         , std::optional<BinningType>
         , std::optional<BlockNormalizerType>
-        , std::optional<std::variant<pybind11::int_, pybind11::float_> >
-        , std::optional<std::variant<pybind11::int_, pybind11::float_> >
-        , pybind11::object
+        , std::optional<std::variant<nanobind::int_, nanobind::float_> >
+        , std::optional<std::variant<nanobind::int_, nanobind::float_> >
+        , nanobind::object
     >;
     // clang-format on
 
@@ -218,32 +253,32 @@ public:
         const std::optional<Eigen::Array2i>& cellSize,
         const std::optional<Eigen::Array2i>& blockSize,
         const std::optional<Eigen::Array2i>& blockStride,
-        const std::optional<pybind11::int_>& numBins,
+        const std::optional<nanobind::int_>& numBins,
         const std::optional<MagnitudeType>& magnitude,
         const std::optional<BinningType>& binning,
         const std::optional<BlockNormalizerType>& blockNorm,
-        const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
+        const std::optional<std::variant<nanobind::int_, nanobind::float_>>&
             clipNorm,
-        const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
+        const std::optional<std::variant<nanobind::int_, nanobind::float_>>&
             epsilon);
 
-    void compute(const Rank2Or3Tensor& image, const pybind11::handle& mask);
-    void compute(const Rank2Or3TensorPair& dydx, const pybind11::handle& mask);
+    void compute(const Rank2Or3Tensor& image, const nanobind::handle& mask);
+    void compute(const Rank2Or3TensorPair& dydx, const nanobind::handle& mask);
 
-    [[nodiscard]] pybind11::object features() const;
-    [[nodiscard]] pybind11::object featuresROI(const hogpp::Bounds& rect) const;
-    [[nodiscard]] pybind11::object featuresROIs(
-        const pybind11::iterable& rects) const;
+    [[nodiscard]] nanobind::object features() const;
+    [[nodiscard]] nanobind::object featuresROI(const hogpp::Bounds& rect) const;
+    [[nodiscard]] nanobind::object featuresROIs(
+        const nanobind::iterable& rects) const;
     [[nodiscard]] std::tuple<int, int> cellSize() const;
     [[nodiscard]] std::tuple<int, int> blockSize() const;
     [[nodiscard]] std::tuple<int, int> blockStride() const;
     [[nodiscard]] Eigen::DenseIndex numBins() const;
-    [[nodiscard]] pybind11::object histogram() const;
+    [[nodiscard]] nanobind::object histogram() const;
     [[nodiscard]] BinningType binning() const;
     [[nodiscard]] BlockNormalizerType blockNormalizer() const;
     [[nodiscard]] MagnitudeType magnitude() const;
-    [[nodiscard]] pybind11::object clipNorm() const noexcept;
-    [[nodiscard]] pybind11::object epsilon() const noexcept;
+    [[nodiscard]] nanobind::object clipNorm() const noexcept;
+    [[nodiscard]] nanobind::object epsilon() const noexcept;
     [[nodiscard]] explicit operator bool() const noexcept;
 
     [[nodiscard]] State state() const;
@@ -254,17 +289,17 @@ public:
 private:
     [[nodiscard]] bool isEmpty() const noexcept;
     void update();
-    void update(const pybind11::dtype& dt);
+    void update(const nanobind::dlpack::dtype& dt);
 
     std::optional<Eigen::Array2i> cellSize_;
     std::optional<Eigen::Array2i> blockSize_;
     std::optional<Eigen::Array2i> blockStride_;
-    std::optional<pybind11::int_> numBins_;
+    std::optional<nanobind::int_> numBins_;
     std::optional<MagnitudeType> magnitudeType_;
     std::optional<BinningType> binningType_;
     std::optional<BlockNormalizerType> blockNormalizerType_;
-    std::optional<std::variant<pybind11::int_, pybind11::float_>> clipNorm_;
-    std::optional<std::variant<pybind11::int_, pybind11::float_>> epsilon_;
+    std::optional<std::variant<nanobind::int_, nanobind::float_>> clipNorm_;
+    std::optional<std::variant<nanobind::int_, nanobind::float_>> epsilon_;
 
     DescriptorVariant descriptor_;
 };

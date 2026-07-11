@@ -17,13 +17,17 @@
 // limitations under the License.
 //
 
-// FIXME GCC 14.x workaround for https://github.com/pybind/pybind11/pull/5208
-#include <algorithm>
+#include <new>
 #include <variant>
 
-#include <pybind11/eigen.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "type_caster/array2i.hpp"
+
+#include <nanobind/eigen/dense.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/optional.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/tuple.h>
+#include <nanobind/stl/variant.h>
 
 #include "binning.hpp"
 #include "blocknormalizer.hpp"
@@ -32,25 +36,15 @@
 #include "magnitude.hpp"
 #include "type_caster/bounds.hpp"
 
-#if defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE(name, module, ...) \
-        PYBIND11_MODULE(name, module, pybind11::mod_gil_not_used())
-#else // !defined(HOGPP_GIL_DISABLED)
-#    define HOGPP_MODULE PYBIND11_MODULE
-#endif // defined(HOGPP_GIL_DISABLED)
-
 #if defined(HOGPP_SKBUILD)
 #    define HOGPP_MODULE_NAME _hogpp
 #else // !defined(HOGPP_SKBUILD)
 #    define HOGPP_MODULE_NAME hogpp
 #endif // defined(HOGPP_SKBUILD)
 
-HOGPP_MODULE(HOGPP_MODULE_NAME, m)
+NB_MODULE(HOGPP_MODULE_NAME, m)
 {
-    namespace py = pybind11;
-
-    py::options opts;
-    opts.disable_function_signatures();
+    namespace py = nanobind;
 
     py::class_<IntegralHOGDescriptor> cls{m, "IntegralHOGDescriptor"};
     cls.doc() = R"|(
@@ -208,12 +202,12 @@ epsilon_ : float
               std::optional<Eigen::Array2i>
             , std::optional<Eigen::Array2i>
             , std::optional<Eigen::Array2i>
-            , std::optional<pybind11::int_>
+            , std::optional<nanobind::int_>
             , std::optional<MagnitudeType>
             , std::optional<BinningType>
             , std::optional<BlockNormalizerType>
-            , std::optional<std::variant<pybind11::int_, pybind11::float_> >
-            , std::optional<std::variant<pybind11::int_, pybind11::float_> >
+            , std::optional<std::variant<nanobind::int_, nanobind::float_> >
+            , std::optional<std::variant<nanobind::int_, nanobind::float_> >
           >()
         , py::kw_only()
         , py::arg("cell_size") = std::nullopt
@@ -232,8 +226,6 @@ epsilon_ : float
         , py::overload_cast<const Rank2Or3Tensor&, const py::handle&>(&IntegralHOGDescriptor::compute)
         ,
 R"|(
-compute(image, /, *, mask=None)
-
 Computes the feature descriptor of the specified `image`.
 
 Parameters
@@ -246,21 +238,19 @@ mask : collections.abc.Callable, array_like (m, n, (3, ))
     callable as a tuple is masked or not. Alternatively, the mask can be specified
     in terms of a tensor with the same rank and dimensions as the specified `image`.
 )|"
-        , py::arg("image")
-        // LCOV_EXCL_START
-        , py::pos_only() // 'image' can only be provided as positional argument
+        // 'image' is left unnamed so it can only be passed positionally.
+        , py::arg()
         , py::kw_only() // All following arguments are keyword-only
-        // LCOV_EXCL_STOP
-        , py::arg("mask") = py::none{}
+        , py::arg("mask") = py::none()
     )
     .def
     (
           "compute"
         , py::overload_cast<const Rank2Or3TensorPair&, const py::handle&>(&IntegralHOGDescriptor::compute)
-        , py::arg("dydx")
-        , py::pos_only() // 'dxdy' can only be provided as positional argument
+        // 'dydx' is left unnamed so it can only be passed positionally.
+        , py::arg()
         , py::kw_only() // All following arguments are keyword-only
-        , py::arg("mask") = py::none{}
+        , py::arg("mask") = py::none()
     )
     .def
     (
@@ -268,8 +258,6 @@ mask : collections.abc.Callable, array_like (m, n, (3, ))
         , &IntegralHOGDescriptor::featuresROI
         ,
 R"|(
-__call__(self, roi)
-
 Extracts the features of the specified region of interest `roi`.
 
 Parameters
@@ -305,8 +293,6 @@ ValueError
         , &IntegralHOGDescriptor::operator bool
         ,
 R"|(
-__bool__(self)
-
 Determines whether the descriptor was initialized in terms of a previous :meth:`compute` call.
 
 Returns
@@ -321,71 +307,73 @@ bool
           "__repr__"
         , &IntegralHOGDescriptor::repr
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "features_"
         , &IntegralHOGDescriptor::features
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "cell_size_"
         , &IntegralHOGDescriptor::cellSize
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "block_stride_"
         , &IntegralHOGDescriptor::blockStride
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "block_size_"
         , &IntegralHOGDescriptor::blockSize
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "n_bins_"
         , &IntegralHOGDescriptor::numBins
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "histogram_"
         , &IntegralHOGDescriptor::histogram
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "binning_"
         , &IntegralHOGDescriptor::binning
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "block_norm_"
         , &IntegralHOGDescriptor::blockNormalizer
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "magnitude_"
         , &IntegralHOGDescriptor::magnitude
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "clip_norm_"
         , &IntegralHOGDescriptor::clipNorm
     )
-    .def_property_readonly
+    .def_prop_ro
     (
           "epsilon_"
         , &IntegralHOGDescriptor::epsilon
     )
     .def
     (
-        py::pickle
-        (
-            [] (const IntegralHOGDescriptor& d)
-            {
-                return d.state();
-            }
-            , &IntegralHOGDescriptor::fromState
-        )
+          "__getstate__"
+        , &IntegralHOGDescriptor::state
+    )
+    .def
+    (
+          "__setstate__"
+        , [] (IntegralHOGDescriptor& self, const IntegralHOGDescriptor::State& state)
+        {
+            new (&self) IntegralHOGDescriptor{IntegralHOGDescriptor::fromState(state)};
+        }
     )
     .def
     (

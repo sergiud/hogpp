@@ -19,13 +19,21 @@
 
 #include <hogpp/prefix.hpp>
 
+#include <nanobind/stl/string.h>
+
 #include "blocknormalizer.hpp"
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
-bool type_caster<BlockNormalizerType>::load(handle src, bool /*unused*/)
+bool type_caster<BlockNormalizerType>::from_python(
+    handle src, std::uint8_t flags, cleanup_list* /*cleanup*/) noexcept
 {
-    auto name = pybind11::cast<std::string>(src);
+    std::string name;
+
+    if (!try_cast(src, name,
+                  (flags & (std::uint8_t)cast_flags::convert) != 0)) {
+        return false;
+    }
 
     if (name == "l1") {
         value = BlockNormalizerType::L1;
@@ -49,34 +57,34 @@ bool type_caster<BlockNormalizerType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<BlockNormalizerType>::cast(BlockNormalizerType in,
-                                              return_value_policy /*policy*/,
-                                              handle /*parent*/)
+handle type_caster<BlockNormalizerType>::from_cpp(BlockNormalizerType in,
+                                                  rv_policy /*policy*/,
+                                                  cleanup_list* /*cleanup*/)
 {
     str result;
 
     switch (in) {
         case BlockNormalizerType::L1:
-            result = "l1";
+            result = str{"l1"};
             break;
         case BlockNormalizerType::L1Hys:
-            result = "l1-hys";
+            result = str{"l1-hys"};
             break;
         case BlockNormalizerType::L2:
-            result = "l2";
+            result = str{"l2"};
             break;
         case BlockNormalizerType::L2Hys:
-            result = "l2-hys";
+            result = str{"l2-hys"};
             break;
         case BlockNormalizerType::L1sqrt:
-            result = "l1-sqrt";
+            result = str{"l1-sqrt"};
             break;
     }
 
     return result.release();
 }
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 template class BlockNormalizer<float>;
 template class BlockNormalizer<double>;

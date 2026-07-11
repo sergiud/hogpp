@@ -19,13 +19,21 @@
 
 #include <hogpp/prefix.hpp>
 
+#include <nanobind/stl/string.h>
+
 #include "magnitude.hpp"
 
-namespace pybind11::detail {
+namespace nanobind::detail {
 
-bool type_caster<MagnitudeType>::load(handle src, bool /*unused*/)
+bool type_caster<MagnitudeType>::from_python(handle src, std::uint8_t flags,
+                                             cleanup_list* /*cleanup*/) noexcept
 {
-    auto name = pybind11::cast<std::string>(src);
+    std::string name;
+
+    if (!try_cast(src, name,
+                  (flags & (std::uint8_t)cast_flags::convert) != 0)) {
+        return false;
+    }
 
     if (name == "identity") {
         value = MagnitudeType::Identity;
@@ -43,28 +51,28 @@ bool type_caster<MagnitudeType>::load(handle src, bool /*unused*/)
     return true;
 }
 
-handle type_caster<MagnitudeType>::cast(MagnitudeType in,
-                                        return_value_policy /*policy*/,
-                                        handle /*parent*/)
+handle type_caster<MagnitudeType>::from_cpp(MagnitudeType in,
+                                            rv_policy /*policy*/,
+                                            cleanup_list* /*cleanup*/)
 {
     str result;
 
     switch (in) {
         case MagnitudeType::Identity:
-            result = "identity";
+            result = str{"identity"};
             break;
         case MagnitudeType::Square:
-            result = "square";
+            result = str{"square"};
             break;
         case MagnitudeType::Sqrt:
-            result = "sqrt";
+            result = str{"sqrt"};
             break;
     }
 
     return result.release();
 }
 
-} // namespace pybind11::detail
+} // namespace nanobind::detail
 
 template class Magnitude<float>;
 template class Magnitude<double>;

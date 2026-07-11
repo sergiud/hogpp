@@ -6,9 +6,9 @@ set -x -eo pipefail
 
 cmake -S . -B "${BUILDDIR}"/ -G Ninja \
     -DCMAKE_CXX_FLAGS_INIT='-fuse-ld=mold' \
-    -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON \
+    -DCMAKE_REQUIRE_FIND_PACKAGE_nanobind=ON \
     -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON \
-    -Dpybind11_ROOT="$(pybind11-config --cmakedir)"
+    -Dnanobind_ROOT="$(python -c 'import nanobind; print(nanobind.cmake_dir())')"
 
 cmake --build "${BUILDDIR}"/ --target pyhogpp
 

@@ -21,7 +21,11 @@ Features
 --------
 
 -  C++ templated implementation
--  Python support for 32, 64, and 80 bit floating point precision
+-  Python support for 32 and 64 bit floating point precision (the C++
+   library additionally supports 80 bit extended precision; nanobind,
+   which the Python bindings are built on, cannot exchange numpy
+   ``longdouble``/``float128`` arrays with C++, so this precision is not
+   reachable from Python)
 -  Unrestricted input size (e.g., OpenCV as of version 4.12.0 requires
    the input to be a `multiple of the block
    size <https://github.com/opencv/opencv/blob/49486f61fb25722cbcf586b7f4320921d46fb38e/modules/objdetect/src/hog.cpp#L94-L95>`__)
