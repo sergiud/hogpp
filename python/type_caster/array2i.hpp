@@ -43,7 +43,7 @@ public:
     NB_TYPE_CASTER(Eigen::Array2i, const_name("tuple[int, int]"));
 
     bool from_python(handle src, std::uint8_t flags,
-                     cleanup_list* cleanup) noexcept
+                     cleanup_list* /*cleanup*/) noexcept
     {
         std::pair<int, int> p;
 
