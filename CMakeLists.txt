@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.18...3.30)
+cmake_minimum_required (VERSION 3.26...3.30)
 project (hogpp
   VERSION 0.3.0
   LANGUAGES CXX
@@ -29,21 +29,9 @@ check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
 
-# Development.SABIModule provides the Python::SABIModule target nanobind
-# needs to build stable ABI (abi3) extension modules. The component was
-# only added to FindPython in CMake 3.26 (see issue #73 for the tracked
-# bump of the minimum required CMake version), and older CMake releases
-# reject unrecognized component names outright, so it can only be
-# requested conditionally for now.
-set (HOGPP_PYTHON_OPTIONAL_COMPONENTS)
-
-if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.26)
-  list (APPEND HOGPP_PYTHON_OPTIONAL_COMPONENTS Development.SABIModule)
-endif (CMAKE_VERSION VERSION_GREATER_EQUAL 3.26)
-
-find_package (Python 3.10 COMPONENTS Interpreter Development.Module
-  OPTIONAL_COMPONENTS ${HOGPP_PYTHON_OPTIONAL_COMPONENTS})
-
+# Development.SABIModule provides the Python::SABIModule target nanobind needs
+# to build stable ABI (abi3) extension modules.
+find_package (Python 3.10 COMPONENTS Interpreter Development.Module  Development.SABIModule)
 find_package (Sphinx 4.0)
 
 if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
