@@ -82,12 +82,12 @@ jobs:
       - name: Setup x86_64 Environment
         if: ${{matrix.env == 'x86_64'}}
         run: |
-          echo 'CXXFLAGS=-ltbb12' >> $GITHUB_ENV
+          echo "CXXFLAGS=${{env.CXXFLAGS}} -ltbb12" >> $GITHUB_ENV
 
       - name: Setup Clang Environment
         if: ${{matrix.sys == 'clangarm64'}}
         run: |
-          echo 'CXXFLAGS=-Wno-c2y-extensions' >> $GITHUB_ENV
+          echo "CXXFLAGS=${{env.CXXFLAGS}} -Wno-c2y-extensions" >> $GITHUB_ENV
 
       - name: Configure
         env:

@@ -47,7 +47,7 @@ jobs:
       - name: Setup Compiler Environment
         if: ${{matrix.os != 'macos-14'}}
         run: |
-          echo 'CXXFLAGS=-Wno-c2y-extensions' >> $GITHUB_ENV
+          echo "CXXFLAGS=${{env.CXXFLAGS}} -Wno-c2y-extensions" >> $GITHUB_ENV
 
       - name: Setup Environment
         run: |
