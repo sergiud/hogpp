@@ -30,8 +30,13 @@ find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
 find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
 
 # Development.SABIModule provides the Python::SABIModule target nanobind needs
-# to build stable ABI (abi3) extension modules.
-find_package (Python 3.10 COMPONENTS Interpreter Development.Module  Development.SABIModule)
+# to build stable ABI (abi3) extension modules. The component is not available
+# for PyPy.
+find_package (Python 3.10
+  COMPONENTS Interpreter Development.Module
+  OPTIONAL_COMPONENTS Development.SABIModule
+)
+
 find_package (Sphinx 4.0)
 
 if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
