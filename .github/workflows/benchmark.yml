@@ -53,6 +53,7 @@ jobs:
             --no-install-recommends --no-install-suggests \
             cmake \
             g++ \
+            mold \
             ninja-build
 
       - name: Setup Dependencies (macOS)
