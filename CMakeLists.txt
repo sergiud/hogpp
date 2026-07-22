@@ -179,8 +179,14 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
 
     if (_hogpp_system_processor MATCHES "^(arm|aarch64)" OR
         _hogpp_generator_platform MATCHES "^arm")
-      list (APPEND HOGPP_ISAS NEON)
-      set (HAVE_ISA_NEON 1)
+      if (HAVE_MFPU_NEON OR
+          _hogpp_system_processor MATCHES "^aarch64" OR
+          _hogpp_generator_platform MATCHES "^arm64")
+        list (APPEND HOGPP_ISAS NEON)
+        set (HAVE_ISA_NEON 1)
+      endif (HAVE_MFPU_NEON OR
+             _hogpp_system_processor MATCHES "^aarch64" OR
+             _hogpp_generator_platform MATCHES "^arm64")
 
       if (HAVE_MSVE_VECTOR_BITS)
         set (HAVE_ISA_SVE128 1)
@@ -539,6 +545,16 @@ if (BUILD_TESTING)
   endif (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
 
   if (TARGET pyhogpp)
+    if (UNIX)
+      add_test (NAME cmake_arm32_neon_requires_compiler_support COMMAND
+        ${CMAKE_COMMAND}
+        -DPROJECT_SOURCE_DIR=${hogpp_SOURCE_DIR}
+        -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_arm32_neon
+        -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm32_neon_dispatch.cmake
+      )
+    endif (UNIX)
+
     add_test (NAME python_hogpp COMMAND
       ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
       ${Python_EXECUTABLE} -m pytest -p no:benchmark -W error
