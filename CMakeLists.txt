@@ -256,8 +256,14 @@ if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
 
     if (_hogpp_system_processor MATCHES "^(arm|aarch64)" OR
         _hogpp_generator_platform MATCHES "^arm")
-      list (APPEND HOGPP_ISAS NEON)
-      set (HAVE_ISA_NEON 1)
+      if (HAVE_MFPU_NEON OR
+          _hogpp_system_processor MATCHES "^aarch64" OR
+          _hogpp_generator_platform MATCHES "^arm64")
+        list (APPEND HOGPP_ISAS NEON)
+        set (HAVE_ISA_NEON 1)
+      endif (HAVE_MFPU_NEON OR
+             _hogpp_system_processor MATCHES "^aarch64" OR
+             _hogpp_generator_platform MATCHES "^arm64")
 
       if (HAVE_MSVE_VECTOR_BITS)
         set (HAVE_ISA_SVE128 1)
@@ -640,6 +646,16 @@ if (hogpp_BUILD_TESTS)
   else (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
     set (pytest_xdist_args -n auto)
   endif (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
+
+  if (TARGET pyhogpp AND UNIX)
+    add_test (NAME cmake_arm32_neon_requires_compiler_support
+      COMMAND ${CMAKE_COMMAND}
+        -DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_arm32_neon
+        -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        -P ${PROJECT_SOURCE_DIR}/tests/cmake/test_arm32_neon_dispatch.cmake
+    )
+  endif (TARGET pyhogpp AND UNIX)
 
   # Benchmarks run on their own, so their plugin stays disabled in the tests.
   set (pytest_command Python::Interpreter -m pytest -p no:benchmark -W error
