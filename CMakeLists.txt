@@ -152,7 +152,12 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     hogpp_add_isa (SSE4.1 GNU_FLAG -msse4.1)
     hogpp_add_isa (SSE4.2 GNU_FLAG -msse4.2 MSVC_FLAG /arch:SSE4.2)
     hogpp_add_isa (AVX GNU_FLAG -mavx MSVC_FLAG /arch:AVX)
-    hogpp_add_isa (AVX2 GNU_FLAG -mavx2 MSVC_FLAG /arch:AVX2)
+    # Every AVX2-capable CPU (Haswell and later on Intel, all AVX2-capable
+    # AMD chips) also implements FMA3: the two were introduced together
+    # and no shipped CPU has one without the other. Unlike plain AVX
+    # (Sandy/Ivy Bridge predate FMA3), requiring FMA here needs no
+    # additional runtime check.
+    hogpp_add_isa (AVX2 GNU_FLAG -mavx2 MSVC_FLAG /arch:AVX2 REQUIRES_FMA)
     # Required for AVX512 (and above) by Eigen 5.x: compiling with -mavx512f
     # alone without SSE/AVX FMA is not supported (bug 1638)
     # https://gitlab.com/libeigen/eigen/-/issues/1638

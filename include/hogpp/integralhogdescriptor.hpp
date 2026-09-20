@@ -334,11 +334,10 @@ public:
                 Scalar& value1 = bins.coeffRef(bin1);
                 Scalar& value2 = bins.coeffRef(bin2);
 
-                using std::fma;
                 // The bin closest to the target orientation obtains
                 // proportionally a higher magnitude.
-                value1 = fma(1 - alpha, mag, value1);
-                value2 = fma(alpha, mag, value2);
+                value1 = (1 - alpha) * mag + value1;
+                value2 = alpha * mag + value2;
             });
     }
 
