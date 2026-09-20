@@ -112,7 +112,24 @@ class type_caster
 // clang-format on
 {
 public:
-    PYBIND11_TYPE_CASTER(Tensor, _("numpy.ndarray"));
+    template<std::size_t... Indices>
+    [[nodiscard]] static constexpr auto dimensions(
+        std::index_sequence<Indices...> /*unused*/)
+    {
+        return concat(const_name(((void)Indices, "?"))...);
+    }
+
+    // name must be a compile-time constant, so std::format (a runtime
+    // facility) cannot be used to build it. Reuse pybind11's own
+    // const_name/concat machinery instead.
+    static constexpr auto descriptor =
+        const_name("numpy.ndarray[") +
+        npy_format_descriptor<typename Tensor::Scalar>::name + const_name("[") +
+        dimensions(std::make_index_sequence<static_cast<std::size_t>(
+                       Tensor::NumDimensions)>{}) +
+        const_name("]]");
+
+    PYBIND11_TYPE_CASTER(Tensor, descriptor);
 
     bool load(handle in, bool /*unused*/)
     {

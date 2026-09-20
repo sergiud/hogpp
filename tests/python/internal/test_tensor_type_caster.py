@@ -117,3 +117,20 @@ def test_rank_5_tensor(style, layout, dtype, size0, size1, size2, size3, size4):
 @pytest.mark.xfail(raises=TypeError)
 def test_unsupported_dtype(style, dtype):
     style.pass_(np.empty((0, 0), dtype=dtype))
+
+
+dtype_names = {
+    np.float32: 'numpy.float32',
+    np.float64: 'numpy.float64',
+}
+
+
+@pytest.mark.parametrize('style', styles)
+@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+@pytest.mark.parametrize('rank', range(6))
+def test_docstring_describes_dtype_and_rank(style, dtype, rank):
+    dims = ', '.join(['?'] * rank)
+    descriptor = f'numpy.ndarray[{dtype_names[dtype]}[{dims}]]'
+    expected = f'pass_(arg0: {descriptor}) -> {descriptor}'
+
+    assert expected in style.pass_.__doc__
