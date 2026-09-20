@@ -24,6 +24,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <type_traits>
 #include <utility>
 
 #include <fmt/format.h>
@@ -39,6 +40,31 @@
 #include <hogpp/unsignedgradient.hpp>
 
 namespace hogpp {
+
+namespace detail {
+
+//! Detects whether a Binning functor can be evaluated over a whole tensor
+//! at once, in addition to its required per-pixel scalar operator(). Only
+//! the Fast profile of SignedGradient/UnsignedGradient provides this (see
+//! their tensor-expression operator() overloads); the Accurate profile
+//! and arbitrary user-supplied Binning types do not, and
+//! IntegralHOGDescriptor::compute() falls back to calling them once per
+//! pixel as before.
+template<class Binning, class Tensor, class = void>
+struct HasTensorBinning : std::false_type
+{
+};
+
+template<class Binning, class Tensor>
+struct HasTensorBinning<
+    Binning, Tensor,
+    std::void_t<decltype(std::declval<const Binning&>()(
+        std::declval<const Tensor&>(), std::declval<const Tensor&>()))>>
+    : std::true_type
+{
+};
+
+} // namespace detail
 
 template<class T>
 struct IntegralHOGDescriptorTraits;
@@ -268,8 +294,29 @@ public:
 
         const auto scale = static_cast<Scalar>(bins_ - 1);
 
+        // When the Binning functor can be evaluated over a whole tensor at
+        // once (see detail::HasTensorBinning), precompute the per-pixel
+        // bin weight for the whole image here as a single vectorized
+        // expression, instead of calling it once per pixel inside the
+        // scan below. The scan itself ends in a data-dependent scatter
+        // write and can never be vectorized regardless of the target
+        // instruction set, but the weight computation feeding it is pure
+        // elementwise arithmetic that, expressed as a whole-tensor
+        // operation, lets Eigen pack it into the compiled ISA's native
+        // vector width instead of being forced through scalar code
+        // either way.
+        using InputTensor = Eigen::Tensor<Scalar, 3, DataLayout>;
+        constexpr bool hasTensorBinning =
+            detail::HasTensorBinning<Binning, InputTensor>::value;
+
+        Eigen::Tensor<Scalar, 3, DataLayout> weights;
+
+        if constexpr (hasTensorBinning) {
+            weights = this->binning_(dxs, dys);
+        }
+
         histogram_.scan(
-            [this, &k, &dxs, &dys, &mags, scale, &masked](
+            [this, &k, &dxs, &dys, &mags, &weights, scale, &masked](
                 Eigen::TensorRef<Eigen::Tensor<Scalar, 1, DataLayout>> bins,
                 const auto& ij) {
                 (void)masked; // Avoid error: lambda capture 'masked' is not
@@ -300,11 +347,17 @@ public:
                 // this point.
                 HOGPP_ASSUME(mag > 0);
 
-                Scalar dx = std::apply(dxs, ijk);
-                Scalar dy = std::apply(dys, ijk);
-
                 // Gradient binning
-                Scalar weight = this->binning_(dx, dy);
+                Scalar weight;
+
+                if constexpr (hasTensorBinning) {
+                    weight = std::apply(weights, ijk);
+                }
+                else {
+                    Scalar dx = std::apply(dxs, ijk);
+                    Scalar dy = std::apply(dys, ijk);
+                    weight = this->binning_(dx, dy);
+                }
 
                 HOGPP_ASSUME(weight >= 0 && weight <= 1);
 

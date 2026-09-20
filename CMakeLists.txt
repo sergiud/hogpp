@@ -484,6 +484,14 @@ if (BUILD_TESTING)
     add_test (NAME binning_unsigned_gradient_fast_double COMMAND test_binning -t "unsigned_gradient_fast<double>")
     add_test (NAME binning_unsigned_gradient_fast_long_double COMMAND test_binning -t "unsigned_gradient_fast<long double>")
 
+    add_test (NAME binning_signed_gradient_fast_tensor_float COMMAND test_binning -t "signed_gradient_fast_tensor<float>")
+    add_test (NAME binning_signed_gradient_fast_tensor_double COMMAND test_binning -t "signed_gradient_fast_tensor<double>")
+    add_test (NAME binning_signed_gradient_fast_tensor_long_double COMMAND test_binning -t "signed_gradient_fast_tensor<long double>")
+
+    add_test (NAME binning_unsigned_gradient_fast_tensor_float COMMAND test_binning -t "unsigned_gradient_fast_tensor<float>")
+    add_test (NAME binning_unsigned_gradient_fast_tensor_double COMMAND test_binning -t "unsigned_gradient_fast_tensor<double>")
+    add_test (NAME binning_unsigned_gradient_fast_tensor_long_double COMMAND test_binning -t "unsigned_gradient_fast_tensor<long double>")
+
     add_executable (test_descriptor tests/cpp/test_descriptor.cpp)
     target_link_libraries (test_descriptor PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
@@ -507,6 +515,10 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_nan_pixel_float COMMAND test_descriptor -t "nan_pixel<float>")
     add_test (NAME descriptor_nan_pixel_double COMMAND test_descriptor -t "nan_pixel<double>")
     add_test (NAME descriptor_nan_pixel_long_double COMMAND test_descriptor -t "nan_pixel<long double>")
+
+    add_test (NAME descriptor_precomputed_binning_matches_reference_float COMMAND test_descriptor -t "precomputed_binning_matches_reference<float>")
+    add_test (NAME descriptor_precomputed_binning_matches_reference_double COMMAND test_descriptor -t "precomputed_binning_matches_reference<double>")
+    add_test (NAME descriptor_precomputed_binning_matches_reference_long_double COMMAND test_descriptor -t "precomputed_binning_matches_reference<long double>")
 
     add_executable (test_block_norm tests/cpp/test_block_norm.cpp)
     target_link_libraries (test_block_norm PRIVATE hogpp::hogpp

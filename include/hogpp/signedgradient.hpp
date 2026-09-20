@@ -22,6 +22,8 @@
 
 #include <cmath>
 
+#include <unsupported/Eigen/CXX11/Tensor>
+
 #include <hogpp/constants.hpp>
 #include <hogpp/fastatan.hpp>
 
@@ -90,6 +92,54 @@ struct SignedGradient<Scalar, Fast>
 
         // Map [-π, +π) to [0, 1)
         return (angle + constants::pi<Scalar>) / constants::two_pi<Scalar>;
+    }
+
+    /**
+     * @brief Tensor-expression overload evaluating the same approximation
+     * as a lazy, elementwise Eigen expression instead of once per pixel.
+     *
+     * hogpp::IntegralHOGDescriptor::compute() uses this, when available,
+     * to precompute the bin weight for the whole image as a single
+     * vectorized pass ahead of the histogram scan, which itself ends in
+     * a data-dependent scatter write and can never be vectorized. This
+     * overload is deliberately not provided for the Accurate profile: the
+     * generic dispatch fallback and the plain non-dispatch build keep the
+     * exact, unbatched per-pixel behavior.
+     */
+    template<class Derived1, class Derived2>
+    [[nodiscard]] constexpr decltype(auto) operator()(
+        const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
+        const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
+    {
+        const auto& dxDerived = dx.derived();
+        const auto& dyDerived = dy.derived();
+
+        const auto absDx = dxDerived.abs();
+        const auto absDy = dyDerived.abs();
+        const auto dyLarger = absDy > absDx;
+        const auto largerMagnitude = dyLarger.select(absDy, absDx);
+        const auto smallerMagnitude = dyLarger.select(absDx, absDy);
+        const auto ratio =
+            (largerMagnitude > largerMagnitude.constant(Scalar{0}))
+                .select(smallerMagnitude / largerMagnitude,
+                        largerMagnitude.constant(Scalar{0}));
+
+        const auto ratioAngle = detail::fastAtanUnit(ratio);
+        const auto quadrant1Angle = dyLarger.select(
+            ratioAngle.constant(constants::half_pi<Scalar>) - ratioAngle,
+            ratioAngle);
+        const auto quadrant2Angle =
+            (dxDerived < dxDerived.constant(Scalar{0}))
+                .select(quadrant1Angle.constant(constants::pi<Scalar>) -
+                            quadrant1Angle,
+                        quadrant1Angle);
+        const auto signedAngle =
+            (dyDerived < dyDerived.constant(Scalar{0}))
+                .select(-quadrant2Angle, quadrant2Angle);
+
+        // Map [-π, +π) to [0, 1)
+        return (signedAngle + signedAngle.constant(constants::pi<Scalar>)) /
+               signedAngle.constant(constants::two_pi<Scalar>);
     }
 };
 

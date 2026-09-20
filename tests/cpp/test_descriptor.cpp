@@ -24,6 +24,7 @@
 #include <stdexcept>
 
 #include <hogpp/integralhogdescriptor.hpp>
+#include <hogpp/signedgradient.hpp>
 
 #include <boost/mpl/list.hpp>
 #include <boost/test/included/unit_test.hpp>
@@ -120,4 +121,59 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(nan_pixel, Scalar, Scalars)
     }
 
     BOOST_TEST(allFinite);
+}
+
+// SignedGradient<Scalar, Fast> (and UnsignedGradient) provide a
+// tensor-expression operator() overload that IntegralHOGDescriptor::compute()
+// uses to precompute the per-pixel bin weight for the whole image as a
+// single vectorized pass ahead of the histogram scan (see
+// detail::HasTensorBinning in integralhogdescriptor.hpp), instead of
+// calling the approximation once per pixel inside the scan. This exercises
+// that wiring end to end: the precomputed-weight result must agree with
+// calling the exact reference implementation per pixel, within the same
+// tolerance already established for the Fast binning approximation itself.
+BOOST_AUTO_TEST_CASE_TEMPLATE(precomputed_binning_matches_reference, Scalar,
+                              Scalars)
+{
+    namespace tt = boost::test_tools;
+
+    Eigen::Tensor<Scalar, 3> image(16, 16, 1);
+
+    for (Eigen::DenseIndex i = 0; i < image.dimension(0); ++i) {
+        for (Eigen::DenseIndex j = 0; j < image.dimension(1); ++j) {
+            image(i, j, 0) =
+                static_cast<Scalar>((i * image.dimension(1) + j) % 7);
+        }
+    }
+
+    hogpp::IntegralHOGDescriptor<Scalar, hogpp::Gradient<Scalar>,
+                                 hogpp::GradientMagnitude<Scalar>,
+                                 hogpp::SignedGradient<Scalar, hogpp::Accurate>>
+        referenceDescriptor;
+    hogpp::IntegralHOGDescriptor<Scalar, hogpp::Gradient<Scalar>,
+                                 hogpp::GradientMagnitude<Scalar>,
+                                 hogpp::SignedGradient<Scalar, hogpp::Fast>>
+        precomputedDescriptor;
+
+    referenceDescriptor.compute(image);
+    precomputedDescriptor.compute(image);
+
+    const auto referenceFeatures = referenceDescriptor.features();
+    const auto precomputedFeatures = precomputedDescriptor.features();
+
+    BOOST_TEST_REQUIRE(referenceFeatures.size() == precomputedFeatures.size());
+
+    // boost::unit_test::tolerance() compares relative to the operands'
+    // magnitude, which is unstable for feature values close to zero
+    // (L2Hys-normalized entries are often small). Both operands are
+    // shifted away from zero by a fixed offset first, exactly as in
+    // tests/cpp/test_binning.cpp's *_fast tests, so the same relative
+    // tolerance enforces a tight absolute bound instead.
+    for (Eigen::DenseIndex i = 0; i < referenceFeatures.size(); ++i) {
+        const Scalar precomputedShifted = precomputedFeatures.data()[i] + Scalar{1};
+        const Scalar referenceShifted = referenceFeatures.data()[i] + Scalar{1};
+
+        BOOST_TEST(precomputedShifted == referenceShifted,
+                  tt::tolerance(Scalar(1e-4L)));
+    }
 }

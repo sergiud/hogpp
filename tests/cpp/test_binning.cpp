@@ -182,3 +182,83 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient_fast, Scalar, Scalars)
                   tt::tolerance(unsignedFastBinningTolerance<Scalar>));
     }
 }
+
+// The tensor-expression overloads of SignedGradient<Scalar, Fast> and
+// UnsignedGradient<Scalar, Fast> re-express the same formula as lazy,
+// elementwise Eigen operations so IntegralHOGDescriptor::compute() can
+// precompute the bin weight for a whole image in one vectorized pass
+// instead of once per pixel. They must agree with the scalar overload at
+// every element: this is not a second, independent approximation, just a
+// batched evaluation of the identical polynomial.
+template<class Scalar>
+inline constexpr Scalar tensorBinningAgreementTolerance = Scalar(1e-6L);
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast_tensor, Scalar, Scalars)
+{
+    namespace tt = boost::test_tools;
+
+    using std::cos;
+    using std::sin;
+
+    hogpp::SignedGradient<Scalar, hogpp::Fast> approx;
+
+    constexpr int circleSamples = 3601;
+    constexpr int samples = circleSamples + 1;
+    Eigen::Tensor<Scalar, 1> dx(samples);
+    Eigen::Tensor<Scalar, 1> dy(samples);
+
+    for (int i = 0; i < circleSamples; ++i) {
+        const auto theta = (static_cast<Scalar>(i) /
+                             static_cast<Scalar>(circleSamples - 1) *
+                             hogpp::constants::two_pi<Scalar>) -
+                            hogpp::constants::pi<Scalar>;
+        dx(i) = cos(theta);
+        dy(i) = sin(theta);
+    }
+    // dx == dy == 0 never occurs on the circle sweep above, but is an
+    // important degenerate case handled explicitly by the formula.
+    dx(circleSamples) = Scalar{0};
+    dy(circleSamples) = Scalar{0};
+
+    const Eigen::Tensor<Scalar, 1> batched = approx(dx, dy);
+
+    for (int i = 0; i < samples; ++i) {
+        BOOST_TEST(batched(i) == approx(dx(i), dy(i)),
+                  tt::tolerance(tensorBinningAgreementTolerance<Scalar>));
+    }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient_fast_tensor, Scalar, Scalars)
+{
+    namespace tt = boost::test_tools;
+
+    using std::cos;
+    using std::sin;
+
+    hogpp::UnsignedGradient<Scalar, hogpp::Fast> approx;
+
+    constexpr int circleSamples = 3601;
+    constexpr int samples = circleSamples + 1;
+    Eigen::Tensor<Scalar, 1> dx(samples);
+    Eigen::Tensor<Scalar, 1> dy(samples);
+
+    for (int i = 0; i < circleSamples; ++i) {
+        const auto theta = (static_cast<Scalar>(i) /
+                             static_cast<Scalar>(circleSamples - 1) *
+                             hogpp::constants::two_pi<Scalar>) -
+                            hogpp::constants::pi<Scalar>;
+        dx(i) = cos(theta);
+        dy(i) = sin(theta);
+    }
+    // dx == dy == 0 never occurs on the circle sweep above, but is an
+    // important degenerate case handled explicitly by the formula.
+    dx(circleSamples) = Scalar{0};
+    dy(circleSamples) = Scalar{0};
+
+    const Eigen::Tensor<Scalar, 1> batched = approx(dx, dy);
+
+    for (int i = 0; i < samples; ++i) {
+        BOOST_TEST(batched(i) == approx(dx(i), dy(i)),
+                  tt::tolerance(tensorBinningAgreementTolerance<Scalar>));
+    }
+}
