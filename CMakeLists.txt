@@ -160,6 +160,7 @@ target_sources (hogpp INTERFACE FILE_SET HEADERS
     include/hogpp/bounds.hpp
     include/hogpp/cartesianproduct.hpp
     include/hogpp/constants.hpp
+    include/hogpp/fastatan.hpp
     include/hogpp/gradient.hpp
     include/hogpp/gradientmagnitude.hpp
     include/hogpp/gradientsqrtmagnitude.hpp
@@ -403,6 +404,14 @@ if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
       target_compile_definitions (${target_name} PRIVATE
         HOGPP_TARGET=${_suffix}
       )
+
+      # Real ISA-specific dispatch objects (as opposed to the portable
+      # generic fallback above) may replace exact but non-vectorizable
+      # libm calls in per-pixel hot paths with cheaper approximations,
+      # such as the atan2/atan calls used for gradient binning (see
+      # include/hogpp/signedgradient.hpp and unsignedgradient.hpp). The
+      # generic fallback keeps the exact std::atan2/std::atan behavior.
+      target_compile_definitions (${target_name} PRIVATE HOGPP_FAST_MATH)
 
       if (arch STREQUAL NEON)
         target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_NEON)

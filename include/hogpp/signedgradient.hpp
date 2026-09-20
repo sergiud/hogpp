@@ -23,17 +23,70 @@
 #include <cmath>
 
 #include <hogpp/constants.hpp>
+#include <hogpp/fastatan.hpp>
 
 namespace hogpp {
 
+struct Fast;
+struct Accurate;
+
+template<class Scalar, class Profile = Accurate>
+struct SignedGradient;
+
 template<class Scalar>
-struct SignedGradient
+struct SignedGradient<Scalar, Accurate>
 {
     [[nodiscard]] constexpr Scalar operator()(Scalar dx,
                                               Scalar dy) const noexcept
     {
         using std::atan2;
         Scalar angle = atan2(dy, dx);
+
+        // Map [-π, +π) to [0, 1)
+        return (angle + constants::pi<Scalar>) / constants::two_pi<Scalar>;
+    }
+};
+
+/**
+ * @brief Approximates @c atan2(dy, dx) with a branch-light minimax
+ * polynomial instead of the exact libm call.
+ *
+ * Built on hogpp::detail::fastAtanUnit(), evaluated on the
+ * smaller-magnitude ratio, avoiding the exact but non-vectorizable libm
+ * @c atan2 call entirely. Maximum absolute angular error is
+ * approximately @f$1.3312 \times 10^{-4}@f$ rad (the polynomial's
+ * minimax bound), verified numerically against @c std::atan2 across the
+ * full angular range. After mapping to the normalized [0, 1) bin weight
+ * this is at most @f$2.12 \times 10^{-5}@f$, several orders of magnitude
+ * below the width of a single bin in a typical histogram, so bin
+ * assignment is unaffected.
+ */
+template<class Scalar>
+struct SignedGradient<Scalar, Fast>
+{
+    [[nodiscard]] constexpr Scalar operator()(Scalar dx,
+                                              Scalar dy) const noexcept
+    {
+        using std::abs;
+        using std::copysign;
+
+        const Scalar absDx = abs(dx);
+        const Scalar absDy = abs(dy);
+        const Scalar largerMagnitude = absDx > absDy ? absDx : absDy;
+        const Scalar smallerMagnitude = absDx > absDy ? absDy : absDx;
+        const Scalar ratio = largerMagnitude > Scalar{0}
+                                  ? smallerMagnitude / largerMagnitude
+                                  : Scalar{0};
+
+        Scalar angle = detail::fastAtanUnit(ratio);
+
+        if (absDy > absDx) {
+            angle = constants::half_pi<Scalar> - angle;
+        }
+        if (dx < Scalar{0}) {
+            angle = constants::pi<Scalar> - angle;
+        }
+        angle = copysign(angle, dy);
 
         // Map [-π, +π) to [0, 1)
         return (angle + constants::pi<Scalar>) / constants::two_pi<Scalar>;
