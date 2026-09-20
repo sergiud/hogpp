@@ -313,6 +313,13 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
         HOGPP_TARGET=${_suffix}
       )
 
+      # Real ISA-specific dispatch objects (as opposed to the portable
+      # generic fallback above) may replace the exact but non-vectorizable
+      # libm atan2/atan calls used for gradient binning with a
+      # branch-light polynomial approximation; see
+      # include/hogpp/signedgradient.hpp and unsignedgradient.hpp.
+      target_compile_definitions (${target_name} PRIVATE HOGPP_FAST_BINNING)
+
       if (arch STREQUAL NEON)
         target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_NEON)
 
@@ -459,6 +466,14 @@ if (BUILD_TESTING)
     add_test (NAME binning_unsigned_gradient_float COMMAND test_binning -t "unsigned_gradient<float>")
     add_test (NAME binning_unsigned_gradient_double COMMAND test_binning -t "unsigned_gradient<double>")
     add_test (NAME binning_unsigned_gradient_long_double COMMAND test_binning -t "unsigned_gradient<long double>")
+
+    add_test (NAME binning_signed_gradient_fast_float COMMAND test_binning -t "signed_gradient_fast<float>")
+    add_test (NAME binning_signed_gradient_fast_double COMMAND test_binning -t "signed_gradient_fast<double>")
+    add_test (NAME binning_signed_gradient_fast_long_double COMMAND test_binning -t "signed_gradient_fast<long double>")
+
+    add_test (NAME binning_unsigned_gradient_fast_float COMMAND test_binning -t "unsigned_gradient_fast<float>")
+    add_test (NAME binning_unsigned_gradient_fast_double COMMAND test_binning -t "unsigned_gradient_fast<double>")
+    add_test (NAME binning_unsigned_gradient_fast_long_double COMMAND test_binning -t "unsigned_gradient_fast<long double>")
 
     add_executable (test_descriptor tests/cpp/test_descriptor.cpp)
     target_link_libraries (test_descriptor PRIVATE hogpp::hogpp

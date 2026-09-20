@@ -58,6 +58,16 @@ private:
 
 namespace pyhogpp::inline HOGPP_TARGET {
 
+// The Fast binning profile is only wired in for the ISA-specific dispatch
+// object libraries (see the non-generic branch in CMakeLists.txt, which
+// defines HOGPP_FAST_BINNING); the generic dispatch fallback and the
+// plain non-dispatch build keep the exact Accurate profile.
+#if defined(HOGPP_FAST_BINNING)
+using BinningProfile = hogpp::Fast;
+#else
+using BinningProfile = hogpp::Accurate;
+#endif // defined(HOGPP_FAST_BINNING)
+
 template<class T>
 class Binning
 {
@@ -66,10 +76,10 @@ public:
     {
         switch (type) {
             case BinningType::Signed:
-                binning_ = hogpp::SignedGradient<T>{};
+                binning_ = hogpp::SignedGradient<T, BinningProfile>{};
                 break;
             case BinningType::Unsigned:
-                binning_ = hogpp::UnsignedGradient<T>{};
+                binning_ = hogpp::UnsignedGradient<T, BinningProfile>{};
                 break;
         }
     }
@@ -89,13 +99,15 @@ private:
     struct BinningVisitor
     {
         [[nodiscard]] constexpr BinningType operator()(
-            const hogpp::SignedGradient<T>& /*unused*/) const noexcept
+            const hogpp::SignedGradient<T, BinningProfile>& /*unused*/)
+            const noexcept
         {
             return BinningType::Signed;
         }
 
         [[nodiscard]] constexpr BinningType operator()(
-            const hogpp::UnsignedGradient<T>& /*unused*/) const noexcept
+            const hogpp::UnsignedGradient<T, BinningProfile>& /*unused*/)
+            const noexcept
         {
             return BinningType::Unsigned;
         }
@@ -104,8 +116,8 @@ private:
     // clang-format off
     std::variant
     <
-          hogpp::SignedGradient<T>
-        , hogpp::UnsignedGradient<T>
+          hogpp::SignedGradient<T, BinningProfile>
+        , hogpp::UnsignedGradient<T, BinningProfile>
     >
     binning_;
     // clang-format on
