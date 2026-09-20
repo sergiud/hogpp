@@ -77,8 +77,8 @@ struct SignedGradient<Scalar, Fast>
         const Scalar largerMagnitude = absDx > absDy ? absDx : absDy;
         const Scalar smallerMagnitude = absDx > absDy ? absDy : absDx;
         const Scalar ratio = largerMagnitude > Scalar{0}
-                                  ? smallerMagnitude / largerMagnitude
-                                  : Scalar{0};
+                                 ? smallerMagnitude / largerMagnitude
+                                 : Scalar{0};
 
         Scalar angle = detail::fastAtanUnit(ratio);
 
@@ -133,9 +133,8 @@ struct SignedGradient<Scalar, Fast>
                 .select(quadrant1Angle.constant(constants::pi<Scalar>) -
                             quadrant1Angle,
                         quadrant1Angle);
-        const auto signedAngle =
-            (dyDerived < dyDerived.constant(Scalar{0}))
-                .select(-quadrant2Angle, quadrant2Angle);
+        const auto signedAngle = (dyDerived < dyDerived.constant(Scalar{0}))
+                                     .select(-quadrant2Angle, quadrant2Angle);
 
         // Map [-π, +π) to [0, 1)
         return (signedAngle + signedAngle.constant(constants::pi<Scalar>)) /
