@@ -60,13 +60,13 @@ namespace pyhogpp::inline HOGPP_TARGET {
 
 // The Fast binning profile is only wired in for the ISA-specific dispatch
 // object libraries (see the non-generic branch in CMakeLists.txt, which
-// defines HOGPP_FAST_BINNING); the generic dispatch fallback and the
+// defines HOGPP_FAST_MATH); the generic dispatch fallback and the
 // plain non-dispatch build keep the exact Accurate profile.
-#if defined(HOGPP_FAST_BINNING)
+#if defined(HOGPP_FAST_MATH)
 using BinningProfile = hogpp::Fast;
 #else
 using BinningProfile = hogpp::Accurate;
-#endif // defined(HOGPP_FAST_BINNING)
+#endif // defined(HOGPP_FAST_MATH)
 
 template<class T>
 class Binning

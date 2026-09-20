@@ -336,8 +336,22 @@ public:
 
                 // The bin closest to the target orientation obtains
                 // proportionally a higher magnitude.
+                //
+                // HOGPP_FAST_MATH (real ISA-dispatched builds only, see
+                // CMakeLists.txt) uses plain multiply-add here instead
+                // of std::fma: this project does not compile every ISA
+                // with hardware FMA, so std::fma would otherwise fall
+                // back to a libm call on every pixel. The generic
+                // fallback and the plain non-dispatch build keep the
+                // exact std::fma behavior.
+#if defined(HOGPP_FAST_MATH)
                 value1 = (1 - alpha) * mag + value1;
                 value2 = alpha * mag + value2;
+#else
+                using std::fma;
+                value1 = fma(1 - alpha, mag, value1);
+                value2 = fma(alpha, mag, value2);
+#endif // defined(HOGPP_FAST_MATH)
             });
     }
 

@@ -319,11 +319,15 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       )
 
       # Real ISA-specific dispatch objects (as opposed to the portable
-      # generic fallback above) may replace the exact but non-vectorizable
-      # libm atan2/atan calls used for gradient binning with a
-      # branch-light polynomial approximation; see
-      # include/hogpp/signedgradient.hpp and unsignedgradient.hpp.
-      target_compile_definitions (${target_name} PRIVATE HOGPP_FAST_BINNING)
+      # generic fallback above) may replace exact but non-vectorizable
+      # libm calls in per-pixel hot paths with cheaper approximations:
+      # the atan2/atan calls used for gradient binning (see
+      # include/hogpp/signedgradient.hpp and unsignedgradient.hpp) and
+      # the fma call used for histogram vote accumulation (see
+      # include/hogpp/integralhogdescriptor.hpp), which falls back to
+      # libm on ISAs not compiled with hardware FMA. The generic
+      # fallback keeps the exact std::fma/std::atan2/std::atan behavior.
+      target_compile_definitions (${target_name} PRIVATE HOGPP_FAST_MATH)
 
       if (arch STREQUAL NEON)
         target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_NEON)
