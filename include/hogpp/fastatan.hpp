@@ -20,6 +20,10 @@
 #ifndef HOGPP_FASTATAN_HPP
 #define HOGPP_FASTATAN_HPP
 
+#include <type_traits>
+
+#include <unsupported/Eigen/CXX11/Tensor>
+
 namespace hogpp::detail {
 
 /**
@@ -127,6 +131,7 @@ namespace hogpp::detail {
  * @endcode
  */
 template<class Scalar>
+    requires std::is_floating_point_v<Scalar>
 [[nodiscard]] constexpr Scalar fastAtanUnit(Scalar ratio) noexcept
 {
     // Plain multiply-add rather than std::fma: without -mfma (e.g. the
@@ -145,6 +150,37 @@ template<class Scalar>
     poly = (poly * ratioSquared) + degree3Coefficient;
 
     return (poly * ratioSquared * ratio) + ratio;
+}
+
+/**
+ * @brief Tensor-expression overload of fastAtanUnit(), evaluating the same
+ * minimax polynomial as a lazy, elementwise Eigen expression.
+ *
+ * Unlike the scalar overload, this is meant to be evaluated over a whole
+ * tensor at once (e.g. the full image) rather than once per pixel inside
+ * a scalar hot loop, so Eigen can pack it into the target ISA's native
+ * vector width instead of being forced through scalar code regardless of
+ * the compiled instruction set.
+ */
+template<class Derived>
+[[nodiscard]] constexpr decltype(auto) fastAtanUnit(
+    const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& ratio)
+{
+    using Scalar = typename Derived::Scalar;
+
+    constexpr Scalar degree3Coefficient{-0.3262382105724919};
+    constexpr Scalar degree5Coefficient{0.1553161994609051};
+    constexpr Scalar degree7Coefficient{-0.04381294810998689};
+
+    const auto& ratioDerived = ratio.derived();
+    const auto ratioSquared = ratioDerived.square();
+
+    return (((ratioSquared * ratioSquared.constant(degree7Coefficient)) +
+              ratioSquared.constant(degree5Coefficient)) *
+                 ratioSquared +
+             ratioSquared.constant(degree3Coefficient)) *
+                ratioSquared * ratioDerived +
+           ratioDerived;
 }
 
 } // namespace hogpp::detail
