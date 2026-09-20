@@ -176,10 +176,10 @@ template<class Derived>
     const auto ratioSquared = ratioDerived.square();
 
     return (((ratioSquared * ratioSquared.constant(degree7Coefficient)) +
-              ratioSquared.constant(degree5Coefficient)) *
-                 ratioSquared +
-             ratioSquared.constant(degree3Coefficient)) *
-                ratioSquared * ratioDerived +
+             ratioSquared.constant(degree5Coefficient)) *
+                ratioSquared +
+            ratioSquared.constant(degree3Coefficient)) *
+               ratioSquared * ratioDerived +
            ratioDerived;
 }
 

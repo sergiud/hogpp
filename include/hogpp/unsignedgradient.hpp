@@ -137,22 +137,21 @@ struct UnsignedGradient<Scalar, Fast>
         const auto ratioSmall = absRatio <= absRatio.constant(Scalar{1});
         const auto reciprocal = absRatio.constant(Scalar{1}) / absRatio;
 
-        const auto magnitudeAngle = ratioSmall.select(
-            detail::fastAtanUnit(absRatio),
-            absRatio.constant(constants::half_pi<Scalar>) -
-                detail::fastAtanUnit(reciprocal));
-        const auto generalAngle =
-            (ratio < ratio.constant(Scalar{0}))
-                .select(-magnitudeAngle, magnitudeAngle);
+        const auto magnitudeAngle =
+            ratioSmall.select(detail::fastAtanUnit(absRatio),
+                              absRatio.constant(constants::half_pi<Scalar>) -
+                                  detail::fastAtanUnit(reciprocal));
+        const auto generalAngle = (ratio < ratio.constant(Scalar{0}))
+                                      .select(-magnitudeAngle, magnitudeAngle);
 
         const auto dxZeroAngle =
             (dyDerived < dyDerived.constant(Scalar{0}))
                 .select(dyDerived.constant(-constants::half_pi<Scalar>),
                         dyDerived.constant(constants::half_pi<Scalar>));
 
-        const auto angle = bothZero.select(
-            generalAngle.constant(Scalar{0}),
-            dxIsZero.select(dxZeroAngle, generalAngle));
+        const auto angle =
+            bothZero.select(generalAngle.constant(Scalar{0}),
+                            dxIsZero.select(dxZeroAngle, generalAngle));
 
         // Map [-π/2, +π/2) to [0, 1)
         return (angle + angle.constant(constants::half_pi<Scalar>)) /

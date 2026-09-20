@@ -170,11 +170,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(precomputed_binning_matches_reference, Scalar,
     // tests/cpp/test_binning.cpp's *_fast tests, so the same relative
     // tolerance enforces a tight absolute bound instead.
     for (Eigen::DenseIndex i = 0; i < referenceFeatures.size(); ++i) {
-        const Scalar precomputedShifted = precomputedFeatures.data()[i] + Scalar{1};
+        const Scalar precomputedShifted =
+            precomputedFeatures.data()[i] + Scalar{1};
         const Scalar referenceShifted = referenceFeatures.data()[i] + Scalar{1};
 
         BOOST_TEST(precomputedShifted == referenceShifted,
-                  tt::tolerance(Scalar(1e-4L)));
+                   tt::tolerance(Scalar(1e-4L)));
     }
 }
 
@@ -225,6 +226,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(multi_channel_selects_max_magnitude_channel,
         const Scalar referenceShifted = referenceFeatures.data()[i] + Scalar{1};
 
         BOOST_TEST(multiChannelShifted == referenceShifted,
-                  tt::tolerance(Scalar(1e-4L)));
+                   tt::tolerance(Scalar(1e-4L)));
     }
 }

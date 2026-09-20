@@ -118,27 +118,25 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast, Scalar, Scalars)
     constexpr int samples = 3601;
 
     for (int i = 0; i < samples; ++i) {
-        const auto theta = (static_cast<Scalar>(i) /
-                             static_cast<Scalar>(samples - 1) *
-                             hogpp::constants::two_pi<Scalar>) -
-                            hogpp::constants::pi<Scalar>;
+        const auto theta =
+            (static_cast<Scalar>(i) / static_cast<Scalar>(samples - 1) *
+             hogpp::constants::two_pi<Scalar>)-hogpp::constants::pi<Scalar>;
         const Scalar dx = cos(theta);
         const Scalar dy = sin(theta);
         const auto [approxWeight, exactWeight] = shifted(dx, dy);
 
         BOOST_TEST(approxWeight == exactWeight,
-                  tt::tolerance(signedFastBinningTolerance<Scalar>));
+                   tt::tolerance(signedFastBinningTolerance<Scalar>));
     }
 
-    for (auto [dx, dy] : {std::pair<Scalar, Scalar>{+1, 0},
-                          std::pair<Scalar, Scalar>{-1, 0},
-                          std::pair<Scalar, Scalar>{0, +1},
-                          std::pair<Scalar, Scalar>{0, -1},
-                          std::pair<Scalar, Scalar>{0, 0}}) {
+    for (auto [dx, dy] :
+         {std::pair<Scalar, Scalar>{+1, 0}, std::pair<Scalar, Scalar>{-1, 0},
+          std::pair<Scalar, Scalar>{0, +1}, std::pair<Scalar, Scalar>{0, -1},
+          std::pair<Scalar, Scalar>{0, 0}}) {
         const auto [approxWeight, exactWeight] = shifted(dx, dy);
 
         BOOST_TEST(approxWeight == exactWeight,
-                  tt::tolerance(signedFastBinningTolerance<Scalar>));
+                   tt::tolerance(signedFastBinningTolerance<Scalar>));
     }
 }
 
@@ -159,27 +157,25 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient_fast, Scalar, Scalars)
     constexpr int samples = 3601;
 
     for (int i = 0; i < samples; ++i) {
-        const auto theta = (static_cast<Scalar>(i) /
-                             static_cast<Scalar>(samples - 1) *
-                             hogpp::constants::two_pi<Scalar>) -
-                            hogpp::constants::pi<Scalar>;
+        const auto theta =
+            (static_cast<Scalar>(i) / static_cast<Scalar>(samples - 1) *
+             hogpp::constants::two_pi<Scalar>)-hogpp::constants::pi<Scalar>;
         const Scalar dx = cos(theta);
         const Scalar dy = sin(theta);
         const auto [approxWeight, exactWeight] = shifted(dx, dy);
 
         BOOST_TEST(approxWeight == exactWeight,
-                  tt::tolerance(unsignedFastBinningTolerance<Scalar>));
+                   tt::tolerance(unsignedFastBinningTolerance<Scalar>));
     }
 
-    for (auto [dx, dy] : {std::pair<Scalar, Scalar>{+1, 0},
-                          std::pair<Scalar, Scalar>{-1, 0},
-                          std::pair<Scalar, Scalar>{0, +1},
-                          std::pair<Scalar, Scalar>{0, -1},
-                          std::pair<Scalar, Scalar>{0, 0}}) {
+    for (auto [dx, dy] :
+         {std::pair<Scalar, Scalar>{+1, 0}, std::pair<Scalar, Scalar>{-1, 0},
+          std::pair<Scalar, Scalar>{0, +1}, std::pair<Scalar, Scalar>{0, -1},
+          std::pair<Scalar, Scalar>{0, 0}}) {
         const auto [approxWeight, exactWeight] = shifted(dx, dy);
 
         BOOST_TEST(approxWeight == exactWeight,
-                  tt::tolerance(unsignedFastBinningTolerance<Scalar>));
+                   tt::tolerance(unsignedFastBinningTolerance<Scalar>));
     }
 }
 
@@ -208,10 +204,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast_tensor, Scalar, Scalars)
     Eigen::Tensor<Scalar, 1> dy(samples);
 
     for (int i = 0; i < circleSamples; ++i) {
-        const auto theta = (static_cast<Scalar>(i) /
-                             static_cast<Scalar>(circleSamples - 1) *
-                             hogpp::constants::two_pi<Scalar>) -
-                            hogpp::constants::pi<Scalar>;
+        const auto theta =
+            (static_cast<Scalar>(i) / static_cast<Scalar>(circleSamples - 1) *
+             hogpp::constants::two_pi<Scalar>)-hogpp::constants::pi<Scalar>;
         dx(i) = cos(theta);
         dy(i) = sin(theta);
     }
@@ -224,7 +219,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast_tensor, Scalar, Scalars)
 
     for (int i = 0; i < samples; ++i) {
         BOOST_TEST(batched(i) == approx(dx(i), dy(i)),
-                  tt::tolerance(tensorBinningAgreementTolerance<Scalar>));
+                   tt::tolerance(tensorBinningAgreementTolerance<Scalar>));
     }
 }
 
@@ -243,10 +238,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient_fast_tensor, Scalar, Scalars)
     Eigen::Tensor<Scalar, 1> dy(samples);
 
     for (int i = 0; i < circleSamples; ++i) {
-        const auto theta = (static_cast<Scalar>(i) /
-                             static_cast<Scalar>(circleSamples - 1) *
-                             hogpp::constants::two_pi<Scalar>) -
-                            hogpp::constants::pi<Scalar>;
+        const auto theta =
+            (static_cast<Scalar>(i) / static_cast<Scalar>(circleSamples - 1) *
+             hogpp::constants::two_pi<Scalar>)-hogpp::constants::pi<Scalar>;
         dx(i) = cos(theta);
         dy(i) = sin(theta);
     }
@@ -259,6 +253,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient_fast_tensor, Scalar, Scalars)
 
     for (int i = 0; i < samples; ++i) {
         BOOST_TEST(batched(i) == approx(dx(i), dy(i)),
-                  tt::tolerance(tensorBinningAgreementTolerance<Scalar>));
+                   tt::tolerance(tensorBinningAgreementTolerance<Scalar>));
     }
 }
