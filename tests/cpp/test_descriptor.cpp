@@ -177,3 +177,54 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(precomputed_binning_matches_reference, Scalar,
                   tt::tolerance(Scalar(1e-4L)));
     }
 }
+
+// With a single channel, IntegralHOGDescriptor::compute() skips
+// Eigen's argmax(2) reduction entirely (see channels > 1 in
+// integralhogdescriptor.hpp) since the maximum over one element is
+// trivially that element. This guards the channels > 1 path still
+// genuinely selects the channel with the largest gradient magnitude,
+// rather than e.g. always defaulting to channel 0: a multi-channel
+// image whose first channel is constant (zero gradient everywhere,
+// so it can never be the argmax) and whose second channel carries
+// the same data as a single-channel reference image must produce the
+// same descriptor as that reference image.
+BOOST_AUTO_TEST_CASE_TEMPLATE(multi_channel_selects_max_magnitude_channel,
+                              Scalar, Scalars)
+{
+    namespace tt = boost::test_tools;
+
+    constexpr Eigen::DenseIndex rows = 16;
+    constexpr Eigen::DenseIndex cols = 16;
+
+    Eigen::Tensor<Scalar, 3> referenceImage(rows, cols, 1);
+    Eigen::Tensor<Scalar, 3> multiChannelImage(rows, cols, 2);
+
+    for (Eigen::DenseIndex i = 0; i < rows; ++i) {
+        for (Eigen::DenseIndex j = 0; j < cols; ++j) {
+            const auto value = static_cast<Scalar>((i * cols + j) % 7);
+            referenceImage(i, j, 0) = value;
+            multiChannelImage(i, j, 0) = Scalar{3}; // constant: zero gradient
+            multiChannelImage(i, j, 1) = value;
+        }
+    }
+
+    hogpp::IntegralHOGDescriptor<Scalar> referenceDescriptor;
+    hogpp::IntegralHOGDescriptor<Scalar> multiChannelDescriptor;
+
+    referenceDescriptor.compute(referenceImage);
+    multiChannelDescriptor.compute(multiChannelImage);
+
+    const auto referenceFeatures = referenceDescriptor.features();
+    const auto multiChannelFeatures = multiChannelDescriptor.features();
+
+    BOOST_TEST_REQUIRE(referenceFeatures.size() == multiChannelFeatures.size());
+
+    for (Eigen::DenseIndex i = 0; i < referenceFeatures.size(); ++i) {
+        const Scalar multiChannelShifted =
+            multiChannelFeatures.data()[i] + Scalar{1};
+        const Scalar referenceShifted = referenceFeatures.data()[i] + Scalar{1};
+
+        BOOST_TEST(multiChannelShifted == referenceShifted,
+                  tt::tolerance(Scalar(1e-4L)));
+    }
+}

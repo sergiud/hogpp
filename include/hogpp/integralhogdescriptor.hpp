@@ -289,8 +289,20 @@ public:
         const Eigen::Array2i dims{mags.dimension(0), mags.dimension(1)};
         histogram_.resize(std::make_tuple(dims.x(), dims.y()), bins_);
 
-        const Eigen::Tensor<Eigen::DenseIndex, 2, Eigen::RowMajor>& k =
-            mags.argmax(2);
+        // With only one channel (e.g. a grayscale image), argmax(2) is
+        // always the trivial index 0: skip Eigen's generic reduction
+        // machinery, which does needless work reducing a size-1 axis
+        // and, once vectorized, is a poor fit for wide SIMD ISAs, since
+        // packing a single real value into wide vector lanes wastes
+        // most of the register, worse than doing so with a narrower
+        // one.
+        const Eigen::DenseIndex channels = mags.dimension(2);
+
+        Eigen::Tensor<Eigen::DenseIndex, 2, Eigen::RowMajor> k;
+
+        if (channels > 1) {
+            k = mags.argmax(2);
+        }
 
         const auto scale = static_cast<Scalar>(bins_ - 1);
 
@@ -316,7 +328,7 @@ public:
         }
 
         histogram_.scan(
-            [this, &k, &dxs, &dys, &mags, &weights, scale, &masked](
+            [this, channels, &k, &dxs, &dys, &mags, &weights, scale, &masked](
                 Eigen::TensorRef<Eigen::Tensor<Scalar, 1, DataLayout>> bins,
                 const auto& ij) {
                 (void)masked; // Avoid error: lambda capture 'masked' is not
@@ -330,7 +342,8 @@ public:
                 }
 
                 // Select a channel with the maximum magnitude
-                Eigen::DenseIndex kk = std::apply(k, ij);
+                Eigen::DenseIndex kk =
+                    channels > 1 ? std::apply(k, ij) : Eigen::DenseIndex{0};
                 const auto ijk = std::tuple_cat(ij, std::make_tuple(kk));
 
                 Scalar mag = std::apply(mags, ijk);

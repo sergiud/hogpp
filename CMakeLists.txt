@@ -347,6 +347,22 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
           if (hogpp_isa_${_eigen_suffix}_requires_fma)
             target_compile_options (${target_name} PRIVATE -mfma)
           endif (hogpp_isa_${_eigen_suffix}_requires_fma)
+
+          if (arch MATCHES "^AVX")
+            # GCC's inliner judges the wider AVX/AVX2/AVX512 codegen for
+            # Eigen's tensor layout-swap/shuffle helper (used by
+            # IntegralHOGDescriptor::compute()) too costly to inline,
+            # unlike the narrower SSE-tier codegen for the identical
+            # source. Left un-inlined it stays a real, separate function
+            # call; measured with perf stat cycle counts (not wall-clock
+            # time, too noisy on multi-core desktop hardware) to cost
+            # more than the default inlining budget saves elsewhere, so
+            # raise it for these ISAs only.
+            target_compile_options (${target_name} PRIVATE
+              --param=max-inline-insns-auto=400
+              --param=inline-unit-growth=200
+            )
+          endif (arch MATCHES "^AVX")
         endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
       endif (arch STREQUAL NEON)
 
@@ -519,6 +535,10 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_precomputed_binning_matches_reference_float COMMAND test_descriptor -t "precomputed_binning_matches_reference<float>")
     add_test (NAME descriptor_precomputed_binning_matches_reference_double COMMAND test_descriptor -t "precomputed_binning_matches_reference<double>")
     add_test (NAME descriptor_precomputed_binning_matches_reference_long_double COMMAND test_descriptor -t "precomputed_binning_matches_reference<long double>")
+
+    add_test (NAME descriptor_multi_channel_selects_max_magnitude_channel_float COMMAND test_descriptor -t "multi_channel_selects_max_magnitude_channel<float>")
+    add_test (NAME descriptor_multi_channel_selects_max_magnitude_channel_double COMMAND test_descriptor -t "multi_channel_selects_max_magnitude_channel<double>")
+    add_test (NAME descriptor_multi_channel_selects_max_magnitude_channel_long_double COMMAND test_descriptor -t "multi_channel_selects_max_magnitude_channel<long double>")
 
     add_executable (test_block_norm tests/cpp/test_block_norm.cpp)
     target_link_libraries (test_block_norm PRIVATE hogpp::hogpp
