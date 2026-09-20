@@ -296,6 +296,18 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
       python/type_caster/typesequence.hpp
     )
 
+    # The Fast binning profile's nested Eigen tensor-expression
+    # templates inflate this target's decompressed .debug_str from
+    # ~31 MB to ~3 GB at the default Debug debug info level, which
+    # overflows mold 2.37.1's section size limit and aborts the CI
+    # coverage build ("mold: fatal: .debug_str: output section too
+    # large", see https://github.com/rui314/mold/issues/1100). That
+    # type detail is not needed for coverage, so cap Debug builds to
+    # line-table-only info here.
+    target_compile_options (${target_name} PRIVATE
+      $<$<CONFIG:Debug>:-g1>
+    )
+
     if (arch STREQUAL generic)
       target_compile_definitions (${target_name} PRIVATE
         HOGPP_TARGET=${_suffix}
