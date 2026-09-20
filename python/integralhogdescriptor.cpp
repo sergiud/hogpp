@@ -34,6 +34,7 @@
 
 #include "formatter.hpp"
 #include "integralhogdescriptor.hpp"
+#include "maskingref.hpp"
 #include "type_caster/bounds.hpp"
 #if defined(HAVE_OPENCV)
 #    include "type_caster/opencv.hpp"
@@ -350,9 +351,10 @@ void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
                                           Eigen::DenseIndex j) {
                     return pybind11::bool_(getitem(pybind11::make_tuple(i, j)));
                 };
+                MaskingRef maskingRef{masking};
 
-                auto convert = [&descriptor, &masking](const auto& t) {
-                    descriptor.compute(t, masking);
+                auto convert = [&descriptor, &maskingRef](const auto& t) {
+                    descriptor.compute(t, maskingRef);
                 };
 
                 bufferToTensor(image, info, convert, SupportedTypes{});
@@ -409,13 +411,14 @@ void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
                                           Eigen::DenseIndex j) {
                     return pybind11::bool_(getitem(pybind11::make_tuple(i, j)));
                 };
+                MaskingRef maskingRef{masking};
 
-                auto convert = [&descriptor, &masking](const auto& dx,
-                                                       const auto& dy) {
+                auto convert = [&descriptor, &maskingRef](const auto& dx,
+                                                          const auto& dy) {
                     Eigen::Tensor<Scalar, 3> dxs = dx.template cast<Scalar>();
                     Eigen::Tensor<Scalar, 3> dys = dy.template cast<Scalar>();
 
-                    descriptor.compute(dxs, dys, masking);
+                    descriptor.compute(dxs, dys, maskingRef);
                 };
 
                 bufferToTensor(dydx, info, convert, SupportedTypes{});
