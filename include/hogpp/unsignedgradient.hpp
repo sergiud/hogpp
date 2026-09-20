@@ -122,17 +122,21 @@ struct UnsignedGradient<Scalar, Fast>
         const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
         const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
     {
-        const auto& dxDerived = dx.derived();
-        const auto& dyDerived = dy.derived();
+        const auto dxIsZero = dx == dx.constant(Scalar{0});
+        const auto bothZero = dxIsZero && (dy == dy.constant(Scalar{0}));
 
-        const auto dxIsZero = dxDerived == dxDerived.constant(Scalar{0});
-        const auto bothZero =
-            dxIsZero && (dyDerived == dyDerived.constant(Scalar{0}));
+        // dx is used below as the right-hand side of operator/, not as
+        // the object a method is called on: Eigen's Tensor arithmetic
+        // operators only re-derive the concrete expression type of the
+        // latter, so a bare TensorBase-reference-typed parameter used
+        // the other way fails to compile. A no-op left-hand operation
+        // recovers the concrete type first, as elsewhere in this file.
+        const auto dxIdentity = dx + dx.constant(Scalar{0});
 
         // At dx == 0 lanes the general-case expression below is discarded
         // by select() regardless of its value, so dividing by exactly
         // zero there (producing +-inf) is safe.
-        const auto ratio = dyDerived / dxDerived;
+        const auto ratio = dy / dxIdentity;
         const auto absRatio = ratio.abs();
         const auto ratioSmall = absRatio <= absRatio.constant(Scalar{1});
         const auto reciprocal = absRatio.constant(Scalar{1}) / absRatio;
@@ -145,9 +149,9 @@ struct UnsignedGradient<Scalar, Fast>
                                       .select(-magnitudeAngle, magnitudeAngle);
 
         const auto dxZeroAngle =
-            (dyDerived < dyDerived.constant(Scalar{0}))
-                .select(dyDerived.constant(-constants::half_pi<Scalar>),
-                        dyDerived.constant(constants::half_pi<Scalar>));
+            (dy < dy.constant(Scalar{0}))
+                .select(dy.constant(-constants::half_pi<Scalar>),
+                        dy.constant(constants::half_pi<Scalar>));
 
         const auto angle =
             bothZero.select(generalAngle.constant(Scalar{0}),
