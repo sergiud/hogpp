@@ -22,6 +22,8 @@
 
 #include <cmath>
 
+#include <unsupported/Eigen/CXX11/Tensor>
+
 #include <hogpp/constants.hpp>
 #include <hogpp/fastatan.hpp>
 
@@ -105,6 +107,56 @@ struct UnsignedGradient<Scalar, Fast>
 
         // Map [-π/2, +π/2) to [0, 1)
         return (angle + constants::half_pi<Scalar>) / constants::pi<Scalar>;
+    }
+
+    /**
+     * @brief Tensor-expression overload evaluating the same approximation
+     * as a lazy, elementwise Eigen expression instead of once per pixel.
+     *
+     * See SignedGradient<Scalar, Fast>'s tensor overload: this is not
+     * provided for the Accurate profile, which keeps the exact,
+     * unbatched per-pixel behavior.
+     */
+    template<class Derived1, class Derived2>
+    [[nodiscard]] constexpr decltype(auto) operator()(
+        const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
+        const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
+    {
+        const auto& dxDerived = dx.derived();
+        const auto& dyDerived = dy.derived();
+
+        const auto dxIsZero = dxDerived == dxDerived.constant(Scalar{0});
+        const auto bothZero =
+            dxIsZero && (dyDerived == dyDerived.constant(Scalar{0}));
+
+        // At dx == 0 lanes the general-case expression below is discarded
+        // by select() regardless of its value, so dividing by exactly
+        // zero there (producing +-inf) is safe.
+        const auto ratio = dyDerived / dxDerived;
+        const auto absRatio = ratio.abs();
+        const auto ratioSmall = absRatio <= absRatio.constant(Scalar{1});
+        const auto reciprocal = absRatio.constant(Scalar{1}) / absRatio;
+
+        const auto magnitudeAngle = ratioSmall.select(
+            detail::fastAtanUnit(absRatio),
+            absRatio.constant(constants::half_pi<Scalar>) -
+                detail::fastAtanUnit(reciprocal));
+        const auto generalAngle =
+            (ratio < ratio.constant(Scalar{0}))
+                .select(-magnitudeAngle, magnitudeAngle);
+
+        const auto dxZeroAngle =
+            (dyDerived < dyDerived.constant(Scalar{0}))
+                .select(dyDerived.constant(-constants::half_pi<Scalar>),
+                        dyDerived.constant(constants::half_pi<Scalar>));
+
+        const auto angle = bothZero.select(
+            generalAngle.constant(Scalar{0}),
+            dxIsZero.select(dxZeroAngle, generalAngle));
+
+        // Map [-π/2, +π/2) to [0, 1)
+        return (angle + angle.constant(constants::half_pi<Scalar>)) /
+               angle.constant(constants::pi<Scalar>);
     }
 };
 

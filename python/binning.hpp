@@ -24,6 +24,8 @@
 #include <algorithm>
 #include <variant>
 
+#include <unsupported/Eigen/CXX11/Tensor>
+
 #include <pybind11/pybind11.h>
 
 #include <hogpp/prefix.hpp>
@@ -89,6 +91,29 @@ public:
         return std::visit([dx, dy](auto& binning) { return binning(dx, dy); },
                           binning_);
     }
+
+#if defined(HOGPP_FAST_MATH)
+    // Only meaningful when BinningProfile is Fast, which is the only
+    // profile providing a tensor-expression operator() overload (see
+    // SignedGradient<T, Fast> / UnsignedGradient<T, Fast>). std::visit
+    // requires a common return type across variant alternatives, so the
+    // lazy expression each alternative returns is materialized into a
+    // concrete tensor here rather than left lazy.
+    template<class Derived1, class Derived2>
+    [[nodiscard]] decltype(auto) operator()(
+        const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
+        const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
+    {
+        using ResultTensor =
+            Eigen::Tensor<T, Derived1::NumDimensions, Derived1::Layout>;
+
+        return std::visit(
+            [&dx, &dy](const auto& binning) -> ResultTensor {
+                return binning(dx, dy);
+            },
+            binning_);
+    }
+#endif // defined(HOGPP_FAST_MATH)
 
     [[nodiscard]] BinningType type() const noexcept
     {
