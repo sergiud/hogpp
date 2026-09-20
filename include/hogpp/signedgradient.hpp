@@ -111,11 +111,8 @@ struct SignedGradient<Scalar, Fast>
         const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
         const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
     {
-        const auto& dxDerived = dx.derived();
-        const auto& dyDerived = dy.derived();
-
-        const auto absDx = dxDerived.abs();
-        const auto absDy = dyDerived.abs();
+        const auto absDx = dx.abs();
+        const auto absDy = dy.abs();
         const auto dyLarger = absDy > absDx;
         const auto largerMagnitude = dyLarger.select(absDy, absDx);
         const auto smallerMagnitude = dyLarger.select(absDx, absDy);
@@ -129,11 +126,11 @@ struct SignedGradient<Scalar, Fast>
             ratioAngle.constant(constants::half_pi<Scalar>) - ratioAngle,
             ratioAngle);
         const auto quadrant2Angle =
-            (dxDerived < dxDerived.constant(Scalar{0}))
+            (dx < dx.constant(Scalar{0}))
                 .select(quadrant1Angle.constant(constants::pi<Scalar>) -
                             quadrant1Angle,
                         quadrant1Angle);
-        const auto signedAngle = (dyDerived < dyDerived.constant(Scalar{0}))
+        const auto signedAngle = (dy < dy.constant(Scalar{0}))
                                      .select(-quadrant2Angle, quadrant2Angle);
 
         // Map [-π, +π) to [0, 1)
