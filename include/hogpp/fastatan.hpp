@@ -172,15 +172,26 @@ template<class Derived>
     constexpr Scalar degree5Coefficient{0.1553161994609051};
     constexpr Scalar degree7Coefficient{-0.04381294810998689};
 
-    const auto& ratioDerived = ratio.derived();
-    const auto ratioSquared = ratioDerived.square();
+    const auto ratioSquared = ratio.square();
+
+    // Eigen's Tensor arithmetic operators only re-derive the concrete
+    // expression type of the object a method is called on, not of a
+    // same-typed argument passed to it: ratio's declared parameter type
+    // is the TensorBase reference itself, so using it bare as the
+    // right-hand side of an operator below (rather than as the object a
+    // method is called on, as above) would embed that reference type
+    // into the expression tree instead of the concrete one, and fail to
+    // compile. Calling a no-op left-hand operation on it first, as done
+    // throughout this codebase (e.g. GradientSquareMagnitude), recovers
+    // the concrete type.
+    const auto ratioIdentity = ratio + ratio.constant(Scalar{0});
 
     return (((ratioSquared * ratioSquared.constant(degree7Coefficient)) +
              ratioSquared.constant(degree5Coefficient)) *
                 ratioSquared +
             ratioSquared.constant(degree3Coefficient)) *
-               ratioSquared * ratioDerived +
-           ratioDerived;
+               ratioSquared * ratioIdentity +
+           ratioIdentity;
 }
 
 } // namespace hogpp::detail
