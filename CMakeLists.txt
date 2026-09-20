@@ -431,6 +431,22 @@ if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
           if (hogpp_isa_${_eigen_suffix}_requires_fma)
             target_compile_options (${target_name} PRIVATE -mfma)
           endif (hogpp_isa_${_eigen_suffix}_requires_fma)
+
+          if (arch MATCHES "^AVX")
+            # GCC's inliner judges the wider AVX/AVX2/AVX512 codegen for
+            # Eigen's tensor layout-swap/shuffle helper (used by
+            # IntegralHOGDescriptor::compute()) too costly to inline,
+            # unlike the narrower SSE-tier codegen for the identical
+            # source. Left un-inlined it stays a real, separate function
+            # call; measured with perf stat cycle counts (not wall-clock
+            # time, too noisy on multi-core desktop hardware) to cost
+            # more than the default inlining budget saves elsewhere, so
+            # raise it for these ISAs only.
+            target_compile_options (${target_name} PRIVATE
+              --param=max-inline-insns-auto=400
+              --param=inline-unit-growth=200
+            )
+          endif (arch MATCHES "^AVX")
         endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
       endif (arch STREQUAL NEON)
 
