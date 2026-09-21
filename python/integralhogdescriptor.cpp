@@ -708,11 +708,11 @@ pybind11::object IntegralHOGDescriptor::clipNorm() const noexcept
 
     return !result.is_none() ? result
            : clipNorm_       ? std::visit(
-                             [](const auto& value) {
+                                   [](const auto& value) {
                                  return pybind11::cast<pybind11::object>(value);
-                             },
-                             *clipNorm_)
-                       : pybind11::none{};
+                                   },
+                                   *clipNorm_)
+                             : pybind11::none{};
 }
 
 pybind11::object IntegralHOGDescriptor::epsilon() const noexcept

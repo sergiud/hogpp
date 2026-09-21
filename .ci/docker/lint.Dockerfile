@@ -18,7 +18,7 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.
 
 FROM base AS deploy
 
-ARG clang_format_VERSION 21
+ARG clang_format_VERSION=23
 
 RUN echo deb http://apt.llvm.org/trixie/ llvm-toolchain-trixie-${clang_format_VERSION} main \
 >/etc/apt/sources.list.d/llvm.list

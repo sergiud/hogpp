@@ -281,11 +281,11 @@ lint:pypy3.11:
   needs: []
 
 lint:cpp:
-  image: sergiud/hogpp:lint-21
+  image: sergiud/hogpp:lint-23
   stage: test
   allow_failure: true
   script:
-    - fdfind -g '*.[ch]pp' -x clang-format-21 --dry-run --Werror
+    - fdfind -g '*.[ch]pp' -x clang-format-23 --dry-run --Werror
   needs: []
 
 build:trixie:
