@@ -29,4 +29,12 @@ RUN --mount=type=cache,target=/var/cache/apt \
 apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 --no-install-recommends --no-install-suggests \
 clang-format-${clang_format_VERSION} \
-fd-find
+fd-find \
+python3 \
+python3-pip
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+pip install --break-system-packages --no-cache-dir \
+mypy \
+numpy \
+ty

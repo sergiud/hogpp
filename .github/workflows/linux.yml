@@ -19,6 +19,11 @@ jobs:
         run: |
           fdfind -g '*.[ch]pp' -x clang-format-23 --dry-run --Werror
 
+      - name: Check typing
+        run: |
+          mypy --strict python/hogpp/_hogpp.pyi python/hogpp/__init__.pyi
+          ty check python/hogpp/_hogpp.pyi python/hogpp/__init__.pyi
+
   build-native:
     name: ${{matrix.os}}-GCC-${{matrix.build_type}}
     runs-on: ${{matrix.os}}
