@@ -246,6 +246,15 @@ lint:cpp:
     - fdfind -g '*.[ch]pp' -x clang-format-23 --dry-run --Werror
   needs: []
 
+lint:python-typing:
+  image: sergiud/hogpp:lint-23
+  stage: test
+  allow_failure: true
+  script:
+    - mypy --strict python/hogpp/_hogpp.pyi python/hogpp/__init__.pyi
+    - ty check python/hogpp/_hogpp.pyi python/hogpp/__init__.pyi
+  needs: []
+
 build:trixie:
   image: sergiud/hogpp:trixie
   <<: *build_definition
