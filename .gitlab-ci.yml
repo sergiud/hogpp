@@ -133,27 +133,6 @@ stages:
     - flake8 .
     - isort --check-only --diff .
 
-build:python3.10:
-  image: sergiud/hogpp:python3.10
-  <<: *skbuild_definition
-
-docs:python3.10:
-  image: sergiud/hogpp:python3.10
-  <<: *skdocs_definition
-  needs:
-    - build:python3.10
-
-test:python3.10:
-  image: sergiud/hogpp:python3.10
-  <<: *pytest_definition
-  needs:
-    - build:python3.10
-
-lint:python3.10:
-  image: sergiud/hogpp:python3.10
-  <<: *lint_definition
-  needs: []
-
 build:python3.11:
   image: sergiud/hogpp:python3.11
   <<: *skbuild_definition
@@ -235,27 +214,6 @@ test:python3.14:
 
 lint:python3.14:
   image: sergiud/hogpp:python3.14
-  <<: *lint_definition
-  needs: []
-
-build:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
-  <<: *skbuild_definition
-
-docs:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
-  <<: *skdocs_definition
-  needs:
-    - build:pypy3.10
-
-test:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
-  <<: *pytest_definition
-  needs:
-    - build:pypy3.10
-
-lint:pypy3.10:
-  image: sergiud/hogpp:pypy3.10
   <<: *lint_definition
   needs: []
 

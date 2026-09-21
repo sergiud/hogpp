@@ -151,12 +151,10 @@ jobs:
         msvc:
           - VS-18-2026
         python:
-          - '3.10'
           - '3.11'
           - '3.12'
           - '3.13'
           - '3.14'
-          - 'pypy3.10'
           - 'pypy3.11-v7.3.23'
         include:
           - msvc: VS-18-2026
@@ -169,10 +167,6 @@ jobs:
             address_model: 64
             os: windows-11-vs2026-arm
         exclude:
-          - arch: arm64
-            python: 3.10
-          - arch: arm64
-            python: pypy3.10
           - arch: arm64
             python: pypy3.11-v7.3.23
 
@@ -366,12 +360,10 @@ jobs:
         msvc:
           - VS-18-2026
         python:
-          - '3.10'
           - '3.11'
           - '3.12'
           - '3.13'
           - '3.14'
-          - 'pypy3.10'
           - 'pypy3.11-v7.3.23'
         include:
           - msvc: VS-18-2026
@@ -381,10 +373,6 @@ jobs:
           - arch: arm64
             os: windows-11-vs2026-arm
         exclude:
-          - arch: arm64
-            python: 3.10
-          - arch: arm64
-            python: pypy3.10
           - arch: arm64
             python: pypy3.11-v7.3.23
 
