@@ -742,11 +742,11 @@ nanobind::object IntegralHOGDescriptor::clipNorm() const noexcept
 
     return !result.is_none() ? result
            : clipNorm_       ? std::visit(
-                             [](const auto& value) {
+                                   [](const auto& value) {
                                  return nanobind::cast<nanobind::object>(value);
-                             },
-                             *clipNorm_)
-                       : nanobind::none();
+                                   },
+                                   *clipNorm_)
+                             : nanobind::none();
 }
 
 nanobind::object IntegralHOGDescriptor::epsilon() const noexcept
