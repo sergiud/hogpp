@@ -80,7 +80,7 @@ if (Python_Interpreter_FOUND AND Python_Development.Module_FOUND)
   # sysconfig directly when SKBUILD_SOABI/Python_SOABI is unavailable or, as
   # on PyPy, missing the platform tag), so no manual SOABI handling is
   # needed here.
-  find_package (nanobind 2.2.0 CONFIG)
+  find_package (nanobind NO_MODULE)
 endif (Python_Interpreter_FOUND AND Python_Development.Module_FOUND)
 
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
