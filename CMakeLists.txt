@@ -94,7 +94,7 @@ if (WITH_PYTHON)
   # on PyPy, missing the platform tag), so no manual SOABI handling is
   # needed here.
   if (Python_FOUND)
-    find_package (nanobind 2.2.0 CONFIG)
+    find_package (nanobind CONFIG)
   endif (Python_FOUND)
 
   find_package (Sphinx 4.0)
