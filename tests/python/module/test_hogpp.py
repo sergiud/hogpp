@@ -87,6 +87,12 @@ def test_block_norm_attribute(block_norm):
     assert desc.block_norm_ == block_norm
 
 
+@pytest.mark.parametrize('interpolation', ['orientation', 'trilinear'])
+def test_interpolation_attribute(interpolation):
+    desc = IntegralHOGDescriptor(interpolation=interpolation)
+    assert desc.interpolation_ == interpolation
+
+
 def test_default_attributes():
     desc = IntegralHOGDescriptor(
         n_bins=8,
@@ -107,6 +113,7 @@ def test_default_attributes():
     np.testing.assert_equal(desc.block_stride_, (8, 8))
     assert desc.clip_norm_ is None
     assert desc.epsilon_ is not None
+    assert desc.interpolation_ == 'orientation'
 
 
 @pytest.mark.xfail(raises=TypeError)
@@ -125,6 +132,12 @@ def test_invalid_block_norm(block_norm):
 @pytest.mark.parametrize('magnitude', ['l11', 'foo'])
 def test_invalid_magnitude(magnitude):
     IntegralHOGDescriptor(magnitude=magnitude)
+
+
+@pytest.mark.xfail(raises=TypeError)
+@pytest.mark.parametrize('interpolation', ['bilinear', 'foo'])
+def test_invalid_interpolation(interpolation):
+    IntegralHOGDescriptor(interpolation=interpolation)
 
 
 @pytest.mark.xfail(raises=TypeError)
@@ -446,6 +459,70 @@ def test_decay_to_double(dtype, horizontal_gradient_image):
     assert desc.features_.dtype == np.float64
 
 
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
+def test_trilinear_interpolation_changes_output(dtype):
+    # An edge between two cell centers but off the cell boundaries spreads its
+    # votes unevenly across neighboring cells. An edge on a cell boundary is
+    # symmetric about it and can yield identical features after clipping.
+    image = np.zeros((128, 64), dtype=dtype)
+    image[61:, ...] = 1
+
+    desc = IntegralHOGDescriptor(interpolation='orientation')
+    desc.compute(image)
+
+    desc1 = IntegralHOGDescriptor(interpolation='trilinear')
+    desc1.compute(image)
+
+    assert desc.features_.shape == desc1.features_.shape
+    assert not np.allclose(desc.features_, desc1.features_)
+
+
+def test_trilinear_histogram_is_integral_histogram(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor(interpolation='orientation')
+    desc.compute(horizontal_gradient_image)
+
+    desc1 = IntegralHOGDescriptor(interpolation='trilinear')
+    desc1.compute(horizontal_gradient_image)
+
+    np.testing.assert_array_equal(desc.histogram_, desc1.histogram_)
+
+
+def test_trilinear_interpolation_with_sigma(horizontal_gradient_image):
+    kwargs = dict(cell_size=(4, 4), block_stride=(4, 4))
+
+    desc = IntegralHOGDescriptor(interpolation='trilinear', sigma=4, **kwargs)
+    desc.compute(horizontal_gradient_image)
+
+    assert desc.interpolation_ == 'trilinear'
+    assert desc.sigma_ == 4
+
+    # The weighting and the interpolation both change the features
+    for other in (
+        IntegralHOGDescriptor(interpolation='trilinear', **kwargs),
+        IntegralHOGDescriptor(sigma=4, **kwargs),
+    ):
+        other.compute(horizontal_gradient_image)
+        assert not np.allclose(desc.features_, other.features_)
+
+
+@pytest.mark.parametrize(
+    'roundtrip',
+    [lambda d: pickle.loads(pickle.dumps(d)), copy.copy, copy.deepcopy],
+    ids=['pickle', 'copy', 'deepcopy'],
+)
+def test_roundtrip_trilinear_interpolation_with_sigma(
+    roundtrip, horizontal_gradient_image
+):
+    desc = IntegralHOGDescriptor(interpolation='trilinear', sigma=4)
+    desc.compute(horizontal_gradient_image)
+
+    desc1 = roundtrip(desc)
+
+    assert desc1.interpolation_ == 'trilinear'
+    assert desc1.sigma_ == 4
+    np.testing.assert_array_equal(desc1.features_, desc.features_)
+
+
 def test_empty_multiple_bounds(horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
     desc.compute(horizontal_gradient_image)
@@ -523,6 +600,17 @@ def test_pickle_descriptor(
 
     np.testing.assert_array_equal(desc.features_, desc1.features_)
     np.testing.assert_array_equal(desc.histogram_, desc1.histogram_)
+
+
+@pytest.mark.parametrize('interpolation', ['orientation', 'trilinear'])
+def test_pickle_descriptor_interpolation(interpolation, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor(interpolation=interpolation)
+    desc.compute(horizontal_gradient_image)
+
+    desc1 = pickle.loads(pickle.dumps(desc))
+
+    assert desc1.interpolation_ == interpolation
+    np.testing.assert_array_equal(desc.features_, desc1.features_)
 
 
 def test_uniform_gradients(circle_image):
@@ -646,6 +734,16 @@ def test_roundtrip_preserves_weighted_features(roundtrip, block_stride):
     np.testing.assert_array_equal(desc1.features_, desc.features_)
 
 
+# Pickled state layout: the fields of versions without spatial weighting,
+# followed by sigma, the weighted integral histogram and the interpolation.
+LEGACY_STATE_SIZE = 10
+SIGMA_STATE_INDEX = LEGACY_STATE_SIZE
+WEIGHTED_STATE_INDEX = SIGMA_STATE_INDEX + 1
+INTERPOLATION_STATE_INDEX = WEIGHTED_STATE_INDEX + 1
+WEIGHTED_STATE_SIZE = INTERPOLATION_STATE_INDEX
+STATE_SIZE = INTERPOLATION_STATE_INDEX + 1
+
+
 def test_unpickle_weighted_histogram_without_sigma_rejected(
     horizontal_gradient_image,
 ):
@@ -653,10 +751,10 @@ def test_unpickle_weighted_histogram_without_sigma_rejected(
     desc.compute(horizontal_gradient_image)
 
     state = list(desc.__getstate__())
-    assert state[-1] is not None
+    assert state[WEIGHTED_STATE_INDEX] is not None
 
     # Disable the weighting while keeping its integral histogram
-    state[-2] = 0.0
+    state[SIGMA_STATE_INDEX] = 0.0
 
     desc1 = IntegralHOGDescriptor.__new__(IntegralHOGDescriptor)
 
@@ -670,10 +768,68 @@ def test_unpickle_state_without_sigma(horizontal_gradient_image):
 
     # State layout of versions without spatial weighting, which lacks sigma
     # and the weighted integral histogram
-    state = desc.__getstate__()[:-2]
+    state = desc.__getstate__()[:LEGACY_STATE_SIZE]
 
     desc1 = IntegralHOGDescriptor.__new__(IntegralHOGDescriptor)
     desc1.__setstate__(state)
 
     assert desc1.sigma_ == 0
     np.testing.assert_array_equal(desc1.features_, desc.features_)
+
+
+@pytest.mark.parametrize('sigma', [0, 8])
+def test_unpickle_state_without_interpolation(sigma, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor(sigma=sigma)
+    desc.compute(horizontal_gradient_image)
+
+    # State layout of versions with spatial weighting but without the
+    # interpolation
+    state = desc.__getstate__()[:INTERPOLATION_STATE_INDEX]
+
+    desc1 = IntegralHOGDescriptor.__new__(IntegralHOGDescriptor)
+    desc1.__setstate__(state)
+
+    assert desc1.interpolation_ == 'orientation'
+    assert desc1.sigma_ == sigma
+    np.testing.assert_array_equal(desc1.histogram_, desc.histogram_)
+    np.testing.assert_array_equal(desc1.features_, desc.features_)
+
+
+@pytest.mark.parametrize(
+    'size',
+    [
+        LEGACY_STATE_SIZE - 1,
+        LEGACY_STATE_SIZE + 1,
+        STATE_SIZE + 1,
+    ],
+)
+def test_unpickle_state_of_unknown_size_rejected(size, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image)
+
+    state = desc.__getstate__()
+    state = (state + (None,))[:size]
+
+    desc1 = IntegralHOGDescriptor.__new__(IntegralHOGDescriptor)
+
+    with pytest.raises(
+        TypeError,
+        match=rf'{LEGACY_STATE_SIZE}, {WEIGHTED_STATE_SIZE} or '
+        rf'{STATE_SIZE} elements but {size} were given',
+    ):
+        desc1.__setstate__(state)
+
+
+@pytest.mark.parametrize('size', [LEGACY_STATE_SIZE, WEIGHTED_STATE_SIZE, STATE_SIZE])
+def test_unpickle_state_element_of_wrong_type_rejected(size, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image)
+
+    state = list(desc.__getstate__()[:size])
+    # The cell size must be a pair of integers
+    state[0] = 'cell size'
+
+    desc1 = IntegralHOGDescriptor.__new__(IntegralHOGDescriptor)
+
+    with pytest.raises(TypeError, match=r'state element 0 of type str'):
+        desc1.__setstate__(tuple(state))

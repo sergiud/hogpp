@@ -17,35 +17,36 @@ In general, computing R-HOG consists of the following steps:
 
 4. block normalization
 
-Provided these steps, R-HOG extracted using an integral histogram is slightly
-inferior to the original formulation. The reason for this being that trilinear
-interpolation cannot be performed efficiently within the integral histogram
-framework. However, the integral histogram R-HOG formulation is substantially
-faster while being a sufficiently close approximation to the original R-HOG
-formulation.
+HOGpp performs all of these steps. The Gaussian down-weighting and the spatial
+part of the trilinear interpolation are disabled by default, however, since
+both make the extraction slower. Without them, a pixel votes only into its own
+cell, while its vote is still interpolated between neighboring orientation
+bins.
 
-Gaussian down-weighting is available through the ``sigma`` parameter of
-:class:`hogpp.IntegralHOGDescriptor` and disabled by default. The weighted cell
-histograms are exact up to rounding. Their cost depends on the block layout:
+Both steps are computed exactly from the integral histogram, up to rounding,
+for any cell size and any placement of the blocks. Unlike the original
+formulation, cells are therefore not restricted to a fixed grid.
 
-- If the block stride is not smaller than the cell size along both axes, the
-  weight of a pixel within a cell does not depend on the block containing it.
-  The weights are then folded into an additional integral histogram and each
-  weighted cell histogram is extracted in :math:`O(1)`, provided the block
-  origin is a multiple of the block stride. This includes the default block
-  layout, except for the last block that is placed flush with the region
-  border if the region extent minus the block extent is not a multiple of the
-  block stride. The additional integral histogram requires as much memory as
-  the regular one times the number of cells per block, e.g., 4 times for 2x2
-  cell blocks.
-- Otherwise, each weighted cell histogram is summed from the per-pixel votes
-  in :math:`O(c)` where :math:`c` denotes the number of pixels in a cell.
+The only remaining difference arises when both steps are enabled. The
+interpolation spreads the vote of a pixel up to one cell beyond its own cell
+and thus possibly beyond the block. Dalal & Triggs only consider the pixels
+inside the block. HOGpp instead weights such pixels by the same Gaussian
+evaluated at their position relative to the block, which keeps the weights
+continuous across the block border.
+
+Each step adds to the cost of the extraction. The interpolation keeps an
+additional table in at least double precision, which for single precision
+input is about twice the size of the integral histogram. If the block stride is
+not smaller than the cell size, the Gaussian down-weighting keeps an additional
+table as large as the integral histogram times the number of cells per block.
+Otherwise, and in combination with the interpolation, the weighted cells are
+summed from the votes of their pixels instead.
 
 Our evaluation on the :ref:`INRIA person dataset <inria-performance>` was
-performed without Gaussian down-weighting. The comparison against OpenCV’s
-``HOGDescriptor``, which applies it, indicates that particularly the Gaussian
-down-weighting :ref:`does not necessarily improve <inria-quantitative-results>`
-the generalization ability of the associated classifiers.
+performed without either step. The comparison against OpenCV’s
+``HOGDescriptor``, which applies the Gaussian down-weighting, indicates that it
+:ref:`does not necessarily improve <inria-quantitative-results>` the
+generalization ability of the associated classifiers.
 
 For a comparison of both approaches, the interested reader should refer to
 :cite:t:`Zhu2006`. Additional evaluation of related approaches can be found in

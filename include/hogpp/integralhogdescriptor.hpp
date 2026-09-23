@@ -24,6 +24,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <type_traits>
 #include <utility>
 
 #include <fmt/format.h>
@@ -38,6 +39,7 @@
 #include <hogpp/multiplyadd.hpp>
 #include <hogpp/nouniqueaddress.hpp>
 #include <hogpp/prefix.hpp>
+#include <hogpp/spatialinterpolation.hpp>
 #include <hogpp/spatialweighting.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
@@ -190,6 +192,7 @@ template
     , class BinningType = UnsignedGradient<T>
     , class BlockNormalizerType = L2Hys<T>
     , class SpatialWeightingType = NoSpatialWeighting
+    , class SpatialInterpolationType = NoSpatialInterpolation
 >
 // clang-format on
 class IntegralHOGDescriptor
@@ -204,6 +207,7 @@ class IntegralHOGDescriptor
         , BinningType
         , BlockNormalizerType
         , SpatialWeightingType
+        , SpatialInterpolationType
     >
 >
 // clang-format on
@@ -219,6 +223,7 @@ class IntegralHOGDescriptor
             , BinningType
             , BlockNormalizerType
             , SpatialWeightingType
+            , SpatialInterpolationType
         >
     >
     ;
@@ -370,31 +375,35 @@ public:
 
         histogram_.scan(binning);
 
-        // The weighting obtains the exact votes of each pixel by repeating the
-        // binning into a histogram of a single pixel. Reusing the binning
-        // above leaves the regular scan unaffected by the weighting. The
-        // histogram is allocated on first use only since weightings that do
-        // not visit any votes must not incur any cost.
-        this->spatialWeighting_.prepare(
-            spatialState_, geometry(), dims, bins_,
-            [&binning, bins = bins_,
-             pixel = Eigen::Tensor<Scalar, 1, DataLayout>{}](
-                const auto& ij, auto&& emit) mutable {
-                if (pixel.size() != bins) {
-                    pixel.resize(bins);
-                }
-
-                pixel.setZero();
-                binning(pixel, ij);
-
-                for (Eigen::DenseIndex b = 0; b < pixel.size(); ++b) {
-                    using std::fpclassify;
-
-                    if (fpclassify(pixel(b)) != FP_ZERO) {
-                        emit(b, pixel(b));
+        if constexpr (!WeightedInterpolation) {
+            // The weighting obtains the exact votes of each pixel by repeating
+            // the binning into a histogram of a single pixel. Reusing the
+            // binning above leaves the regular scan unaffected by the
+            // weighting. The histogram is allocated on first use only since
+            // weightings that do not visit any votes must not incur any cost.
+            this->spatialWeighting_.prepare(
+                spatialState_, geometry(), dims, bins_,
+                [&binning, bins = bins_,
+                 pixel = Eigen::Tensor<Scalar, 1, DataLayout>{}](
+                    const auto& ij, auto&& emit) mutable {
+                    if (pixel.size() != bins) {
+                        pixel.resize(bins);
                     }
-                }
-            });
+
+                    pixel.setZero();
+                    binning(pixel, ij);
+
+                    for (Eigen::DenseIndex b = 0; b < pixel.size(); ++b) {
+                        using std::fpclassify;
+
+                        if (fpclassify(pixel(b)) != FP_ZERO) {
+                            emit(b, pixel(b));
+                        }
+                    }
+                });
+        }
+
+        updateInterpolation();
     }
 
     [[nodiscard]] Tensor5 features() const
@@ -494,6 +503,10 @@ public:
         // not share any mutable state.
         auto query = this->spatialWeighting_.cellQuery(spatialState_,
                                                        histogram_, geometry());
+        // The active trait decides between the plain sum, spatially weighted
+        // if requested, and the bilinear interpolation.
+        auto extract = SpatialInterpolationType::extractor(query, histogram_,
+                                                           interpolationCache_);
 
         for (int i = 0; i < numBlocks.x(); ++i) {
             for (int j = 0; j < numBlocks.y(); ++j) {
@@ -504,22 +517,14 @@ public:
                 for (int k = 0; k < numCells.x(); ++k) {
                     for (int l = 0; l < numCells.y(); ++l) {
                         const Eigen::Array2i cellOffset{k, l};
-                        // Clip cells to the region so that a block larger
-                        // than the region accumulates only the votes of the
-                        // pixels inside of it.
                         const Eigen::Array2i offset1 =
-                            (blockOffset + cellOffset * cellSize_).min(br);
-                        const Eigen::Array2i offset2 =
-                            (offset1 + cellSize_).min(br);
+                            blockOffset + cellOffset * cellSize_;
 
-                        // Extract the cell histogram, spatially weighted if
-                        // requested, from the integral histogram as an
-                        // intersection.
-                        query(X.template chip<0>(i)
-                                  .template chip<0>(j)
-                                  .template chip<0>(k)
-                                  .template chip<0>(l),
-                              cellOffset, offset1, offset2);
+                        extract(X.template chip<0>(i)
+                                    .template chip<0>(j)
+                                    .template chip<0>(k)
+                                    .template chip<0>(l),
+                                cellOffset, offset1, cellSize_, br);
                     }
                 }
 
@@ -560,6 +565,13 @@ public:
         }
 
         cellSize_ = value;
+    }
+
+    // Whether trilinear (vs. orientation-only) interpolation is active,
+    // a compile-time choice via SpatialInterpolationType.
+    [[nodiscard]] static constexpr bool spatialInterpolation() noexcept
+    {
+        return SpatialInterpolationType::value;
     }
 
     [[nodiscard]] const Eigen::Array2i& cellSize() const noexcept
@@ -611,8 +623,9 @@ public:
         const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& value)
     {
         histogram_.setHistogram(value);
+        updateInterpolation();
 
-        if (histogram_.isEmpty()) {
+        if (WeightedInterpolation || histogram_.isEmpty()) {
             spatialState_ = SpatialWeightingState{};
             return;
         }
@@ -671,6 +684,17 @@ public:
                     "size"_a = weighted.size())};
             }
         }
+        else if constexpr (WeightedInterpolation) {
+            if (weighted.size() != 0) {
+                using namespace fmt::literals;
+
+                throw std::invalid_argument{fmt::format(
+                    "IntegralHOGDescriptor weighted integral histogram must be "
+                    "empty for the spatial interpolation but has {size} "
+                    "elements",
+                    "size"_a = weighted.size())};
+            }
+        }
         else {
             const Eigen::Array2i dims{static_cast<int>(H.dimension(0) - 1),
                                       static_cast<int>(H.dimension(1) - 1)};
@@ -680,6 +704,7 @@ public:
         }
 
         histogram_.setHistogram(H);
+        updateInterpolation();
         spatialState_ = std::move(state);
     }
 
@@ -700,6 +725,25 @@ private:
     using SpatialWeightingState =
         typename SpatialWeightingType::template State<Scalar>;
 
+    // The spatial interpolation of spatially weighted votes sums the votes of
+    // each cell recovered from the integral histogram. It requires neither the
+    // integral histogram of the weighted votes nor the second-order integral
+    // histogram of the interpolation.
+    static constexpr bool WeightedInterpolation =
+        SpatialInterpolationType::value &&
+        !std::is_same_v<SpatialWeightingType, NoSpatialWeighting>;
+
+    using InterpolationCache = std::conditional_t<
+        WeightedInterpolation, NoSpatialInterpolation::Cache<Scalar>,
+        typename SpatialInterpolationType::template Cache<Scalar>>;
+
+    void updateInterpolation()
+    {
+        if constexpr (!WeightedInterpolation) {
+            SpatialInterpolationType::update(histogram_, interpolationCache_);
+        }
+    }
+
     [[nodiscard]] BlockGeometry geometry() const
     {
         return BlockGeometry{cellSize_, blockSize_, blockStride_};
@@ -707,6 +751,7 @@ private:
 
     IntegralHistogram<Scalar, 2, 1> histogram_;
     HOGPP_NO_UNIQUE_ADDRESS SpatialWeightingState spatialState_;
+    HOGPP_NO_UNIQUE_ADDRESS InterpolationCache interpolationCache_;
     Eigen::DenseIndex bins_ = 9;
     Eigen::Array2i cellSize_{8, 8};
     Eigen::Array2i blockSize_ = cellSize_ * 2;
@@ -726,6 +771,7 @@ template
     , class BinningType
     , class BlockNormalizerType
     , class SpatialWeightingType
+    , class SpatialInterpolationType
 >
 // clang-format on
 struct IntegralHOGDescriptorTraits
@@ -739,6 +785,7 @@ struct IntegralHOGDescriptorTraits
         , BinningType
         , BlockNormalizerType
         , SpatialWeightingType
+        , SpatialInterpolationType
     >
 >
 // clang-format on
@@ -758,6 +805,7 @@ template
     , class BinningType
     , class BlockNormalizerType
     , class SpatialWeightingType
+    , class SpatialInterpolationType
 >
 // clang-format on
 struct IntegralHOGDescriptorTraits
@@ -771,6 +819,7 @@ struct IntegralHOGDescriptorTraits
         , BinningType
         , BlockNormalizerType
         , SpatialWeightingType
+        , SpatialInterpolationType
     >
 >
 // clang-format on

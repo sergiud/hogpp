@@ -38,6 +38,8 @@ all_args = [
     dict(sigma=2.5),
     dict(sigma=1e300),
     dict(cell_size=(2, 2), sigma=1),
+    dict(interpolation='trilinear', cell_size=(4, 4)),
+    dict(interpolation='trilinear', sigma=2),
 ]
 
 

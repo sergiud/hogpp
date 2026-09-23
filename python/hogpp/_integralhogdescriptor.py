@@ -35,6 +35,7 @@ __all__ = ('IntegralHOGDescriptor',)
 Binning = Literal['signed', 'unsigned']
 Magnitude = Literal['identity', 'sqrt', 'square']
 BlockNorm = Literal['l1', 'l1-sqrt', 'l1-hys', 'l2', 'l2-hys']
+Interpolation = Literal['orientation', 'trilinear']
 Size = Tuple[int, int]
 Number = Union[int, float]
 Mask = Union[Callable[[int, int], bool], ArrayLike]
@@ -190,6 +191,22 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
         memory usage about triples, while extracting features takes about
         10% longer. Smaller block strides leave :meth:`compute` unaffected
         but make extracting features about 2.5 times slower.
+    interpolation : str, optional
+        Whether a pixel's vote is spatially interpolated between
+        neighboring cell centers, on top of the always-on interpolation
+        of its orientation between neighboring bins. Default is
+        'orientation'. Possible choices are:
+
+        'orientation'
+            A pixel's vote is attributed entirely to its own cell.
+        'trilinear'
+            A pixel's vote is additionally split bilinearly between its
+            neighboring cell centers, recovering the spatial half of
+            :cite:t:`Dalal2005`'s trilinear interpolation. Combined with a
+            positive `sigma`, pixels beyond the block that the interpolation
+            reaches are weighted by the same Gaussian instead of being
+            excluded, and each weighted cell histogram is summed from the
+            votes of its pixels.
     """
 
     def __init__(
@@ -205,6 +222,7 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
         clip_norm: Optional[Number] = None,
         epsilon: Optional[Number] = None,
         sigma: Number = 0,
+        interpolation: Optional[Interpolation] = None,
     ) -> None:
         try:
             super().__init__(
@@ -218,6 +236,7 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
                 clip_norm=clip_norm,
                 epsilon=epsilon,
                 sigma=sigma,
+                interpolation=interpolation,
             )
         except BaseException:
             # The underlying C++ instance is never constructed when the
@@ -416,3 +435,10 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
         pixels, or 0 if the weighting is disabled.
         """
         return super().sigma_
+
+    @property
+    def interpolation_(self) -> Interpolation:
+        """str: Whether a pixel's vote is spatially interpolated between
+        neighboring cell centers.
+        """
+        return cast(Interpolation, super().interpolation_)

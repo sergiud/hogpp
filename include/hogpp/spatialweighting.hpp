@@ -23,9 +23,11 @@
 #include <Eigen/Core>
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <stdexcept>
 #include <tuple>
@@ -363,8 +365,10 @@ private:
             , weighted_{weighted}
             , cellSize_{geometry.cellSize}
             , blockStride_{geometry.blockStride}
+            , blockSize_{geometry.blockSize}
             , numCellCols_{geometry.blockSize.y() / geometry.cellSize.y()}
             , bins_{histogram.histogram().dimension(2)}
+            , sigma_{sigma}
             , rowWeights_{blockWeights(geometry.blockSize.x(), sigma)}
             , colWeights_{blockWeights(geometry.blockSize.y(), sigma)}
             , cell_(bins_)
@@ -399,7 +403,117 @@ private:
             cell = cell_;
         }
 
+        /**
+         * @brief Extracts the cell @f$[a,b)@f$ with the index @p index of a
+         * block with each vote bilinearly interpolated between neighboring
+         * cell centers.
+         *
+         * A vote at the position @f$x@f$ is weighted by the tent
+         * @f$\max(0, 1 - |x - c| / s)@f$ with the cell center
+         * @f$c = (a + b - 1) / 2@f$ and the cell size @f$s = b - a@f$ along
+         * each axis, and by the Gaussian of its position relative to the
+         * block origin. Votes outside of the input domain do not contribute.
+         *
+         * The tent extends one cell beyond the cell and therefore beyond the
+         * block. Unlike Dalal and Triggs, who only consider the pixels of
+         * the block, pixels outside of the block are not excluded but
+         * weighted by the same Gaussian evaluated at their block-relative
+         * position. This keeps the weights continuous across the block
+         * border.
+         *
+         * The weighted votes depend on the block for every block layout, so
+         * they are summed in @f$O(s_r s_c)@f$ per cell. Summation by parts
+         *
+         * @f[
+         *  \sum_{x=x_0}^{x_1-1} w_x \left(H_{x+1} - H_x\right)
+         *  = \sum_{x=x_0}^{x_1} \left(w_{x-1} - w_x\right) H_x
+         * @f]
+         *
+         * with @f$w_{x_0-1} = w_{x_1} = 0@f$ along each axis reads every
+         * entry of the integral histogram @f$H@f$ once instead of recovering
+         * each vote from four entries.
+         */
+        template<class Cell>
+        void interpolate(Cell&& cell, const Eigen::Array2i& index,
+                         const Eigen::Array2i& first,
+                         const Eigen::Array2i& last)
+        {
+            const Eigen::Array2i origin = first - index * cellSize_;
+            const auto& H = histogram_->histogram();
+
+            const int rowBegin = kernelDifferences(
+                rowKernel_, first.x(), last.x(), origin.x(), blockSize_.x(),
+                static_cast<int>(H.dimension(0) - 1));
+            const int colBegin = kernelDifferences(
+                colKernel_, first.y(), last.y(), origin.y(), blockSize_.y(),
+                static_cast<int>(H.dimension(1) - 1));
+
+            const auto rows = static_cast<int>(rowKernel_.size());
+            const auto cols = static_cast<int>(colKernel_.size());
+
+            for (Eigen::DenseIndex b = 0; b < bins_; ++b) {
+                S total{0};
+
+                for (int q = 0; q < cols; ++q) {
+                    S row{0};
+
+                    for (int p = 0; p < rows; ++p) {
+                        row =
+                            multiplyAdd(rowKernel_[static_cast<std::size_t>(p)],
+                                        H(rowBegin + p, colBegin + q, b), row);
+                    }
+
+                    total = multiplyAdd(colKernel_[static_cast<std::size_t>(q)],
+                                        row, total);
+                }
+
+                cell_(b) = total;
+            }
+
+            cell = cell_;
+        }
+
     private:
+        /**
+         * Stores the differences @f$w_{x-1} - w_x@f$ of the products
+         * @f$w_x@f$ of the tent of the cell @f$[a,b)@f$ and the Gaussian
+         * weight along an axis in @p differences. The positions @f$x@f$ range
+         * over the support of the tent within the input domain @f$[0,n)@f$
+         * and one position beyond, and the weights vanish outside of it.
+         * Returns the first position.
+         */
+        [[nodiscard]] int kernelDifferences(std::vector<S>& differences, int a,
+                                            int b, int origin, int extent,
+                                            int n) const
+        {
+            const int size = b - a;
+            // Twice the cell center keeps the distances integral for even
+            // cell sizes.
+            const int center2 = a + b - 1;
+            const int begin = std::max(a - size, 0);
+            const int end = std::min(b + size, n);
+
+            differences.clear();
+
+            S previous{0};
+
+            for (int x = begin; x < end; ++x) {
+                const int distance2 = std::abs(2 * x - center2);
+                const S tent = distance2 < 2 * size
+                                   ? static_cast<S>(2 * size - distance2) /
+                                         static_cast<S>(2 * size)
+                                   : S{0};
+                const S current = tent * weight(x - origin, extent, sigma_);
+
+                differences.push_back(previous - current);
+                previous = current;
+            }
+
+            differences.push_back(previous);
+
+            return begin;
+        }
+
         // Sums the weighted votes recovered from the integral histogram.
         void sum(const Eigen::Array2i& first, const Eigen::Array2i& last,
                  const Eigen::Array2i& origin)
@@ -435,10 +549,15 @@ private:
         const IntegralHistogram<S, 2, 1>* weighted_;
         Eigen::Array2i cellSize_;
         Eigen::Array2i blockStride_;
+        Eigen::Array2i blockSize_;
         Eigen::DenseIndex numCellCols_;
         Eigen::DenseIndex bins_;
+        S sigma_;
         std::vector<S> rowWeights_;
         std::vector<S> colWeights_;
+        //! Interpolation weights reused across cells.
+        std::vector<S> rowKernel_;
+        std::vector<S> colKernel_;
         Eigen::Tensor<S, 1> cell_;
     };
 

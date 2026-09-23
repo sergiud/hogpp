@@ -164,3 +164,151 @@ static_assert(!hogpp::detail::cornerSignbit<3>(5),
               "D=3, K=5: a two-axis corner is a positive term");
 static_assert(!hogpp::detail::cornerSignbit<3>(6),
               "D=3, K=6: a two-axis corner is a positive term");
+
+// cascade() must be the prefix sum of scan()'s first-order histogram:
+// for votes(i, j) == 1 everywhere, H1(i, j) == i * j, so its prefix sum
+// H2(i, j) == (i * (i - 1) / 2) * (j * (j - 1) / 2). The second-order
+// histogram has one more slot per input dimension than the first-order one.
+BOOST_AUTO_TEST_CASE(cascade_matches_closed_form_for_constant_field)
+{
+    constexpr Eigen::DenseIndex Rows = 12;
+    constexpr Eigen::DenseIndex Cols = 9;
+
+    hogpp::IntegralHistogram<long long, 2, 1> ih;
+    ih.resize(std::make_tuple(Rows, Cols), 1);
+
+    ih.scan([](Eigen::TensorRef<Eigen::Tensor<long long, 1>> h,
+               const std::tuple<Eigen::DenseIndex, Eigen::DenseIndex>&
+               /*unused*/) { h.coeffRef(0) += 1; });
+
+    const auto cascaded = ih.cascade();
+    const Eigen::Tensor<long long, 3>& h2 = cascaded.histogram();
+
+    BOOST_TEST(h2.dimension(0) == Rows + 2);
+    BOOST_TEST(h2.dimension(1) == Cols + 2);
+
+    for (Eigen::DenseIndex i = 0; i < h2.dimension(0); ++i) {
+        for (Eigen::DenseIndex j = 0; j < h2.dimension(1); ++j) {
+            const long long expected = (i * (i - 1) / 2) * (j * (j - 1) / 2);
+            BOOST_TEST(h2(i, j, 0) == expected);
+        }
+    }
+}
+
+// Reference bilinear splat of the votes into the cell [a, b) computed
+// independently of the integral histogram machinery. Each position is
+// weighted by its distance to the geometric center of the cell.
+template<class Votes>
+[[nodiscard]] double bruteForceBilinearSplat(
+    const Votes& votes, const std::array<Eigen::DenseIndex, 2>& a,
+    const std::array<Eigen::DenseIndex, 2>& b)
+{
+    const auto sx = static_cast<double>(b[0] - a[0]);
+    const auto sy = static_cast<double>(b[1] - a[1]);
+    const double cx = static_cast<double>(a[0] + b[0] - 1) / 2;
+    const double cy = static_cast<double>(a[1] + b[1] - 1) / 2;
+
+    double total = 0.0;
+
+    for (Eigen::DenseIndex i = 0; i < votes.dimension(0); ++i) {
+        const double wx =
+            std::max(0.0, 1.0 - std::abs(static_cast<double>(i) - cx) / sx);
+
+        for (Eigen::DenseIndex j = 0; j < votes.dimension(1); ++j) {
+            const double wy =
+                std::max(0.0, 1.0 - std::abs(static_cast<double>(j) - cy) / sy);
+            total += votes(i, j) * wx * wy;
+        }
+    }
+
+    return total;
+}
+
+// interpolate() must reproduce a brute-force per-pixel bilinear splat for
+// every cell of a grid tiling the field, including the cells at the domain
+// boundary, for both even and odd cell sizes.
+BOOST_AUTO_TEST_CASE(interpolate_matches_brute_force_bilinear_splat)
+{
+    constexpr Eigen::DenseIndex Rows = 40;
+    constexpr Eigen::DenseIndex Cols = 42;
+
+    std::default_random_engine g{1};
+    std::uniform_real_distribution<double> value{0.0, 1.0};
+    std::bernoulli_distribution keep{0.6};
+
+    Eigen::Tensor<double, 2> votes(Rows, Cols);
+    votes.setZero();
+
+    for (Eigen::DenseIndex i = 0; i < Rows; ++i) {
+        for (Eigen::DenseIndex j = 0; j < Cols; ++j) {
+            if (keep(g)) {
+                votes(i, j) = value(g);
+            }
+        }
+    }
+
+    hogpp::IntegralHistogram<double, 2, 1> ih;
+    ih.resize(std::make_tuple(Rows, Cols), 1);
+
+    ih.scan(
+        [&votes](Eigen::TensorRef<Eigen::Tensor<double, 1>> h,
+                 const std::tuple<Eigen::DenseIndex, Eigen::DenseIndex>& i) {
+            h.coeffRef(0) += std::apply(votes, i);
+        });
+
+    const auto h2 = ih.cascade();
+
+    constexpr double Tolerance = 1e-9;
+
+    for (const auto& [sx, sy] :
+         {std::pair<Eigen::DenseIndex, Eigen::DenseIndex>{8, 6},
+          std::pair<Eigen::DenseIndex, Eigen::DenseIndex>{5, 7}}) {
+        double maxAbsError = 0.0;
+
+        for (Eigen::DenseIndex x = 0; x + sx <= Rows; x += sx) {
+            for (Eigen::DenseIndex y = 0; y + sy <= Cols; y += sy) {
+                const Eigen::Tensor<double, 1> interpolated = h2.interpolate(
+                    std::make_tuple(x, y), std::make_tuple(x + sx, y + sy));
+
+                const double expected =
+                    bruteForceBilinearSplat(votes, {x, y}, {x + sx, y + sy});
+
+                maxAbsError =
+                    std::max(maxAbsError, std::abs(interpolated(0) - expected));
+            }
+        }
+
+        BOOST_TEST(maxAbsError < Tolerance);
+    }
+}
+
+// Unsigned coordinates of a cell close to the lower domain boundary must not
+// wrap around while computing the taps preceding the cell.
+BOOST_AUTO_TEST_CASE(interpolate_unsigned_coordinates_near_lower_boundary)
+{
+    constexpr Eigen::DenseIndex Size = 16;
+    constexpr std::size_t CellSize = 8;
+
+    hogpp::IntegralHistogram<double, 2, 1> ih;
+    ih.resize(std::make_tuple(Size, Size), 1);
+
+    ih.scan([](Eigen::TensorRef<Eigen::Tensor<double, 1>> h,
+               const std::tuple<Eigen::DenseIndex, Eigen::DenseIndex>&
+               /*unused*/) { h.coeffRef(0) += 1; });
+
+    const Eigen::Tensor<double, 1> actual = ih.cascade().interpolate(
+        std::make_tuple(std::size_t{0}, std::size_t{0}),
+        std::make_tuple(CellSize, CellSize));
+
+    Eigen::Tensor<double, 2> votes(Size, Size);
+    votes.setConstant(1);
+
+    const double expected =
+        bruteForceBilinearSplat(votes, {0, 0},
+                                {static_cast<Eigen::DenseIndex>(CellSize),
+                                 static_cast<Eigen::DenseIndex>(CellSize)});
+
+    constexpr double Tolerance = 1e-12;
+
+    BOOST_TEST(actual(0) == expected, boost::test_tools::tolerance(Tolerance));
+}

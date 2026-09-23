@@ -29,6 +29,7 @@
 #include "blocknormalizer.hpp"
 #include "hogpp.hpp"
 #include "integralhogdescriptor.hpp"
+#include "interpolation.hpp"
 #include "magnitude.hpp"
 #include "type_caster/bounds.hpp"
 
@@ -66,6 +67,7 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
             , std::optional<std::variant<pybind11::int_, pybind11::float_> >
             , std::optional<std::variant<pybind11::int_, pybind11::float_> >
             , double
+            , std::optional<InterpolationType>
           >()
         , py::kw_only()
         , py::arg("cell_size") = std::nullopt
@@ -78,6 +80,7 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
         , py::arg("clip_norm") = std::nullopt
         , py::arg("epsilon") = std::nullopt
         , py::arg("sigma") = 0.0
+        , py::arg("interpolation") = std::nullopt
     )
     .def
     (
@@ -165,6 +168,11 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
     (
           "magnitude_"
         , &IntegralHOGDescriptor::magnitude
+    )
+    .def_property_readonly
+    (
+          "interpolation_"
+        , &IntegralHOGDescriptor::interpolation
     )
     .def_property_readonly
     (

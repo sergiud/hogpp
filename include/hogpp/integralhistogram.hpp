@@ -20,7 +20,10 @@
 #ifndef HOGPP_INTEGRALHISTOGRAM_HPP
 #define HOGPP_INTEGRALHISTOGRAM_HPP
 
+#include <algorithm>
+#include <array>
 #include <bit>
+#include <cassert>
 #include <concepts>
 #include <tuple>
 #include <type_traits>
@@ -251,6 +254,7 @@ public:
                   "IntegralHistogram number of histogram space dimensions must "
                   "be positive");
 
+    using Scalar = T;
     using Tensor = Eigen::Tensor<T, N + K, Options>;
 
     template<std::integral... InputDims, std::integral... BinDims>
@@ -284,6 +288,131 @@ public:
         scan(histogram_.dimensions(),
              std::make_integer_sequence<Eigen::DenseIndex, N>{},
              std::move(binning));
+    }
+
+    /**
+     * @brief Computes the second-order integral histogram.
+     *
+     * Applies the summed-area table recurrence to the first-order integral
+     * histogram built by scan(). The result has one additional slot along
+     * each input space dimension to retain the complete first-order sums at
+     * the upper domain boundary which interpolate() requires to extrapolate
+     * beyond the domain.
+     *
+     * The magnitude of the second-order integral histogram grows
+     * quadratically with the input domain volume while its queries subtract
+     * nearly equal values. A narrow @p T such as `float` therefore requires
+     * a wider @p U to avoid catastrophic cancellation.
+     *
+     * @tparam U Arithmetic type of the second-order integral histogram.
+     */
+    template<Arithmetic U = T>
+    [[nodiscard]] IntegralHistogram<U, N, K, Options> cascade() const
+    {
+        IntegralHistogram<U, N, K, Options> result;
+        cascade(result.histogram_, histogram_.dimensions(),
+                std::make_integer_sequence<Eigen::DenseIndex, N>{});
+        return result;
+    }
+
+    /**
+     * @brief Bilinearly interpolated histogram of the cell spanning
+     * @f$[a, b)@f$.
+     *
+     * Evaluates the spatial part of the trilinear interpolation by Dalal and
+     * Triggs on a second-order integral histogram obtained by cascade(). Each
+     * input position @f$(x, y)@f$ contributes with the weight
+     * @f$\max(0, 1 - |x - c_x| / s_x) \max(0, 1 - |y - c_y| / s_y)@f$ where
+     * @f$c = (a + b - 1) / 2@f$ denotes the geometric center of the cell and
+     * @f$s = b - a@f$ its size. Positions outside the input domain do not
+     * contribute.
+     *
+     * Convolving a box filter with itself yields a tent. The weights are
+     * therefore obtained by the second finite difference of the second-order
+     * integral histogram. An even cell size places the center between two
+     * positions in which case the stencils of both positions are averaged.
+     */
+    template<std::integral X, std::integral Y, Eigen::DenseIndex M = N>
+        requires(M == 2)
+    [[nodiscard]] Eigen::Tensor<T, K, Options> interpolate(
+        const std::tuple<X, Y>& a, const std::tuple<X, Y>& b) const
+    {
+        const Stencil xs =
+            stencil(static_cast<Eigen::DenseIndex>(std::get<0>(a)),
+                    static_cast<Eigen::DenseIndex>(std::get<0>(b)),
+                    histogram_.dimension(0));
+        const Stencil ys =
+            stencil(static_cast<Eigen::DenseIndex>(std::get<1>(a)),
+                    static_cast<Eigen::DenseIndex>(std::get<1>(b)),
+                    histogram_.dimension(1));
+
+        std::array<Eigen::DenseIndex, static_cast<std::size_t>(K)> bins;
+        std::copy_n(histogram_.dimensions().begin() + N, K, bins.begin());
+
+        Eigen::Tensor<T, K, Options> result{bins};
+        interpolate(a, b, result);
+        return result;
+    }
+
+    /**
+     * @brief Evaluates interpolate() into @p result instead of allocating the
+     * histogram.
+     *
+     * Accumulating each bin directly avoids the temporaries of tensor
+     * expressions, which allocate on every evaluation.
+     *
+     * @param result Histogram whose dimensions equal the histogram space
+     * dimensions.
+     */
+    template<std::integral X, std::integral Y, Eigen::DenseIndex M = N>
+        requires(M == 2)
+    void interpolate(const std::tuple<X, Y>& a, const std::tuple<X, Y>& b,
+                     Eigen::Tensor<T, K, Options>& result) const
+    {
+        const Stencil xs =
+            stencil(static_cast<Eigen::DenseIndex>(std::get<0>(a)),
+                    static_cast<Eigen::DenseIndex>(std::get<0>(b)),
+                    histogram_.dimension(0));
+        const Stencil ys =
+            stencil(static_cast<Eigen::DenseIndex>(std::get<1>(a)),
+                    static_cast<Eigen::DenseIndex>(std::get<1>(b)),
+                    histogram_.dimension(1));
+
+        const Eigen::DenseIndex rows = histogram_.dimension(0);
+        const Eigen::DenseIndex cols = histogram_.dimension(1);
+        const Eigen::DenseIndex bins = result.size();
+
+        // Offset of the first bin of the slot (x, y) and the distance between
+        // consecutive bins in the storage of the histogram
+        const auto slot = [rows, cols, bins](Eigen::DenseIndex x,
+                                             Eigen::DenseIndex y) {
+            if constexpr ((Options & Eigen::RowMajor) != 0) {
+                return (x * cols + y) * bins;
+            }
+            else {
+                return x + rows * y;
+            }
+        };
+        const Eigen::DenseIndex stride =
+            (Options & Eigen::RowMajor) != 0 ? 1 : rows * cols;
+
+        const T normalization =
+            static_cast<T>(xs.normalization) * static_cast<T>(ys.normalization);
+        const T* const data = histogram_.data();
+
+        for (Eigen::DenseIndex bin = 0; bin < bins; ++bin) {
+            T sum{0};
+
+            for (std::size_t i = 0; i < xs.size; ++i) {
+                for (std::size_t j = 0; j < ys.size; ++j) {
+                    sum +=
+                        static_cast<T>(xs.weights[i] * ys.weights[j]) *
+                        data[slot(xs.indices[i], ys.indices[j]) + bin * stride];
+                }
+            }
+
+            result.data()[bin] = sum / normalization;
+        }
     }
 
     template<std::integral... Types1, std::integral... Types2>
@@ -336,6 +465,120 @@ private:
                          });
     }
 
+    template<class Result, Eigen::DenseIndex... Indices>
+    void cascade(
+        Result& result,
+        const std::array<Eigen::DenseIndex, static_cast<std::size_t>(N + K)>&
+            dims,
+        std::integer_sequence<Eigen::DenseIndex, Indices...> /*unused*/) const
+    {
+        using U = typename Result::Scalar;
+
+        std::array<Eigen::DenseIndex, static_cast<std::size_t>(N + K)>
+            extended = dims;
+
+        for (std::size_t i = 0; i < static_cast<std::size_t>(N); ++i) {
+            ++extended[i];
+        }
+
+        result.resize(extended);
+        result.setZero();
+
+        // Unlike scan(), the wavefront also covers the last slot of the
+        // first-order integral histogram, i.e., the complete sums along each
+        // dimension.
+        cartesianProduct(
+            std::make_tuple(dims[Indices]...), [this, &result](const auto& i) {
+                auto&& H = detail::chip(result, detail::offset<1>(i));
+                H = detail::propagate(result, i) +
+                    detail::chip(histogram_, i).template cast<U>();
+            });
+    }
+
+    // Two neighboring cell centers with three second finite difference taps
+    // each. Taps beyond the upper domain boundary are extrapolated from the
+    // last two slots, which can add at most two distinct slots.
+    static constexpr std::size_t MaxStencilSize = 8;
+
+    // Sparse weights of the second-order integral histogram slots along a
+    // single dimension.
+    struct Stencil
+    {
+        std::array<Eigen::DenseIndex, MaxStencilSize> indices{};
+        std::array<Eigen::DenseIndex, MaxStencilSize> weights{};
+        std::size_t size = 0;
+        Eigen::DenseIndex normalization = 1;
+
+        void add(Eigen::DenseIndex index, Eigen::DenseIndex weight) noexcept
+        {
+            const auto last = indices.begin() + size;
+            const auto pos = std::find(indices.begin(), last, index);
+
+            if (pos != last) {
+                weights[static_cast<std::size_t>(pos - indices.begin())] +=
+                    weight;
+            }
+            else {
+                assert(size < MaxStencilSize);
+                indices[size] = index;
+                weights[size] = weight;
+                ++size;
+            }
+        }
+    };
+
+    [[nodiscard]] static Stencil stencil(Eigen::DenseIndex first,
+                                         Eigen::DenseIndex last,
+                                         Eigen::DenseIndex extent) noexcept
+    {
+        const Eigen::DenseIndex size = last - first;
+
+        assert(size > 0);
+
+        // Positions next to the geometric center of the cell. Both coincide
+        // for odd cell sizes.
+        const std::array<Eigen::DenseIndex, 2> centers{first + (size - 1) / 2,
+                                                       first + size / 2};
+        // Second finite difference coefficients
+        constexpr std::array<Eigen::DenseIndex, 3> coeffs{1, -2, 1};
+
+        // Besides one slot per input position, the second-order integral
+        // histogram has a leading zero slot and a trailing slot. The slots
+        // grow linearly starting at the last input position since no input
+        // follows it.
+        constexpr Eigen::DenseIndex ExtraSlots = 2;
+        const Eigen::DenseIndex boundary = extent - ExtraSlots;
+
+        Stencil result;
+        result.normalization =
+            static_cast<Eigen::DenseIndex>(centers.size()) * size;
+
+        for (const Eigen::DenseIndex center : centers) {
+            for (std::size_t k = 0; k < coeffs.size(); ++k) {
+                // A position contributes to the slot following it.
+                const Eigen::DenseIndex tap =
+                    center + 1 + (static_cast<Eigen::DenseIndex>(k) - 1) * size;
+
+                if (tap <= 0) {
+                    // Nothing precedes the input domain
+                    continue;
+                }
+
+                if (tap <= boundary) {
+                    result.add(tap, coeffs[k]);
+                }
+                else {
+                    // Linear extrapolation from the last two slots
+                    const Eigen::DenseIndex steps = tap - boundary;
+                    result.add(boundary, coeffs[k] * (1 - steps));
+                    result.add(boundary + 1, coeffs[k] * steps);
+                }
+            }
+        }
+
+        return result;
+    }
+
     template<std::integral... Types>
     void resize(const std::tuple<Types...>& dims)
     {
@@ -350,6 +593,9 @@ private:
     {
         histogram_.resize(std::get<Indices>(dims)...);
     }
+
+    template<Arithmetic U, Eigen::DenseIndex M, Eigen::DenseIndex L, int O>
+    friend class IntegralHistogram;
 
     Tensor histogram_;
 };

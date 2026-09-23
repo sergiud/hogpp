@@ -22,13 +22,17 @@
 #include <Eigen/Core>
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <limits>
 #include <random>
+#include <stdexcept>
 
 #include <hogpp/integralhogdescriptor.hpp>
+#include <hogpp/spatialinterpolation.hpp>
+#include <hogpp/spatialweighting.hpp>
 
 #include <boost/mpl/list.hpp>
 #include <boost/test/included/unit_test.hpp>
@@ -306,6 +310,380 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(features_clip_block_to_small_region, Scalar,
             checkBlockEqual<Scalar>(X, 0, 0, expected);
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(default_descriptor_has_no_spatial_interpolation,
+                              Scalar, Scalars)
+{
+    using Descriptor = hogpp::IntegralHOGDescriptor<Scalar>;
+
+    BOOST_TEST(!Descriptor::spatialInterpolation());
+
+    auto image = makeImage<Scalar>();
+
+    Descriptor d;
+    d.setCellSize(Eigen::Array2i{3, 3});
+    d.setBlockSize(Eigen::Array2i{3, 3});
+    d.setBlockStride(Eigen::Array2i{3, 3});
+    d.compute(image);
+
+    BOOST_CHECK_NO_THROW((void)d.features());
+}
+
+// Leaves block histograms untouched so that features() exposes the raw cell
+// histograms.
+struct IdentityBlockNormalizer
+{
+    template<class Tensor>
+    constexpr void operator()(Tensor& /*block*/) const noexcept
+    {
+    }
+};
+
+template<class Scalar, class SpatialInterpolation>
+using UnnormalizedDescriptor = hogpp::IntegralHOGDescriptor<
+    Scalar, hogpp::Gradient<Scalar>, hogpp::GradientMagnitude<Scalar>,
+    hogpp::UnsignedGradient<Scalar>, IdentityBlockNormalizer,
+    hogpp::NoSpatialWeighting, SpatialInterpolation>;
+
+[[nodiscard]] Eigen::Tensor<double, 3> makeRandomImage(Eigen::DenseIndex rows,
+                                                       Eigen::DenseIndex cols)
+{
+    std::default_random_engine g{1};
+    std::uniform_real_distribution<double> intensity{0.0, 1.0};
+
+    Eigen::Tensor<double, 3> image(rows, cols, 1);
+
+    for (Eigen::DenseIndex i = 0; i < image.size(); ++i) {
+        image.data()[i] = intensity(g);
+    }
+
+    return image;
+}
+
+// Orientation votes of each individual pixel as a rows x cols x bins tensor.
+// Cells and blocks of a single pixel do not mix votes of neighboring pixels.
+[[nodiscard]] Eigen::Tensor<double, 3> pixelVotes(
+    const Eigen::Tensor<double, 3>& image)
+{
+    const Eigen::Array2i pixel{1, 1};
+
+    UnnormalizedDescriptor<double, hogpp::NoSpatialInterpolation> d;
+    d.setCellSize(pixel);
+    d.setBlockSize(pixel);
+    d.setBlockStride(pixel);
+    d.compute(image);
+
+    const Eigen::Tensor<double, 5> X = d.features();
+    return X.chip<3>(0).chip<2>(0);
+}
+
+// Spatial half of the trilinear interpolation by Dalal and Triggs: a pixel
+// votes into a cell with the weight (1 - |dx| / sx) (1 - |dy| / sy) where
+// (dx, dy) is the distance of the pixel to the geometric center of the cell
+// and (sx, sy) the cell size. Pixels outside the image do not vote.
+[[nodiscard]] Eigen::Tensor<double, 1> bruteForceBilinearSplat(
+    const Eigen::Tensor<double, 3>& votes, const Eigen::Array2i& offset,
+    const Eigen::Array2i& cellSize)
+{
+    const Eigen::Array2d size = cellSize.cast<double>();
+    const Eigen::Array2d center = offset.cast<double>() + (size - 1) / 2;
+
+    const Eigen::Array2i first = (offset - cellSize).max(0);
+    const Eigen::Array2i last =
+        (offset + 2 * cellSize)
+            .min(Eigen::Array2i{votes.dimension(0), votes.dimension(1)});
+
+    Eigen::Tensor<double, 1> h(votes.dimension(2));
+    h.setZero();
+
+    for (int i = first.x(); i < last.x(); ++i) {
+        const double wx =
+            std::max(0.0, 1 - std::abs(i - center.x()) / size.x());
+
+        for (int j = first.y(); j < last.y(); ++j) {
+            const double wy =
+                std::max(0.0, 1 - std::abs(j - center.y()) / size.y());
+
+            h += votes.chip<0>(i).chip<0>(j) * (wx * wy);
+        }
+    }
+
+    return h;
+}
+
+// Plain sum of the votes within the cell.
+[[nodiscard]] Eigen::Tensor<double, 1> bruteForceBoxSum(
+    const Eigen::Tensor<double, 3>& votes, const Eigen::Array2i& offset,
+    const Eigen::Array2i& cellSize)
+{
+    Eigen::Tensor<double, 1> h(votes.dimension(2));
+    h.setZero();
+
+    for (int i = offset.x(); i < offset.x() + cellSize.x(); ++i) {
+        for (int j = offset.y(); j < offset.y() + cellSize.y(); ++j) {
+            h += votes.chip<0>(i).chip<0>(j);
+        }
+    }
+
+    return h;
+}
+
+// Largest absolute deviation of the cell histograms from the reference
+// relative to the largest absolute reference value.
+template<class Scalar, class SpatialInterpolation, class Reference>
+[[nodiscard]] double relativeError(const Eigen::Tensor<double, 3>& image,
+                                   const Eigen::Array2i& cellSize,
+                                   Reference reference)
+{
+    const Eigen::Tensor<double, 3> votes = pixelVotes(image);
+
+    UnnormalizedDescriptor<Scalar, SpatialInterpolation> d;
+    d.setCellSize(cellSize);
+    d.setBlockSize(cellSize);
+    d.setBlockStride(cellSize);
+    d.compute(Eigen::Tensor<Scalar, 3>{image.cast<Scalar>()});
+
+    const Eigen::Tensor<Scalar, 5> X = d.features();
+
+    // Cells must tile the whole image for the border cells to be covered.
+    BOOST_TEST(X.dimension(0) * cellSize.x() == image.dimension(0));
+    BOOST_TEST(X.dimension(1) * cellSize.y() == image.dimension(1));
+
+    double maxAbsError = 0;
+    double maxAbsExpected = 0;
+
+    for (int i = 0; i < X.dimension(0); ++i) {
+        for (int j = 0; j < X.dimension(1); ++j) {
+            const Eigen::Tensor<double, 1> expected =
+                reference(votes, Eigen::Array2i{i, j} * cellSize, cellSize);
+
+            for (Eigen::DenseIndex k = 0; k < expected.dimension(0); ++k) {
+                const auto actual = static_cast<double>(X(i, j, 0, 0, k));
+                maxAbsError =
+                    std::max(maxAbsError, std::abs(actual - expected(k)));
+                maxAbsExpected =
+                    std::max(maxAbsExpected, std::abs(expected(k)));
+            }
+        }
+    }
+
+    return maxAbsError / maxAbsExpected;
+}
+
+template<class Scalar>
+void checkTrilinearInterpolationAgainstBruteForce(
+    Eigen::DenseIndex rows, Eigen::DenseIndex cols,
+    const Eigen::Array2i& cellSize)
+{
+    const double error = relativeError<Scalar, hogpp::TrilinearInterpolation>(
+        makeRandomImage(rows, cols), cellSize, bruteForceBilinearSplat);
+
+    using std::sqrt;
+    const auto tolerance =
+        static_cast<double>(sqrt(std::numeric_limits<Scalar>::epsilon()));
+
+    BOOST_TEST(error <= tolerance);
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(trilinear_interpolation_even_cell_size, Scalar,
+                              Scalars)
+{
+    constexpr Eigen::DenseIndex Rows = 40;
+    constexpr Eigen::DenseIndex Cols = 48;
+
+    checkTrilinearInterpolationAgainstBruteForce<Scalar>(Rows, Cols,
+                                                         Eigen::Array2i{8, 6});
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(trilinear_interpolation_odd_cell_size, Scalar,
+                              Scalars)
+{
+    constexpr Eigen::DenseIndex Rows = 35;
+    constexpr Eigen::DenseIndex Cols = 40;
+
+    checkTrilinearInterpolationAgainstBruteForce<Scalar>(Rows, Cols,
+                                                         Eigen::Array2i{7, 5});
+}
+
+// Single precision loses accuracy with the image size already in the
+// first-order integral histogram. Trilinear interpolation must not lose
+// substantially more than the plain box sum on top of that.
+BOOST_AUTO_TEST_CASE(trilinear_interpolation_large_float_image)
+{
+    constexpr Eigen::DenseIndex Size = 512;
+    // Admissible ratio of both relative errors
+    constexpr double Slack = 2;
+
+    const Eigen::Tensor<double, 3> image = makeRandomImage(Size, Size);
+    const Eigen::Array2i cellSize{8, 8};
+
+    const double boxError = relativeError<float, hogpp::NoSpatialInterpolation>(
+        image, cellSize, bruteForceBoxSum);
+    const double trilinearError =
+        relativeError<float, hogpp::TrilinearInterpolation>(
+            image, cellSize, bruteForceBilinearSplat);
+
+    BOOST_TEST(trilinearError <= Slack * boxError);
+}
+
+// Gaussian weight of the block-relative position u along an axis with the
+// block extent normalized by the weight of the position closest to the block
+// center. Positions outside of the block are weighted by the same formula.
+[[nodiscard]] double gaussianWeight(int u, int extent, double sigma)
+{
+    const double distance = u - (extent - 1) / 2.0;
+    const double closest = extent % 2 == 0 ? 0.5 : 0.0;
+
+    return std::exp(-(distance * distance - closest * closest) /
+                    (2 * sigma * sigma));
+}
+
+// Bilinear splat of the votes into the cell at the offset with each vote
+// additionally weighted by the Gaussian of its position relative to the block
+// origin.
+[[nodiscard]] Eigen::Tensor<double, 1> bruteForceWeightedBilinearSplat(
+    const Eigen::Tensor<double, 3>& votes, const Eigen::Array2i& blockOrigin,
+    const Eigen::Array2i& blockSize, double sigma, const Eigen::Array2i& offset,
+    const Eigen::Array2i& cellSize)
+{
+    const Eigen::Array2d size = cellSize.cast<double>();
+    const Eigen::Array2d center = offset.cast<double>() + (size - 1) / 2;
+
+    const Eigen::Array2i first = (offset - cellSize).max(0);
+    const Eigen::Array2i last =
+        (offset + 2 * cellSize)
+            .min(Eigen::Array2i{votes.dimension(0), votes.dimension(1)});
+
+    Eigen::Tensor<double, 1> h(votes.dimension(2));
+    h.setZero();
+
+    for (int i = first.x(); i < last.x(); ++i) {
+        const double wx =
+            std::max(0.0, 1 - std::abs(i - center.x()) / size.x()) *
+            gaussianWeight(i - blockOrigin.x(), blockSize.x(), sigma);
+
+        for (int j = first.y(); j < last.y(); ++j) {
+            const double wy =
+                std::max(0.0, 1 - std::abs(j - center.y()) / size.y()) *
+                gaussianWeight(j - blockOrigin.y(), blockSize.y(), sigma);
+
+            h += votes.chip<0>(i).chip<0>(j) * (wx * wy);
+        }
+    }
+
+    return h;
+}
+
+template<class Scalar>
+using WeightedTrilinearDescriptor = hogpp::IntegralHOGDescriptor<
+    Scalar, hogpp::Gradient<Scalar>, hogpp::GradientMagnitude<Scalar>,
+    hogpp::UnsignedGradient<Scalar>, IdentityBlockNormalizer,
+    hogpp::GaussianWeighting<Scalar>, hogpp::TrilinearInterpolation>;
+
+// Largest absolute deviation of the weighted and interpolated cell histograms
+// of all blocks from the reference relative to the largest absolute reference
+// value.
+template<class Scalar>
+[[nodiscard]] double weightedRelativeError(
+    const Eigen::Tensor<double, 3>& image, const Eigen::Array2i& cellSize,
+    const Eigen::Array2i& blockSize, const Eigen::Array2i& stride, double sigma)
+{
+    const Eigen::Tensor<double, 3> votes = pixelVotes(image);
+
+    WeightedTrilinearDescriptor<Scalar> d{
+        hogpp::Gradient<Scalar>{}, hogpp::GradientMagnitude<Scalar>{},
+        hogpp::UnsignedGradient<Scalar>{}, IdentityBlockNormalizer{},
+        hogpp::GaussianWeighting<Scalar>{static_cast<Scalar>(sigma)}};
+    d.setCellSize(cellSize);
+    d.setBlockSize(blockSize);
+    d.setBlockStride(stride);
+    d.compute(Eigen::Tensor<Scalar, 3>{image.cast<Scalar>()});
+
+    const Eigen::Tensor<Scalar, 5> X = d.features();
+    const Eigen::Array2i lastBlockOffset =
+        Eigen::Array2i{image.dimension(0), image.dimension(1)} - blockSize;
+
+    double maxAbsError = 0;
+    double maxAbsExpected = 0;
+
+    for (int i = 0; i < X.dimension(0); ++i) {
+        for (int j = 0; j < X.dimension(1); ++j) {
+            const Eigen::Array2i blockOrigin =
+                (Eigen::Array2i{i, j} * stride).min(lastBlockOffset);
+
+            for (int k = 0; k < X.dimension(2); ++k) {
+                for (int l = 0; l < X.dimension(3); ++l) {
+                    const Eigen::Tensor<double, 1> expected =
+                        bruteForceWeightedBilinearSplat(
+                            votes, blockOrigin, blockSize, sigma,
+                            blockOrigin + Eigen::Array2i{k, l} * cellSize,
+                            cellSize);
+
+                    for (Eigen::DenseIndex b = 0; b < expected.dimension(0);
+                         ++b) {
+                        const auto actual =
+                            static_cast<double>(X(i, j, k, l, b));
+                        maxAbsError = std::max(maxAbsError,
+                                               std::abs(actual - expected(b)));
+                        maxAbsExpected =
+                            std::max(maxAbsExpected, std::abs(expected(b)));
+                    }
+                }
+            }
+        }
+    }
+
+    return maxAbsError / maxAbsExpected;
+}
+
+// Combines the Gaussian down-weighting with the trilinear interpolation for
+// block strides at and below the cell size, which select different
+// evaluations of the weighting, and for blocks placed flush with the border.
+BOOST_AUTO_TEST_CASE_TEMPLATE(trilinear_interpolation_with_gaussian_weighting,
+                              Scalar, Scalars)
+{
+    constexpr Eigen::DenseIndex Rows = 30;
+    constexpr Eigen::DenseIndex Cols = 37;
+    constexpr double Sigma = 5;
+
+    const Eigen::Array2i cellSize{4, 5};
+    const Eigen::Array2i blockSize = 2 * cellSize;
+    const std::array strides{cellSize, Eigen::Array2i{2, 3}};
+
+    const Eigen::Tensor<double, 3> image = makeRandomImage(Rows, Cols);
+
+    using std::sqrt;
+    const auto tolerance =
+        static_cast<double>(sqrt(std::numeric_limits<Scalar>::epsilon()));
+
+    for (const Eigen::Array2i& stride : strides) {
+        BOOST_TEST(weightedRelativeError<Scalar>(image, cellSize, blockSize,
+                                                 stride, Sigma) <= tolerance);
+    }
+}
+
+// The weighted votes are recovered from the single precision integral
+// histogram, which loses accuracy with the image size. The weighting must not
+// lose substantially more than the unweighted interpolation on top of that.
+BOOST_AUTO_TEST_CASE(
+    trilinear_interpolation_with_gaussian_weighting_large_float_image)
+{
+    constexpr Eigen::DenseIndex Size = 256;
+    constexpr double Sigma = 8;
+    // Admissible ratio of both relative errors
+    constexpr double Slack = 2;
+
+    const Eigen::Tensor<double, 3> image = makeRandomImage(Size, Size);
+    const Eigen::Array2i cellSize{8, 8};
+
+    const double trilinearError =
+        relativeError<float, hogpp::TrilinearInterpolation>(
+            image, cellSize, bruteForceBilinearSplat);
+    const double weightedError = weightedRelativeError<float>(
+        image, cellSize, 2 * cellSize, cellSize, Sigma);
+
+    BOOST_TEST(weightedError <= Slack * trilinearError);
 }
 
 // A single non-finite pixel (e.g. from masked/invalid input data) must

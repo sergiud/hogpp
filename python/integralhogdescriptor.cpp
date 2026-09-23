@@ -22,6 +22,8 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -195,6 +197,108 @@ template<class T>
     return pybind11::none{};
 }
 
+// Converts a positive sigma to the working precision.
+template<class Scalar>
+[[nodiscard]] hogpp::GaussianWeighting<Scalar> makeGaussianWeighting(
+    double sigma)
+{
+    using namespace fmt::literals;
+
+    constexpr auto max = std::numeric_limits<Scalar>::max();
+
+    // Converting a value outside of the range of the working precision is
+    // undefined.
+    if (!(sigma <= max)) {
+        throw std::invalid_argument{fmt::format(
+            "IntegralHOGDescriptor sigma must lie within [0, {max}] in the "
+            "working precision but {value} was given",
+            "max"_a = max, "value"_a = sigma)};
+    }
+
+    const auto value = static_cast<Scalar>(sigma);
+
+    using std::fpclassify;
+
+    // Report the value before rounding instead of the rounded 0.
+    if (fpclassify(value) == FP_ZERO) {
+        throw std::invalid_argument{fmt::format(
+            "IntegralHOGDescriptor sigma must be at least {min} in the working "
+            "precision but {value} was given",
+            "min"_a = std::numeric_limits<Scalar>::denorm_min(),
+            "value"_a = sigma)};
+    }
+
+    return hogpp::GaussianWeighting<Scalar>{value};
+}
+
+// Selects the descriptor type at runtime. A zero sigma selects the descriptor
+// without spatial weighting which avoids any of its overhead.
+template<class Scalar>
+[[nodiscard]] DescriptorVariant makeDescriptor(double sigma,
+                                               InterpolationType interpolation)
+{
+    if (interpolation == InterpolationType::Trilinear) {
+        if (sigma > 0) {
+            return GaussianTrilinearDescriptor<Scalar>{
+                hogpp::Gradient<Scalar>{}, Magnitude<Scalar>{},
+                Binning<Scalar>{}, BlockNormalizer<Scalar>{},
+                makeGaussianWeighting<Scalar>(sigma)};
+        }
+
+        return TrilinearDescriptor<Scalar>{};
+    }
+
+    if (sigma > 0) {
+        return GaussianDescriptor<Scalar>{
+            hogpp::Gradient<Scalar>{}, Magnitude<Scalar>{}, Binning<Scalar>{},
+            BlockNormalizer<Scalar>{}, makeGaussianWeighting<Scalar>(sigma)};
+    }
+
+    return Descriptor<Scalar>{};
+}
+
+// Converts a single element of a pickled state. pybind11 reports a failed
+// conversion of the whole state as a RuntimeError that names neither the
+// offending element nor its type.
+template<class T>
+[[nodiscard]] T castStateElement(const pybind11::tuple& value,
+                                 std::size_t index)
+{
+    const pybind11::handle element = value[index];
+
+    try {
+        return pybind11::cast<T>(element);
+    }
+    catch (const pybind11::cast_error&) {
+        using namespace fmt::literals;
+
+        // pybind11::type_id is specific to pybind11. nanobind provides
+        // nanobind::type_name instead.
+        throw pybind11::type_error{fmt::format(
+            "IntegralHOGDescriptor state element {index} of type {actual} "
+            "cannot be converted to {expected}",
+            "index"_a = index,
+            "actual"_a = pybind11::cast<std::string>(
+                pybind11::type::handle_of(element).attr("__name__")),
+            "expected"_a = pybind11::type_id<T>())};
+    }
+}
+
+template<class Tuple, std::size_t... Indices>
+[[nodiscard]] Tuple castState(const pybind11::tuple& value,
+                              std::index_sequence<Indices...> /*unused*/)
+{
+    return Tuple{castStateElement<std::tuple_element_t<Indices, Tuple>>(
+        value, Indices)...};
+}
+
+template<class Tuple>
+[[nodiscard]] Tuple castState(const pybind11::tuple& value)
+{
+    return castState<Tuple>(
+        value, std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+}
+
 } // namespace
 
 IntegralHOGDescriptor::IntegralHOGDescriptor(
@@ -209,7 +313,7 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
         clipNorm,
     const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
         epsilon,
-    double sigma)
+    double sigma, const std::optional<InterpolationType>& interpolation)
     : cellSize_{cellSize}
     , blockSize_{blockSize}
     , blockStride_{blockStride}
@@ -220,6 +324,7 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     , clipNorm_{clipNorm}
     , epsilon_{epsilon}
     , sigma_{sigma}
+    , interpolationType_{interpolation}
 {
     // Delay setting parameters until we know the floating point type we
     // will be working with.
@@ -293,76 +398,36 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
         blockNormalizerType_ = BlockNormalizerType::L2Hys;
     }
 
+    if (interpolationType_) {
+        // Selects which precompiled variant is active, so unlike other
+        // settings it must be applied eagerly rather than via a setter. The
+        // spatial weighting is applied once the working precision is known
+        // since sigma may not be representable in single precision.
+        descriptor_ = makeDescriptor<float>(0, *interpolationType_);
+    }
+
     update();
-}
-
-// Converts a positive sigma to the working precision.
-template<class Scalar>
-[[nodiscard]] hogpp::GaussianWeighting<Scalar> makeGaussianWeighting(
-    double sigma)
-{
-    using namespace fmt::literals;
-
-    constexpr auto max = std::numeric_limits<Scalar>::max();
-
-    // Converting a value outside of the range of the working precision is
-    // undefined.
-    if (!(sigma <= max)) {
-        throw std::invalid_argument{fmt::format(
-            "IntegralHOGDescriptor sigma must lie within [0, {max}] in the "
-            "working precision but {value} was given",
-            "max"_a = max, "value"_a = sigma)};
-    }
-
-    const auto value = static_cast<Scalar>(sigma);
-
-    using std::fpclassify;
-
-    // Report the value before rounding instead of the rounded 0.
-    if (fpclassify(value) == FP_ZERO) {
-        throw std::invalid_argument{fmt::format(
-            "IntegralHOGDescriptor sigma must be at least {min} in the working "
-            "precision but {value} was given",
-            "min"_a = std::numeric_limits<Scalar>::denorm_min(),
-            "value"_a = sigma)};
-    }
-
-    return hogpp::GaussianWeighting<Scalar>{value};
-}
-
-// Selects the descriptor type at runtime. A zero sigma selects the descriptor
-// without spatial weighting which avoids any of its overhead.
-template<class Scalar>
-[[nodiscard]] DescriptorVariant makeDescriptor(double sigma)
-{
-    if (sigma > 0) {
-        return GaussianDescriptor<Scalar>{
-            hogpp::Gradient<Scalar>{}, Magnitude<Scalar>{}, Binning<Scalar>{},
-            BlockNormalizer<Scalar>{}, makeGaussianWeighting<Scalar>(sigma)};
-    }
-
-    return Descriptor<Scalar>{};
 }
 
 [[nodiscard]] DescriptorVariant makeDescriptor(
     [[maybe_unused]] const pybind11::dtype& dt, TypeSequence<> /*unused*/,
-    double sigma)
+    double sigma, InterpolationType interpolation)
 {
     // Default descriptor instance if floating point was not matched against
     // supported types.
-    return makeDescriptor<double>(sigma);
+    return makeDescriptor<double>(sigma, interpolation);
 }
 
 template<class Scalar, class... Scalars>
 [[nodiscard]] DescriptorVariant makeDescriptor(
     const pybind11::dtype& dt, TypeSequence<Scalar, Scalars...> /*unused*/,
-    double sigma)
+    double sigma, InterpolationType interpolation)
 {
     if (dt.equal(pybind11::dtype::of<Scalar>())) {
-        return makeDescriptor<Scalar>(sigma);
+        return makeDescriptor<Scalar>(sigma, interpolation);
     }
 
-    return makeDescriptor(dt, TypeSequence<Scalars...>{}, sigma);
+    return makeDescriptor(dt, TypeSequence<Scalars...>{}, sigma, interpolation);
 }
 
 void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
@@ -751,7 +816,9 @@ void IntegralHOGDescriptor::update()
 
 void IntegralHOGDescriptor::update(const pybind11::dtype& dt)
 {
-    descriptor_ = makeDescriptor(dt, PrecisionTypes{}, sigma_);
+    descriptor_ = makeDescriptor(
+        dt, PrecisionTypes{}, sigma_,
+        interpolationType_.value_or(InterpolationType::Orientation));
     update();
 }
 
@@ -775,6 +842,18 @@ MagnitudeType IntegralHOGDescriptor::magnitude() const
 {
     return std::visit(
         [](const auto& descriptor) { return descriptor.magnitude().type(); },
+        descriptor_);
+}
+
+InterpolationType IntegralHOGDescriptor::interpolation() const
+{
+    return std::visit(
+        [](const auto& descriptor) {
+            using Descriptor = std::decay_t<decltype(descriptor)>;
+            return Descriptor::spatialInterpolation()
+                       ? InterpolationType::Trilinear
+                       : InterpolationType::Orientation;
+        },
         descriptor_);
 }
 
@@ -840,6 +919,7 @@ IntegralHOGDescriptor::State IntegralHOGDescriptor::state() const
         , histogram()
         , sigma_
         , weightedHistogram()
+        , interpolationType_
     )
     ;
     // clang-format on
@@ -848,14 +928,38 @@ IntegralHOGDescriptor::State IntegralHOGDescriptor::state() const
 IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
     const pybind11::tuple& value)
 {
-    if (pybind11::len(value) == std::tuple_size_v<LegacyState>) {
-        // Pickled without spatial weighting
+    constexpr std::size_t LegacySize = std::tuple_size_v<LegacyState>;
+    constexpr std::size_t WeightedSize = std::tuple_size_v<WeightedState>;
+    constexpr std::size_t Size = std::tuple_size_v<State>;
+
+    const std::size_t size = value.size();
+
+    if (size == LegacySize) {
+        // Pickled without spatial weighting and interpolation
         return fromState(std::tuple_cat(
-            pybind11::cast<LegacyState>(value),
-            std::make_tuple(0.0, pybind11::object{pybind11::none{}})));
+            castState<LegacyState>(value),
+            std::make_tuple(0.0, pybind11::object{pybind11::none{}},
+                            std::optional<InterpolationType>{})));
     }
 
-    return fromState(pybind11::cast<State>(value));
+    if (size == WeightedSize) {
+        // Pickled without spatial interpolation
+        return fromState(std::tuple_cat(
+            castState<WeightedState>(value),
+            std::make_tuple(std::optional<InterpolationType>{})));
+    }
+
+    if (size == Size) {
+        return fromState(castState<State>(value));
+    }
+
+    using namespace fmt::literals;
+
+    throw pybind11::type_error{fmt::format(
+        "IntegralHOGDescriptor state must consist of {legacy}, {weighted} or "
+        "{current} elements but {actual} were given",
+        "legacy"_a = LegacySize, "weighted"_a = WeightedSize,
+        "current"_a = Size, "actual"_a = size)};
 }
 
 IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
@@ -864,10 +968,12 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
     constexpr auto HistogramIndex = std::tuple_size_v<LegacyState> - 1;
     constexpr auto SigmaIndex = HistogramIndex + 1;
     constexpr auto WeightedHistogramIndex = SigmaIndex + 1;
+    constexpr auto InterpolationIndex = WeightedHistogramIndex + 1;
 
-    auto result = std::make_from_tuple<IntegralHOGDescriptor>(
-        std::tuple_cat(tuple_head<HistogramIndex>(value),
-                       std::forward_as_tuple(std::get<SigmaIndex>(value))));
+    auto result = std::make_from_tuple<IntegralHOGDescriptor>(std::tuple_cat(
+        tuple_head<HistogramIndex>(value),
+        std::forward_as_tuple(std::get<SigmaIndex>(value),
+                              std::get<InterpolationIndex>(value))));
 
     pybind11::object histogram = std::get<HistogramIndex>(value);
 
@@ -932,7 +1038,7 @@ std::string IntegralHOGDescriptor::repr() const
         sigma = pybind11::float_{sigma_};
     }
 
-    constexpr std::size_t NumCtorArgs = 10;
+    constexpr std::size_t NumCtorArgs = 11;
     const std::array<std::pair<std::string_view, pybind11::object>, NumCtorArgs>
         args{{
             {"cell_size", asTuple(cellSize_)},
@@ -945,6 +1051,7 @@ std::string IntegralHOGDescriptor::repr() const
             {"clip_norm", pybind11::cast(clipNorm_)},
             {"epsilon", pybind11::cast(epsilon_)},
             {"sigma", sigma},
+            {"interpolation", pybind11::cast(interpolationType_)},
         }};
 
     std::vector<std::string> argvals;

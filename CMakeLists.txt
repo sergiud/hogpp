@@ -18,6 +18,7 @@ set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 list (APPEND CMAKE_MODULE_PATH ${hogpp_SOURCE_DIR}/cmake)
 
 include (CheckCXXCompilerFlag)
+include (CheckCXXSourceCompiles)
 include (CheckCXXSymbolExists)
 include (CTest)
 include (GNUInstallDirs)
@@ -93,6 +94,13 @@ endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
 
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
 
+# Replacing the allocation functions of glibc allows tests to observe the heap.
+check_cxx_source_compiles ("
+#include <cstddef>
+extern \"C\" void* __libc_malloc(std::size_t size);
+int main() { return __libc_malloc(1) == nullptr; }
+" HAVE_LIBC_MALLOC)
+
 if (WIN32)
   add_compile_definitions (NOMINMAX)
   add_compile_definitions (WIN32_LEAN_AND_MEAN)
@@ -150,6 +158,8 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     python/hogpp.hpp
     python/integralhogdescriptor.cpp
     python/integralhogdescriptor.hpp
+    python/interpolation.cpp
+    python/interpolation.hpp
     python/magnitude.cpp
     python/magnitude.hpp
   )
@@ -208,6 +218,9 @@ if (BUILD_TESTING)
     add_test (NAME integral_histogram_full COMMAND test_integral_histogram -t full)
     add_test (NAME integral_histogram_sub COMMAND test_integral_histogram -t sub)
     add_test (NAME integral_histogram_volumetric COMMAND test_integral_histogram -t volumetric)
+    add_test (NAME integral_histogram_cascade_matches_closed_form_for_constant_field COMMAND test_integral_histogram -t cascade_matches_closed_form_for_constant_field)
+    add_test (NAME integral_histogram_interpolate_matches_brute_force_bilinear_splat COMMAND test_integral_histogram -t interpolate_matches_brute_force_bilinear_splat)
+    add_test (NAME integral_histogram_interpolate_unsigned_coordinates_near_lower_boundary COMMAND test_integral_histogram -t interpolate_unsigned_coordinates_near_lower_boundary)
 
     add_executable (test_cartesian_product tests/cpp/test_cartesian_product.cpp)
     target_link_libraries (test_cartesian_product PRIVATE hogpp::hogpp
@@ -283,6 +296,35 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_nan_pixel_float COMMAND test_descriptor -t "nan_pixel<float>")
     add_test (NAME descriptor_nan_pixel_double COMMAND test_descriptor -t "nan_pixel<double>")
     add_test (NAME descriptor_nan_pixel_long_double COMMAND test_descriptor -t "nan_pixel<long double>")
+
+    add_test (NAME descriptor_default_descriptor_has_no_spatial_interpolation_float COMMAND test_descriptor -t "default_descriptor_has_no_spatial_interpolation<float>")
+    add_test (NAME descriptor_default_descriptor_has_no_spatial_interpolation_double COMMAND test_descriptor -t "default_descriptor_has_no_spatial_interpolation<double>")
+    add_test (NAME descriptor_default_descriptor_has_no_spatial_interpolation_long_double COMMAND test_descriptor -t "default_descriptor_has_no_spatial_interpolation<long double>")
+
+    add_test (NAME descriptor_trilinear_interpolation_even_cell_size_float COMMAND test_descriptor -t "trilinear_interpolation_even_cell_size<float>")
+    add_test (NAME descriptor_trilinear_interpolation_even_cell_size_double COMMAND test_descriptor -t "trilinear_interpolation_even_cell_size<double>")
+    add_test (NAME descriptor_trilinear_interpolation_even_cell_size_long_double COMMAND test_descriptor -t "trilinear_interpolation_even_cell_size<long double>")
+    add_test (NAME descriptor_trilinear_interpolation_odd_cell_size_float COMMAND test_descriptor -t "trilinear_interpolation_odd_cell_size<float>")
+    add_test (NAME descriptor_trilinear_interpolation_odd_cell_size_double COMMAND test_descriptor -t "trilinear_interpolation_odd_cell_size<double>")
+    add_test (NAME descriptor_trilinear_interpolation_odd_cell_size_long_double COMMAND test_descriptor -t "trilinear_interpolation_odd_cell_size<long double>")
+    add_test (NAME descriptor_trilinear_interpolation_large_float_image COMMAND test_descriptor -t trilinear_interpolation_large_float_image)
+
+    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_float COMMAND test_descriptor -t "trilinear_interpolation_with_gaussian_weighting<float>")
+    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_double COMMAND test_descriptor -t "trilinear_interpolation_with_gaussian_weighting<double>")
+    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_long_double COMMAND test_descriptor -t "trilinear_interpolation_with_gaussian_weighting<long double>")
+    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_large_float_image COMMAND test_descriptor -t trilinear_interpolation_with_gaussian_weighting_large_float_image)
+
+    if (HAVE_LIBC_MALLOC)
+      add_executable (test_allocations tests/cpp/test_allocations.cpp)
+      target_link_libraries (test_allocations PRIVATE hogpp::hogpp
+        Boost::unit_test_framework)
+
+      foreach (_type IN ITEMS float double)
+        add_test (NAME allocations_trilinear_features_allocate_no_more_per_cell_${_type} COMMAND test_allocations -t "trilinear_features_allocate_no_more_per_cell<${_type}>")
+        add_test (NAME allocations_weighted_trilinear_features_allocate_no_more_per_cell_${_type} COMMAND test_allocations -t "weighted_trilinear_features_allocate_no_more_per_cell<${_type}>")
+        add_test (NAME allocations_trilinear_recompute_keeps_one_cascade_${_type} COMMAND test_allocations -t "trilinear_recompute_keeps_one_cascade<${_type}>")
+      endforeach (_type IN ITEMS float double)
+    endif (HAVE_LIBC_MALLOC)
 
     add_executable (test_multiply_add tests/cpp/test_multiply_add.cpp)
     target_link_libraries (test_multiply_add PRIVATE hogpp::hogpp

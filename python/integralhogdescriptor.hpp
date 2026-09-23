@@ -32,27 +32,48 @@
 
 #include <hogpp/bounds.hpp>
 #include <hogpp/integralhogdescriptor.hpp>
+#include <hogpp/spatialinterpolation.hpp>
 #include <hogpp/spatialweighting.hpp>
 
 #include "binning.hpp"
 #include "blocknormalizer.hpp"
+#include "interpolation.hpp"
 #include "magnitude.hpp"
 #include "type_caster/typesequence.hpp"
 
-template<class T, class SpatialWeighting = hogpp::NoSpatialWeighting>
+template<class T, class SpatialWeighting = hogpp::NoSpatialWeighting,
+         class SpatialInterpolation = hogpp::NoSpatialInterpolation>
 using Descriptor =
     hogpp::IntegralHOGDescriptor<T, hogpp::Gradient<T>, Magnitude<T>,
                                  Binning<T>, BlockNormalizer<T>,
-                                 SpatialWeighting>;
+                                 SpatialWeighting, SpatialInterpolation>;
 
 template<class T>
 using GaussianDescriptor = Descriptor<T, hogpp::GaussianWeighting<T>>;
 
-// Every precision is combined with every spatial weighting.
+template<class T>
+using TrilinearDescriptor =
+    Descriptor<T, hogpp::NoSpatialWeighting, hogpp::TrilinearInterpolation>;
+
+template<class T>
+using GaussianTrilinearDescriptor =
+    Descriptor<T, hogpp::GaussianWeighting<T>, hogpp::TrilinearInterpolation>;
+
+// Every precision is combined with every spatial weighting and interpolation.
+// The traits are compile-time parameters, so runtime selection has to pick
+// among precompiled types.
 template<class... T>
 struct MakeDescriptorVariant_t
 {
-    using type = std::variant<Descriptor<T>..., GaussianDescriptor<T>...>;
+    // clang-format off
+    using type = std::variant
+    <
+          Descriptor<T>...
+        , GaussianDescriptor<T>...
+        , TrilinearDescriptor<T>...
+        , GaussianTrilinearDescriptor<T>...
+    >;
+    // clang-format on
 };
 
 template<class... T>
@@ -222,10 +243,16 @@ public:
     // clang-format on
 
     // Appends sigma and the integral histogram of the spatially weighted votes
-    // which restores the weighted features exactly.
-    using State = decltype(std::tuple_cat(
+    // which restores the weighted features exactly. Pickled state of versions
+    // without spatial interpolation.
+    using WeightedState = decltype(std::tuple_cat(
         std::declval<LegacyState>(),
         std::declval<std::tuple<double, pybind11::object>>()));
+
+    // Appends the spatial interpolation.
+    using State = decltype(std::tuple_cat(
+        std::declval<WeightedState>(),
+        std::declval<std::tuple<std::optional<InterpolationType>>>()));
 
     [[nodiscard]] explicit IntegralHOGDescriptor(
         const std::optional<Eigen::Array2i>& cellSize,
@@ -239,7 +266,7 @@ public:
             clipNorm,
         const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
             epsilon,
-        double sigma);
+        double sigma, const std::optional<InterpolationType>& interpolation);
 
     void compute(const Rank2Or3Tensor& image, const pybind11::handle& mask);
     void compute(const Rank2Or3TensorPair& dydx, const pybind11::handle& mask);
@@ -260,6 +287,7 @@ public:
     [[nodiscard]] pybind11::object clipNorm() const noexcept;
     [[nodiscard]] pybind11::object epsilon() const noexcept;
     [[nodiscard]] double sigma() const noexcept;
+    [[nodiscard]] InterpolationType interpolation() const;
     [[nodiscard]] explicit operator bool() const noexcept;
 
     [[nodiscard]] State state() const;
@@ -286,6 +314,7 @@ private:
     // Standard deviation of the Gaussian spatial weighting in pixels. 0
     // disables the weighting.
     double sigma_ = 0;
+    std::optional<InterpolationType> interpolationType_;
 
     DescriptorVariant descriptor_;
 };
