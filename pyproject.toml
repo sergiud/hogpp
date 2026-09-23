@@ -61,7 +61,6 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -72,7 +71,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license = {text = "Apache License (2.0)"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 [tool.scikit-build.metadata.version]
 provider = 'scikit_build_core.metadata.regex'
