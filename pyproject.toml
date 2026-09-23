@@ -9,6 +9,7 @@ build-backend = 'scikit_build_core.build'
 minimum-version = 'build-system.requires'
 ninja.version = ">=1.11"
 build.targets = ['pyhogpp']
+wheel.py-api = 'cp312'
 sdist.exclude = [
     '*',
     '!/CMakeLists.txt',
@@ -42,20 +43,9 @@ test-requires = [
 ]
 test-command = 'pytest -W error {project}/tests/python/module'
 
-# Non-free-threaded CPython >= 3.12 (identifier cp312-*) builds a single
-# stable ABI (abi3) wheel that covers 3.12 and later, so cp313-*/cp314-*
-# would otherwise redundantly rebuild an equivalent abi3 wheel and are
-# skipped. The free-threaded cp313t-*/cp314t-* identifiers aren't matched
-# by either pattern (the "t" replaces the dash) and keep building their
-# own per-version wheel, same as CPython 3.10/3.11 and PyPy, none of
-# which can use the stable ABI. SKBUILD_WHEEL_PY_API is scikit-build-core's
-# environment override for the wheel.py-api setting.
-skip = ["cp313-*", "cp314-*"]
-
-[[tool.cibuildwheel.overrides]]
-select = "cp312-*"
-inherit.environment = "append"
-environment = { SKBUILD_WHEEL_PY_API = "cp312" }
+# Build one GIL-enabled CPython stable ABI wheel from 3.12, plus the older
+# per-version ABI, free-threaded ABIs, and PyPy.
+build = ["cp311-*", "cp312-*", "cp3??t-*", "pp*"]
 
 [project]
 name = 'hogpp'
