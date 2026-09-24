@@ -65,6 +65,7 @@ def test_members_carry_type_hints(member):
         'magnitude_',
         'clip_norm_',
         'epsilon_',
+        'sigma_',
         'features_',
         'histogram_',
     ],

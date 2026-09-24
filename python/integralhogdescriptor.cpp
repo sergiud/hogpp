@@ -19,7 +19,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -206,7 +208,8 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
         clipNorm,
     const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
-        epsilon)
+        epsilon,
+    double sigma)
     : cellSize_{cellSize}
     , blockSize_{blockSize}
     , blockStride_{blockStride}
@@ -216,6 +219,7 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     , blockNormalizerType_{blockNorm}
     , clipNorm_{clipNorm}
     , epsilon_{epsilon}
+    , sigma_{sigma}
 {
     // Delay setting parameters until we know the floating point type we
     // will be working with.
@@ -269,6 +273,19 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
             *epsilon);
     }
 
+    // The inverted comparison also rejects NaN. Values that cannot be
+    // represented in the working precision are rejected once the precision
+    // is known.
+    if (constexpr double max = std::numeric_limits<double>::max();
+        !(sigma >= 0 && sigma <= max)) {
+        using namespace fmt::literals;
+
+        throw std::invalid_argument{fmt::format(
+            "IntegralHOGDescriptor sigma must lie within [0, {max}] but "
+            "{value} was given",
+            "max"_a = max, "value"_a = sigma)};
+    }
+
     if (!blockNormalizerType_ && (clipNorm_ || epsilon_)) {
         // In case block normalizer arguments were provided, we must ensure
         // these are actually forwarded to the corresponding instance. We
@@ -279,28 +296,73 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     update();
 }
 
-template<class... Args>
+// Converts a positive sigma to the working precision.
+template<class Scalar>
+[[nodiscard]] hogpp::GaussianWeighting<Scalar> makeGaussianWeighting(
+    double sigma)
+{
+    using namespace fmt::literals;
+
+    constexpr auto max = std::numeric_limits<Scalar>::max();
+
+    // Converting a value outside of the range of the working precision is
+    // undefined.
+    if (!(sigma <= max)) {
+        throw std::invalid_argument{fmt::format(
+            "IntegralHOGDescriptor sigma must lie within [0, {max}] in the "
+            "working precision but {value} was given",
+            "max"_a = max, "value"_a = sigma)};
+    }
+
+    const auto value = static_cast<Scalar>(sigma);
+
+    using std::fpclassify;
+
+    // Report the value before rounding instead of the rounded 0.
+    if (fpclassify(value) == FP_ZERO) {
+        throw std::invalid_argument{fmt::format(
+            "IntegralHOGDescriptor sigma must be at least {min} in the working "
+            "precision but {value} was given",
+            "min"_a = std::numeric_limits<Scalar>::denorm_min(),
+            "value"_a = sigma)};
+    }
+
+    return hogpp::GaussianWeighting<Scalar>{value};
+}
+
+// Selects the descriptor type at runtime. A zero sigma selects the descriptor
+// without spatial weighting which avoids any of its overhead.
+template<class Scalar>
+[[nodiscard]] DescriptorVariant makeDescriptor(double sigma)
+{
+    if (sigma > 0) {
+        return GaussianDescriptor<Scalar>{
+            hogpp::Gradient<Scalar>{}, Magnitude<Scalar>{}, Binning<Scalar>{},
+            BlockNormalizer<Scalar>{}, makeGaussianWeighting<Scalar>(sigma)};
+    }
+
+    return Descriptor<Scalar>{};
+}
+
 [[nodiscard]] DescriptorVariant makeDescriptor(
     [[maybe_unused]] const pybind11::dtype& dt, TypeSequence<> /*unused*/,
-    Args&&... args) noexcept(std::is_nothrow_constructible_v<Descriptor<double>,
-                                                             Args...>)
+    double sigma)
 {
     // Default descriptor instance if floating point was not matched against
     // supported types.
-    return Descriptor<double>(std::forward<Args>(args)...);
+    return makeDescriptor<double>(sigma);
 }
 
-template<class Scalar, class... Scalars, class... Args>
+template<class Scalar, class... Scalars>
 [[nodiscard]] DescriptorVariant makeDescriptor(
     const pybind11::dtype& dt, TypeSequence<Scalar, Scalars...> /*unused*/,
-    Args&&... args)
+    double sigma)
 {
     if (dt.equal(pybind11::dtype::of<Scalar>())) {
-        return Descriptor<Scalar>(std::forward<Args>(args)...);
+        return makeDescriptor<Scalar>(sigma);
     }
 
-    return makeDescriptor(dt, TypeSequence<Scalars...>{},
-                          std::forward<Args>(args)...);
+    return makeDescriptor(dt, TypeSequence<Scalars...>{}, sigma);
 }
 
 void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
@@ -609,6 +671,31 @@ pybind11::object IntegralHOGDescriptor::histogram() const
                            descriptor_);
 }
 
+pybind11::object IntegralHOGDescriptor::weightedHistogram() const
+{
+    if (isEmpty()) {
+        return pybind11::none{};
+    }
+
+    return std::visit(
+        [](auto& descriptor) -> pybind11::object {
+            if constexpr (requires {
+                              descriptor.spatialWeightingState()
+                                  .weightedHistogram();
+                          }) {
+                const auto& W =
+                    descriptor.spatialWeightingState().weightedHistogram();
+
+                if (W.size() > 0) {
+                    return pybind11::cast(W);
+                }
+            }
+
+            return pybind11::none{};
+        },
+        descriptor_);
+}
+
 void IntegralHOGDescriptor::update()
 {
     std::visit(
@@ -664,7 +751,7 @@ void IntegralHOGDescriptor::update()
 
 void IntegralHOGDescriptor::update(const pybind11::dtype& dt)
 {
-    descriptor_ = makeDescriptor(dt, PrecisionTypes{});
+    descriptor_ = makeDescriptor(dt, PrecisionTypes{}, sigma_);
     update();
 }
 
@@ -726,6 +813,11 @@ pybind11::object IntegralHOGDescriptor::epsilon() const noexcept
         descriptor_);
 }
 
+double IntegralHOGDescriptor::sigma() const noexcept
+{
+    return sigma_;
+}
+
 IntegralHOGDescriptor::operator bool() const noexcept
 {
     return !isEmpty();
@@ -746,21 +838,38 @@ IntegralHOGDescriptor::State IntegralHOGDescriptor::state() const
         , clipNorm_
         , epsilon_
         , histogram()
+        , sigma_
+        , weightedHistogram()
     )
     ;
     // clang-format on
 }
 
 IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
+    const pybind11::tuple& value)
+{
+    if (pybind11::len(value) == std::tuple_size_v<LegacyState>) {
+        // Pickled without spatial weighting
+        return fromState(std::tuple_cat(
+            pybind11::cast<LegacyState>(value),
+            std::make_tuple(0.0, pybind11::object{pybind11::none{}})));
+    }
+
+    return fromState(pybind11::cast<State>(value));
+}
+
+IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
     const IntegralHOGDescriptor::State& value)
 {
-    constexpr auto N = std::tuple_size_v<State>;
-    constexpr auto N_minus_one = N - 1;
+    constexpr auto HistogramIndex = std::tuple_size_v<LegacyState> - 1;
+    constexpr auto SigmaIndex = HistogramIndex + 1;
+    constexpr auto WeightedHistogramIndex = SigmaIndex + 1;
 
     auto result = std::make_from_tuple<IntegralHOGDescriptor>(
-        tuple_head<N_minus_one>(value));
+        std::tuple_cat(tuple_head<HistogramIndex>(value),
+                       std::forward_as_tuple(std::get<SigmaIndex>(value))));
 
-    pybind11::object histogram = std::get<N_minus_one>(value);
+    pybind11::object histogram = std::get<HistogramIndex>(value);
 
     if (!histogram.is_none()) {
         auto X = pybind11::cast<pybind11::buffer>(histogram);
@@ -769,10 +878,32 @@ IntegralHOGDescriptor IntegralHOGDescriptor::fromState(
         // Histogram floating point type defines descriptor's working precision
         result.update(pybind11::dtype{info});
 
+        const pybind11::object& weighted =
+            std::get<WeightedHistogramIndex>(value);
+
         std::visit(
-            [&X](auto& descriptor) {
+            [&X, &weighted](auto& descriptor) {
                 using Tensor = std::decay_t<decltype(descriptor.histogram())>;
-                descriptor.setHistogram(pybind11::cast<Tensor>(X));
+
+                if (weighted.is_none()) {
+                    // The weighted votes are recovered from the integral
+                    // histogram if the block layout does not integrate them.
+                    descriptor.setHistogram(pybind11::cast<Tensor>(X));
+                    return;
+                }
+
+                if constexpr (requires {
+                                  descriptor.spatialWeightingState()
+                                      .weightedHistogram();
+                              }) {
+                    descriptor.setHistogram(pybind11::cast<Tensor>(X),
+                                            pybind11::cast<Tensor>(weighted));
+                }
+                else {
+                    throw std::invalid_argument{
+                        "IntegralHOGDescriptor weighted integral histogram "
+                        "must be None if the spatial weighting is disabled"};
+                }
             },
             result.descriptor_);
     }
@@ -795,7 +926,13 @@ std::string IntegralHOGDescriptor::repr() const
         epsilon = std::visit(val, *epsilon_);
     }
 
-    constexpr std::size_t NumCtorArgs = 9;
+    pybind11::object sigma = pybind11::none{};
+
+    if (sigma_ > 0) {
+        sigma = pybind11::float_{sigma_};
+    }
+
+    constexpr std::size_t NumCtorArgs = 10;
     const std::array<std::pair<std::string_view, pybind11::object>, NumCtorArgs>
         args{{
             {"cell_size", asTuple(cellSize_)},
@@ -807,6 +944,7 @@ std::string IntegralHOGDescriptor::repr() const
             {"block_norm", pybind11::cast(blockNormalizerType_)},
             {"clip_norm", pybind11::cast(clipNorm_)},
             {"epsilon", pybind11::cast(epsilon_)},
+            {"sigma", sigma},
         }};
 
     std::vector<std::string> argvals;

@@ -284,6 +284,86 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_nan_pixel_double COMMAND test_descriptor -t "nan_pixel<double>")
     add_test (NAME descriptor_nan_pixel_long_double COMMAND test_descriptor -t "nan_pixel<long double>")
 
+    add_executable (test_multiply_add tests/cpp/test_multiply_add.cpp)
+    target_link_libraries (test_multiply_add PRIVATE hogpp::hogpp
+      Boost::unit_test_framework)
+
+    add_test (NAME multiply_add_fused_only_if_fast_float COMMAND test_multiply_add -t "fused_only_if_fast<float>")
+    add_test (NAME multiply_add_fused_only_if_fast_double COMMAND test_multiply_add -t "fused_only_if_fast<double>")
+    add_test (NAME multiply_add_fused_only_if_fast_long_double COMMAND test_multiply_add -t "fused_only_if_fast<long double>")
+
+    add_executable (test_spatialweighting tests/cpp/test_spatialweighting.cpp)
+    target_link_libraries (test_spatialweighting PRIVATE hogpp::hogpp
+      Boost::unit_test_framework)
+
+    add_test (NAME spatialweighting_gaussian_matches_reference_float COMMAND test_spatialweighting -t "gaussian_matches_reference<float>")
+    add_test (NAME spatialweighting_gaussian_matches_reference_double COMMAND test_spatialweighting -t "gaussian_matches_reference<double>")
+    add_test (NAME spatialweighting_gaussian_matches_reference_long_double COMMAND test_spatialweighting -t "gaussian_matches_reference<long double>")
+
+    add_test (NAME spatialweighting_recompute_replaces_previous_image_float COMMAND test_spatialweighting -t "recompute_replaces_previous_image<float>")
+    add_test (NAME spatialweighting_recompute_replaces_previous_image_double COMMAND test_spatialweighting -t "recompute_replaces_previous_image<double>")
+    add_test (NAME spatialweighting_recompute_replaces_previous_image_long_double COMMAND test_spatialweighting -t "recompute_replaces_previous_image<long double>")
+
+    add_test (NAME spatialweighting_set_histogram_replaces_previous_image_float COMMAND test_spatialweighting -t "set_histogram_replaces_previous_image<float>")
+    add_test (NAME spatialweighting_set_histogram_replaces_previous_image_double COMMAND test_spatialweighting -t "set_histogram_replaces_previous_image<double>")
+    add_test (NAME spatialweighting_set_histogram_replaces_previous_image_long_double COMMAND test_spatialweighting -t "set_histogram_replaces_previous_image<long double>")
+
+    add_test (NAME spatialweighting_set_num_bins_after_compute_float COMMAND test_spatialweighting -t "set_num_bins_after_compute<float>")
+    add_test (NAME spatialweighting_set_num_bins_after_compute_double COMMAND test_spatialweighting -t "set_num_bins_after_compute<double>")
+    add_test (NAME spatialweighting_set_num_bins_after_compute_long_double COMMAND test_spatialweighting -t "set_num_bins_after_compute<long double>")
+
+    add_test (NAME spatialweighting_geometry_change_after_compute_float COMMAND test_spatialweighting -t "geometry_change_after_compute<float>")
+    add_test (NAME spatialweighting_geometry_change_after_compute_double COMMAND test_spatialweighting -t "geometry_change_after_compute<double>")
+    add_test (NAME spatialweighting_geometry_change_after_compute_long_double COMMAND test_spatialweighting -t "geometry_change_after_compute<long double>")
+
+    add_test (NAME spatialweighting_sigma_change_after_compute_float COMMAND test_spatialweighting -t "sigma_change_after_compute<float>")
+    add_test (NAME spatialweighting_sigma_change_after_compute_double COMMAND test_spatialweighting -t "sigma_change_after_compute<double>")
+    add_test (NAME spatialweighting_sigma_change_after_compute_long_double COMMAND test_spatialweighting -t "sigma_change_after_compute<long double>")
+
+    add_test (NAME spatialweighting_tiny_sigma_keeps_closest_pixels_float COMMAND test_spatialweighting -t "tiny_sigma_keeps_closest_pixels<float>")
+    add_test (NAME spatialweighting_tiny_sigma_keeps_closest_pixels_double COMMAND test_spatialweighting -t "tiny_sigma_keeps_closest_pixels<double>")
+    add_test (NAME spatialweighting_tiny_sigma_keeps_closest_pixels_long_double COMMAND test_spatialweighting -t "tiny_sigma_keeps_closest_pixels<long double>")
+
+    add_test (NAME spatialweighting_invalid_sigma_rejected_float COMMAND test_spatialweighting -t "invalid_sigma_rejected<float>")
+    add_test (NAME spatialweighting_invalid_sigma_rejected_double COMMAND test_spatialweighting -t "invalid_sigma_rejected<double>")
+    add_test (NAME spatialweighting_invalid_sigma_rejected_long_double COMMAND test_spatialweighting -t "invalid_sigma_rejected<long double>")
+
+    add_test (NAME spatialweighting_largest_sigma_matches_reference_float COMMAND test_spatialweighting -t "largest_sigma_matches_reference<float>")
+    add_test (NAME spatialweighting_largest_sigma_matches_reference_double COMMAND test_spatialweighting -t "largest_sigma_matches_reference<double>")
+    add_test (NAME spatialweighting_largest_sigma_matches_reference_long_double COMMAND test_spatialweighting -t "largest_sigma_matches_reference<long double>")
+
+    add_test (NAME spatialweighting_disabled_matches_default_float COMMAND test_spatialweighting -t "disabled_matches_default<float>")
+    add_test (NAME spatialweighting_disabled_matches_default_double COMMAND test_spatialweighting -t "disabled_matches_default<double>")
+    add_test (NAME spatialweighting_disabled_matches_default_long_double COMMAND test_spatialweighting -t "disabled_matches_default<long double>")
+
+    add_test (NAME spatialweighting_disabled_weighting_adds_no_storage_float COMMAND test_spatialweighting -t "disabled_weighting_adds_no_storage<float>")
+    add_test (NAME spatialweighting_disabled_weighting_adds_no_storage_double COMMAND test_spatialweighting -t "disabled_weighting_adds_no_storage<double>")
+    add_test (NAME spatialweighting_disabled_weighting_adds_no_storage_long_double COMMAND test_spatialweighting -t "disabled_weighting_adds_no_storage<long double>")
+
+    add_test (NAME spatialweighting_masked_pixels_excluded_float COMMAND test_spatialweighting -t "masked_pixels_excluded<float>")
+    add_test (NAME spatialweighting_masked_pixels_excluded_double COMMAND test_spatialweighting -t "masked_pixels_excluded<double>")
+    add_test (NAME spatialweighting_masked_pixels_excluded_long_double COMMAND test_spatialweighting -t "masked_pixels_excluded<long double>")
+
+    add_test (NAME spatialweighting_fast_path_selection_float COMMAND test_spatialweighting -t "fast_path_selection<float>")
+    add_test (NAME spatialweighting_fast_path_selection_double COMMAND test_spatialweighting -t "fast_path_selection<double>")
+    add_test (NAME spatialweighting_fast_path_selection_long_double COMMAND test_spatialweighting -t "fast_path_selection<long double>")
+
+    add_test (NAME spatialweighting_failed_prepare_discards_weighting_float COMMAND test_spatialweighting -t "failed_prepare_discards_weighting<float>")
+    add_test (NAME spatialweighting_failed_prepare_discards_weighting_double COMMAND test_spatialweighting -t "failed_prepare_discards_weighting<double>")
+    add_test (NAME spatialweighting_failed_prepare_discards_weighting_long_double COMMAND test_spatialweighting -t "failed_prepare_discards_weighting<long double>")
+
+    add_test (NAME spatialweighting_restored_weighting_matches_exactly_float COMMAND test_spatialweighting -t "restored_weighting_matches_exactly<float>")
+    add_test (NAME spatialweighting_restored_weighting_matches_exactly_double COMMAND test_spatialweighting -t "restored_weighting_matches_exactly<double>")
+    add_test (NAME spatialweighting_restored_weighting_matches_exactly_long_double COMMAND test_spatialweighting -t "restored_weighting_matches_exactly<long double>")
+
+    add_test (NAME spatialweighting_mismatched_weighting_rejected_float COMMAND test_spatialweighting -t "mismatched_weighting_rejected<float>")
+    add_test (NAME spatialweighting_mismatched_weighting_rejected_double COMMAND test_spatialweighting -t "mismatched_weighting_rejected<double>")
+    add_test (NAME spatialweighting_mismatched_weighting_rejected_long_double COMMAND test_spatialweighting -t "mismatched_weighting_rejected<long double>")
+
+    add_test (NAME spatialweighting_descriptor_prepares_weighting_float COMMAND test_spatialweighting -t "descriptor_prepares_weighting<float>")
+    add_test (NAME spatialweighting_descriptor_prepares_weighting_double COMMAND test_spatialweighting -t "descriptor_prepares_weighting<double>")
+    add_test (NAME spatialweighting_descriptor_prepares_weighting_long_double COMMAND test_spatialweighting -t "descriptor_prepares_weighting<long double>")
+
     add_executable (test_block_norm tests/cpp/test_block_norm.cpp)
     target_link_libraries (test_block_norm PRIVATE hogpp::hogpp
       Boost::unit_test_framework)

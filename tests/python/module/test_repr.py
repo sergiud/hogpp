@@ -35,6 +35,9 @@ all_args = [
     dict(cell_size=(2, 2), n_bins=7),
     dict(block_size=(1, 1)),
     dict(block_size=(1, 2), block_stride=(2, 3)),
+    dict(sigma=2.5),
+    dict(sigma=1e300),
+    dict(cell_size=(2, 2), sigma=1),
 ]
 
 

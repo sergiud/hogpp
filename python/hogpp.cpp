@@ -65,6 +65,7 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
             , std::optional<BlockNormalizerType>
             , std::optional<std::variant<pybind11::int_, pybind11::float_> >
             , std::optional<std::variant<pybind11::int_, pybind11::float_> >
+            , double
           >()
         , py::kw_only()
         , py::arg("cell_size") = std::nullopt
@@ -76,6 +77,7 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
         , py::arg("block_norm") = std::nullopt
         , py::arg("clip_norm") = std::nullopt
         , py::arg("epsilon") = std::nullopt
+        , py::arg("sigma") = 0.0
     )
     .def
     (
@@ -174,15 +176,20 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
           "epsilon_"
         , &IntegralHOGDescriptor::epsilon
     )
+    .def_property_readonly
+    (
+          "sigma_"
+        , &IntegralHOGDescriptor::sigma
+    )
     .def
     (
         py::pickle
         (
             [] (const IntegralHOGDescriptor& d)
             {
-                return d.state();
+                return py::tuple{py::cast(d.state())};
             }
-            , &IntegralHOGDescriptor::fromState
+            , py::overload_cast<const py::tuple&>(&IntegralHOGDescriptor::fromState)
         )
     )
     .def

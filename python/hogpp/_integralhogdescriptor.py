@@ -166,6 +166,30 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
         normalization. Default is 0.2.
     epsilon : float, optional
         The regularization amount. Default is 1e-12.
+    sigma : float, optional
+        Standard deviation :math:`\sigma` in pixels of the Gaussian that
+        down-weights pixels near the block border :cite:`Dalal2005`. Default
+        is 0 which disables the weighting. A pixel at the block-relative
+        position :math:`(u,v)` of a block with the extent :math:`B_r \times
+        B_c` contributes to the block with the weight
+
+        .. math::
+
+            w(u,v) = \exp\left(-\frac{d_r(u)^2+d_c(v)^2}{2\sigma^2}\right)
+            \enspace ,
+
+        where :math:`d_r(u) = u-\frac{B_r-1}{2}` and :math:`d_c(v) =
+        v-\frac{B_c-1}{2}` denote the distance to the block center, up to a
+        constant factor per block. :cite:`Dalal2005` suggest :math:`\sigma`
+        to be half the block width. The value must be finite and
+        representable in the working precision determined by the input.
+
+        The weighting comes at a cost. For a 640×480 single precision image
+        and a block stride not smaller than the cell size, as in the default
+        layout, :meth:`compute` becomes about 3.5 times slower and its peak
+        memory usage about triples, while extracting features takes about
+        10% longer. Smaller block strides leave :meth:`compute` unaffected
+        but make extracting features about 2.5 times slower.
     """
 
     def __init__(
@@ -180,6 +204,7 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
         block_norm: Optional[BlockNorm] = None,
         clip_norm: Optional[Number] = None,
         epsilon: Optional[Number] = None,
+        sigma: Number = 0,
     ) -> None:
         try:
             super().__init__(
@@ -192,6 +217,7 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
                 block_norm=block_norm,
                 clip_norm=clip_norm,
                 epsilon=epsilon,
+                sigma=sigma,
             )
         except BaseException:
             # The underlying C++ instance is never constructed when the
@@ -383,3 +409,10 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
     def epsilon_(self) -> float:
         """float: The regularization amount."""
         return super().epsilon_
+
+    @property
+    def sigma_(self) -> float:
+        """float: Standard deviation of the Gaussian spatial weighting in
+        pixels, or 0 if the weighting is disabled.
+        """
+        return super().sigma_

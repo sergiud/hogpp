@@ -18,6 +18,7 @@
 import io
 import os
 import pickle
+import re
 
 if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
     path = os.getenv('HOGPPPATH')
@@ -541,3 +542,138 @@ def test_uniform_gradients(circle_image):
     diff = np.diff(desc.features_.ravel())
 
     np.testing.assert_array_equal(diff, 0)
+
+
+@pytest.mark.parametrize('sigma', ['1', [1], object()])
+def test_sigma_invalid_type(sigma):
+    with pytest.raises(TypeError):
+        IntegralHOGDescriptor(sigma=sigma)
+
+
+@pytest.mark.parametrize('sigma', [-1, -1e-300, -np.inf, np.inf, np.nan])
+def test_sigma_invalid_value(sigma):
+    with pytest.raises(ValueError):
+        IntegralHOGDescriptor(sigma=sigma)
+
+
+# Values that are representable as float64 but underflow to 0 or overflow to
+# infinity as float32
+@pytest.mark.parametrize('sigma', [1e-300, 1e300])
+def test_sigma_not_representable_rejected(sigma):
+    image = np.random.default_rng(0).random((32, 32))
+
+    desc = IntegralHOGDescriptor(sigma=sigma)
+    desc.compute(image)
+
+    # Rejected before narrowing to the working precision, which would be
+    # undefined for values outside of its range
+    with pytest.raises(
+        ValueError, match=re.escape(f'in the working precision but {sigma} was')
+    ):
+        desc.compute(image.astype(np.float32))
+
+
+@pytest.mark.parametrize('sigma', [0, 0.5, 8, np.finfo(np.float64).max])
+def test_sigma_attribute(sigma):
+    assert IntegralHOGDescriptor(sigma=sigma).sigma_ == sigma
+
+
+def test_sigma_default():
+    assert IntegralHOGDescriptor().sigma_ == 0
+
+
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.longdouble])
+def test_sigma_weighting(dtype):
+    image = np.random.default_rng(0).random((64, 48)).astype(dtype)
+
+    default = IntegralHOGDescriptor()
+    default.compute(image)
+
+    disabled = IntegralHOGDescriptor(sigma=0)
+    disabled.compute(image)
+
+    weighted = IntegralHOGDescriptor(sigma=4)
+    weighted.compute(image)
+
+    # The largest sigma representable in every precision weights all pixels
+    # equally.
+    uniform = IntegralHOGDescriptor(sigma=float(np.finfo(np.float32).max))
+    uniform.compute(image)
+
+    np.testing.assert_array_equal(disabled.features_, default.features_)
+    assert weighted.features_.shape == default.features_.shape
+    assert weighted.features_.dtype == dtype
+    assert not np.allclose(weighted.features_, default.features_)
+
+    eps = np.finfo(dtype).eps
+    np.testing.assert_allclose(
+        uniform.features_, default.features_, rtol=1024 * eps, atol=1024 * eps
+    )
+
+
+@pytest.mark.parametrize('sigma', [0, 0.5, 8, 1e30])
+def test_pickle_sigma(sigma, horizontal_gradient_image):
+    desc = IntegralHOGDescriptor(sigma=sigma)
+    desc.compute(horizontal_gradient_image)
+
+    desc1 = pickle.loads(pickle.dumps(desc))
+
+    assert desc1.sigma_ == sigma
+    np.testing.assert_allclose(desc1.features_, desc.features_)
+
+
+# Restoring the weighted votes from the integral histogram alone loses
+# precision on large single precision images. The round trip must therefore
+# preserve the weighted features exactly.
+@pytest.mark.parametrize(
+    'roundtrip',
+    [lambda d: pickle.loads(pickle.dumps(d)), copy.copy, copy.deepcopy],
+    ids=['pickle', 'copy', 'deepcopy'],
+)
+@pytest.mark.parametrize('block_stride', [(8, 8), (4, 4)])
+def test_roundtrip_preserves_weighted_features(roundtrip, block_stride):
+    size = 256
+    rng = np.random.default_rng(0)
+    image = rng.random((size, size), dtype=np.float32)
+
+    desc = IntegralHOGDescriptor(sigma=8, block_stride=block_stride)
+    desc.compute(image)
+
+    desc1 = roundtrip(desc)
+
+    assert desc1.sigma_ == desc.sigma_
+    np.testing.assert_array_equal(desc1.histogram_, desc.histogram_)
+    np.testing.assert_array_equal(desc1.features_, desc.features_)
+
+
+def test_unpickle_weighted_histogram_without_sigma_rejected(
+    horizontal_gradient_image,
+):
+    desc = IntegralHOGDescriptor(sigma=8)
+    desc.compute(horizontal_gradient_image)
+
+    state = list(desc.__getstate__())
+    assert state[-1] is not None
+
+    # Disable the weighting while keeping its integral histogram
+    state[-2] = 0.0
+
+    desc1 = IntegralHOGDescriptor.__new__(IntegralHOGDescriptor)
+
+    with pytest.raises(ValueError, match='must be None'):
+        desc1.__setstate__(tuple(state))
+
+
+def test_unpickle_state_without_sigma(horizontal_gradient_image):
+    desc = IntegralHOGDescriptor()
+    desc.compute(horizontal_gradient_image)
+
+    # State layout of versions without spatial weighting, which lacks sigma
+    # and the weighted integral histogram
+    state = desc.__getstate__()[:-2]
+
+    desc1 = IntegralHOGDescriptor.__new__(IntegralHOGDescriptor)
+    desc1.__setstate__(state)
+
+    assert desc1.sigma_ == 0
+    np.testing.assert_array_equal(desc1.features_, desc.features_)

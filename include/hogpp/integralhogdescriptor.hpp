@@ -35,7 +35,10 @@
 #include <hogpp/gradientmagnitude.hpp>
 #include <hogpp/integralhistogram.hpp>
 #include <hogpp/l2hys.hpp>
+#include <hogpp/multiplyadd.hpp>
+#include <hogpp/nouniqueaddress.hpp>
 #include <hogpp/prefix.hpp>
+#include <hogpp/spatialweighting.hpp>
 #include <hogpp/unsignedgradient.hpp>
 
 namespace hogpp {
@@ -68,13 +71,17 @@ public:
     using Binning = typename IntegralHOGDescriptorTraits<Derived>::Binning;
     using BlockNormalizer =
         typename IntegralHOGDescriptorTraits<Derived>::BlockNormalizer;
+    using SpatialWeighting =
+        typename IntegralHOGDescriptorTraits<Derived>::SpatialWeighting;
 
     [[nodiscard]] explicit IntegralHOGDescriptorBase(
         Magnitude magnitude = Magnitude{}, Binning binning = Binning{},
-        BlockNormalizer normalization = BlockNormalizer{})
+        BlockNormalizer normalization = BlockNormalizer{},
+        SpatialWeighting spatialWeighting = SpatialWeighting{})
         : vote_{std::move(magnitude)}
         , binning_{std::move(binning)}
         , normalize_{std::move(normalization)}
+        , spatialWeighting_{std::move(spatialWeighting)}
     {
     }
 
@@ -123,10 +130,26 @@ public:
         return vote_;
     }
 
+    void setSpatialWeighting(SpatialWeighting value)
+    {
+        spatialWeighting_ = std::move(value);
+    }
+
+    // No mutable accessor is provided on purpose. The weighting state built
+    // by compute() records the parameters it was built for and is validated
+    // against the current ones, which only works if every change goes
+    // through a setter.
+    [[nodiscard]] const SpatialWeighting& spatialWeighting() const noexcept
+    {
+        return spatialWeighting_;
+    }
+
 protected:
     Magnitude vote_;
     Binning binning_;
     BlockNormalizer normalize_;
+    // Disabled weighting occupies no storage.
+    HOGPP_NO_UNIQUE_ADDRESS SpatialWeighting spatialWeighting_;
 };
 
 template<class Derived>
@@ -166,6 +189,7 @@ template
     , class MagnitudeType = GradientMagnitude<T>
     , class BinningType = UnsignedGradient<T>
     , class BlockNormalizerType = L2Hys<T>
+    , class SpatialWeightingType = NoSpatialWeighting
 >
 // clang-format on
 class IntegralHOGDescriptor
@@ -179,6 +203,7 @@ class IntegralHOGDescriptor
         , MagnitudeType
         , BinningType
         , BlockNormalizerType
+        , SpatialWeightingType
     >
 >
 // clang-format on
@@ -193,6 +218,7 @@ class IntegralHOGDescriptor
             , MagnitudeType
             , BinningType
             , BlockNormalizerType
+            , SpatialWeightingType
         >
     >
     ;
@@ -204,6 +230,7 @@ public:
     using Magnitude = MagnitudeType;
     using Binning = BinningType;
     using BlockNormalizer = BlockNormalizerType;
+    using SpatialWeighting = SpatialWeightingType;
 
     [[nodiscard]] IntegralHOGDescriptor() = default;
 
@@ -268,7 +295,8 @@ public:
 
         const auto scale = static_cast<Scalar>(bins_ - 1);
 
-        histogram_.scan(
+        // Votes the pixel ij into the orientation bins.
+        auto binning =
             [this, &k, &dxs, &dys, &mags, scale, &masked](
                 Eigen::TensorRef<Eigen::Tensor<Scalar, 1, DataLayout>> bins,
                 const auto& ij) {
@@ -334,11 +362,38 @@ public:
                 Scalar& value1 = bins.coeffRef(bin1);
                 Scalar& value2 = bins.coeffRef(bin2);
 
-                using std::fma;
                 // The bin closest to the target orientation obtains
                 // proportionally a higher magnitude.
-                value1 = fma(1 - alpha, mag, value1);
-                value2 = fma(alpha, mag, value2);
+                value1 = multiplyAdd(1 - alpha, mag, value1);
+                value2 = multiplyAdd(alpha, mag, value2);
+            };
+
+        histogram_.scan(binning);
+
+        // The weighting obtains the exact votes of each pixel by repeating the
+        // binning into a histogram of a single pixel. Reusing the binning
+        // above leaves the regular scan unaffected by the weighting. The
+        // histogram is allocated on first use only since weightings that do
+        // not visit any votes must not incur any cost.
+        this->spatialWeighting_.prepare(
+            spatialState_, geometry(), dims, bins_,
+            [&binning, bins = bins_,
+             pixel = Eigen::Tensor<Scalar, 1, DataLayout>{}](
+                const auto& ij, auto&& emit) mutable {
+                if (pixel.size() != bins) {
+                    pixel.resize(bins);
+                }
+
+                pixel.setZero();
+                binning(pixel, ij);
+
+                for (Eigen::DenseIndex b = 0; b < pixel.size(); ++b) {
+                    using std::fpclassify;
+
+                    if (fpclassify(pixel(b)) != FP_ZERO) {
+                        emit(b, pixel(b));
+                    }
+                }
             });
     }
 
@@ -434,6 +489,12 @@ public:
                  histogram_.histogram().dimension(2));
         X.setZero();
 
+        // The query is created once per call and owns everything it needs
+        // apart from the read-only histograms. Concurrent calls therefore do
+        // not share any mutable state.
+        auto query = this->spatialWeighting_.cellQuery(spatialState_,
+                                                       histogram_, geometry());
+
         for (int i = 0; i < numBlocks.x(); ++i) {
             for (int j = 0; j < numBlocks.y(); ++j) {
                 const Eigen::Array2i blockOffset =
@@ -451,16 +512,14 @@ public:
                         const Eigen::Array2i offset2 =
                             (offset1 + cellSize_).min(br);
 
-                        // Extract the histogram from the integral histogram
-                        // as an intersection.
-                        const Eigen::Tensor<Scalar, 1> h = histogram_.intersect(
-                            std::make_tuple(offset1.x(), offset1.y()),
-                            std::make_tuple(offset2.x(), offset2.y()));
-
-                        X.template chip<0>(i)
-                            .template chip<0>(j)
-                            .template chip<0>(k)
-                            .template chip<0>(l) = h;
+                        // Extract the cell histogram, spatially weighted if
+                        // requested, from the integral histogram as an
+                        // intersection.
+                        query(X.template chip<0>(i)
+                                  .template chip<0>(j)
+                                  .template chip<0>(k)
+                                  .template chip<0>(l),
+                              cellOffset, offset1, offset2);
                     }
                 }
 
@@ -552,6 +611,82 @@ public:
         const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& value)
     {
         histogram_.setHistogram(value);
+
+        if (histogram_.isEmpty()) {
+            spatialState_ = SpatialWeightingState{};
+            return;
+        }
+
+        const Eigen::Tensor<Scalar, 3>& H = histogram_.histogram();
+        const Eigen::Array2i dims{static_cast<int>(H.dimension(0) - 1),
+                                  static_cast<int>(H.dimension(1) - 1)};
+
+        // The exact votes are no longer available. Recover them from the
+        // integral histogram instead.
+        this->spatialWeighting_.prepare(
+            spatialState_, geometry(), dims, H.dimension(2),
+            [&H](const auto& ij, auto&& emit) {
+                const auto [i, j] = ij;
+
+                for (Eigen::DenseIndex b = 0; b < H.dimension(2); ++b) {
+                    const Scalar vote = H(i + 1, j + 1, b) - H(i, j + 1, b) -
+                                        H(i + 1, j, b) + H(i, j, b);
+
+                    using std::fpclassify;
+
+                    if (fpclassify(vote) != FP_ZERO) {
+                        emit(b, vote);
+                    }
+                }
+            });
+    }
+
+    /**
+     * @brief Replaces the integral histogram along with the integral histogram
+     * of the spatially weighted votes.
+     *
+     * The latter is obtained from the state returned by
+     * spatialWeightingState(). Unlike the overload that accepts only the
+     * integral histogram, the weighted cell histograms are restored exactly.
+     *
+     * @throws std::invalid_argument @p weighted does not match @p value or the
+     * current block layout. The descriptor is left unchanged in this case.
+     */
+    template<class Derived>
+    void setHistogram(
+        const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& value,
+        const Eigen::Tensor<Scalar, 3>& weighted)
+    {
+        const Eigen::Tensor<Scalar, 3> H = value.eval();
+        SpatialWeightingState state;
+
+        if (H.size() == 0) {
+            if (weighted.size() != 0) {
+                using namespace fmt::literals;
+
+                throw std::invalid_argument{fmt::format(
+                    "IntegralHOGDescriptor weighted integral histogram must be "
+                    "empty for an empty integral histogram but has {size} "
+                    "elements",
+                    "size"_a = weighted.size())};
+            }
+        }
+        else {
+            const Eigen::Array2i dims{static_cast<int>(H.dimension(0) - 1),
+                                      static_cast<int>(H.dimension(1) - 1)};
+
+            this->spatialWeighting_.restore(state, geometry(), dims,
+                                            H.dimension(2), weighted);
+        }
+
+        histogram_.setHistogram(H);
+        spatialState_ = std::move(state);
+    }
+
+    //! Returns the state the spatial weighting keeps alongside the histogram.
+    [[nodiscard]] const auto& spatialWeightingState() const noexcept
+    {
+        return spatialState_;
     }
 
     [[nodiscard]] bool isEmpty() const noexcept
@@ -562,8 +697,16 @@ public:
 private:
     using Tensor2 = Eigen::Tensor<Scalar, 2, Eigen::RowMajor>;
     using Tensor3 = Eigen::Tensor<Scalar, 3, Eigen::RowMajor>;
+    using SpatialWeightingState =
+        typename SpatialWeightingType::template State<Scalar>;
+
+    [[nodiscard]] BlockGeometry geometry() const
+    {
+        return BlockGeometry{cellSize_, blockSize_, blockStride_};
+    }
 
     IntegralHistogram<Scalar, 2, 1> histogram_;
+    HOGPP_NO_UNIQUE_ADDRESS SpatialWeightingState spatialState_;
     Eigen::DenseIndex bins_ = 9;
     Eigen::Array2i cellSize_{8, 8};
     Eigen::Array2i blockSize_ = cellSize_ * 2;
@@ -582,6 +725,7 @@ template
     , class MagnitudeType
     , class BinningType
     , class BlockNormalizerType
+    , class SpatialWeightingType
 >
 // clang-format on
 struct IntegralHOGDescriptorTraits
@@ -594,6 +738,7 @@ struct IntegralHOGDescriptorTraits
         , MagnitudeType
         , BinningType
         , BlockNormalizerType
+        , SpatialWeightingType
     >
 >
 // clang-format on
@@ -602,6 +747,7 @@ struct IntegralHOGDescriptorTraits
     using Magnitude = MagnitudeType;
     using Binning = BinningType;
     using BlockNormalizer = BlockNormalizerType;
+    using SpatialWeighting = SpatialWeightingType;
 };
 
 // clang-format off
@@ -611,6 +757,7 @@ template
     , class MagnitudeType
     , class BinningType
     , class BlockNormalizerType
+    , class SpatialWeightingType
 >
 // clang-format on
 struct IntegralHOGDescriptorTraits
@@ -623,6 +770,7 @@ struct IntegralHOGDescriptorTraits
         , MagnitudeType
         , BinningType
         , BlockNormalizerType
+        , SpatialWeightingType
     >
 >
 // clang-format on
@@ -630,6 +778,7 @@ struct IntegralHOGDescriptorTraits
     using Magnitude = MagnitudeType;
     using Binning = BinningType;
     using BlockNormalizer = BlockNormalizerType;
+    using SpatialWeighting = SpatialWeightingType;
 };
 
 } // namespace hogpp

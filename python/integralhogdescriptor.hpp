@@ -32,27 +32,33 @@
 
 #include <hogpp/bounds.hpp>
 #include <hogpp/integralhogdescriptor.hpp>
+#include <hogpp/spatialweighting.hpp>
 
 #include "binning.hpp"
 #include "blocknormalizer.hpp"
 #include "magnitude.hpp"
 #include "type_caster/typesequence.hpp"
 
-template<class T>
+template<class T, class SpatialWeighting = hogpp::NoSpatialWeighting>
 using Descriptor =
     hogpp::IntegralHOGDescriptor<T, hogpp::Gradient<T>, Magnitude<T>,
-                                 Binning<T>, BlockNormalizer<T>>;
+                                 Binning<T>, BlockNormalizer<T>,
+                                 SpatialWeighting>;
 
+template<class T>
+using GaussianDescriptor = Descriptor<T, hogpp::GaussianWeighting<T>>;
+
+// Every precision is combined with every spatial weighting.
 template<class... T>
 struct MakeDescriptorVariant_t
 {
-    using type = std::variant<Descriptor<T>...>;
+    using type = std::variant<Descriptor<T>..., GaussianDescriptor<T>...>;
 };
 
 template<class... T>
 struct MakeDescriptorVariant_t<TypeSequence<T...>>
+    : MakeDescriptorVariant_t<T...>
 {
-    using type = std::variant<Descriptor<T>...>;
 };
 
 template<class... T>
@@ -198,8 +204,9 @@ public:
     // constructors implicitly). We therefore need to write the constructor
     // signature explicitly.
 
+    // Pickled state of versions without spatial weighting
     // clang-format off
-    using State = std::tuple
+    using LegacyState = std::tuple
     <
           std::optional<Eigen::Array2i>
         , std::optional<Eigen::Array2i>
@@ -214,6 +221,12 @@ public:
     >;
     // clang-format on
 
+    // Appends sigma and the integral histogram of the spatially weighted votes
+    // which restores the weighted features exactly.
+    using State = decltype(std::tuple_cat(
+        std::declval<LegacyState>(),
+        std::declval<std::tuple<double, pybind11::object>>()));
+
     [[nodiscard]] explicit IntegralHOGDescriptor(
         const std::optional<Eigen::Array2i>& cellSize,
         const std::optional<Eigen::Array2i>& blockSize,
@@ -225,7 +238,8 @@ public:
         const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
             clipNorm,
         const std::optional<std::variant<pybind11::int_, pybind11::float_>>&
-            epsilon);
+            epsilon,
+        double sigma);
 
     void compute(const Rank2Or3Tensor& image, const pybind11::handle& mask);
     void compute(const Rank2Or3TensorPair& dydx, const pybind11::handle& mask);
@@ -239,14 +253,18 @@ public:
     [[nodiscard]] std::tuple<int, int> blockStride() const;
     [[nodiscard]] Eigen::DenseIndex numBins() const;
     [[nodiscard]] pybind11::object histogram() const;
+    [[nodiscard]] pybind11::object weightedHistogram() const;
     [[nodiscard]] BinningType binning() const;
     [[nodiscard]] BlockNormalizerType blockNormalizer() const;
     [[nodiscard]] MagnitudeType magnitude() const;
     [[nodiscard]] pybind11::object clipNorm() const noexcept;
     [[nodiscard]] pybind11::object epsilon() const noexcept;
+    [[nodiscard]] double sigma() const noexcept;
     [[nodiscard]] explicit operator bool() const noexcept;
 
     [[nodiscard]] State state() const;
+    [[nodiscard]] static IntegralHOGDescriptor fromState(
+        const pybind11::tuple& value);
     [[nodiscard]] static IntegralHOGDescriptor fromState(const State& value);
 
     [[nodiscard]] std::string repr() const;
@@ -265,6 +283,9 @@ private:
     std::optional<BlockNormalizerType> blockNormalizerType_;
     std::optional<std::variant<pybind11::int_, pybind11::float_>> clipNorm_;
     std::optional<std::variant<pybind11::int_, pybind11::float_>> epsilon_;
+    // Standard deviation of the Gaussian spatial weighting in pixels. 0
+    // disables the weighting.
+    double sigma_ = 0;
 
     DescriptorVariant descriptor_;
 };
