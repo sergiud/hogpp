@@ -22,7 +22,15 @@ jobs:
       # As for Pillow 11.3.0, there is no Windows arm64 wheel for PyPy. We
       # therefore skip the tests to avoid compiling Pillow from source which
       # generally will fail due to missing dependencies.
-      CIBW_TEST_SKIP: pp*-win_arm64
+      #
+      # As for NumPy 2.5.4, there is no PyPy wheel and the source build fails
+      # on PyPy 3.12 v8.0 because its vendored pythoncapi-compat predates PyPy
+      # 3.12 support.
+      #
+      # NumPy 2.4.6 built from source for PyPy 3.11 v8.0 on Windows reports
+      # finite values as non-finite, which breaks the tests of every PyPy
+      # Windows wheel.
+      CIBW_TEST_SKIP: pp*-win* pp312-*
     strategy:
       matrix:
         os:

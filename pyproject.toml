@@ -42,6 +42,13 @@ test-requires = [
 ]
 test-command = 'pytest -W error {project}/tests/python/module'
 
+# NumPy provides no wheels for PyPy 8.0 and is built from source for testing.
+# Install it before the wheel under test to constrain the Cython version it is
+# built with.
+[[tool.cibuildwheel.overrides]]
+select = 'pp*'
+before-test = 'pip install --build-constraint {project}/python/build-constraints.txt numpy'
+
 [project]
 name = 'hogpp'
 dynamic = ['version']

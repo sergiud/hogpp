@@ -1,0 +1,3 @@
+# Extension types compiled by Cython 3.3.0 emit a RuntimeWarning on import
+# under PyPy, which fails tests that turn warnings into errors.
+Cython!=3.3.0
