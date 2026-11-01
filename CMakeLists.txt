@@ -268,9 +268,17 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_features_block_larger_than_region_double COMMAND test_descriptor -t "features_block_larger_than_region<double>")
     add_test (NAME descriptor_features_block_larger_than_region_long_double COMMAND test_descriptor -t "features_block_larger_than_region<long double>")
 
-    add_test (NAME descriptor_features_block_larger_than_region_but_valid_float COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<float>")
-    add_test (NAME descriptor_features_block_larger_than_region_but_valid_double COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<double>")
-    add_test (NAME descriptor_features_block_larger_than_region_but_valid_long_double COMMAND test_descriptor -t "features_block_larger_than_region_but_valid<long double>")
+    add_test (NAME descriptor_features_cover_region_border_float COMMAND test_descriptor -t "features_cover_region_border<float>")
+    add_test (NAME descriptor_features_cover_region_border_double COMMAND test_descriptor -t "features_cover_region_border<double>")
+    add_test (NAME descriptor_features_cover_region_border_long_double COMMAND test_descriptor -t "features_cover_region_border<long double>")
+
+    add_test (NAME descriptor_features_largest_block_stride_float COMMAND test_descriptor -t "features_largest_block_stride<float>")
+    add_test (NAME descriptor_features_largest_block_stride_double COMMAND test_descriptor -t "features_largest_block_stride<double>")
+    add_test (NAME descriptor_features_largest_block_stride_long_double COMMAND test_descriptor -t "features_largest_block_stride<long double>")
+
+    add_test (NAME descriptor_features_clip_block_to_small_region_float COMMAND test_descriptor -t "features_clip_block_to_small_region<float>")
+    add_test (NAME descriptor_features_clip_block_to_small_region_double COMMAND test_descriptor -t "features_clip_block_to_small_region<double>")
+    add_test (NAME descriptor_features_clip_block_to_small_region_long_double COMMAND test_descriptor -t "features_clip_block_to_small_region<long double>")
 
     add_test (NAME descriptor_nan_pixel_float COMMAND test_descriptor -t "nan_pixel<float>")
     add_test (NAME descriptor_nan_pixel_double COMMAND test_descriptor -t "nan_pixel<double>")

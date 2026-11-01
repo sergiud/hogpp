@@ -409,24 +409,22 @@ public:
                 br.y() - 1)};
         }
 
-        const Eigen::Array2i numBlocks = (dims - blockSize_) / blockStride_ + 1;
+        // Place the smallest number of blocks that covers every pixel of the
+        // region. If the remainder of the region beyond the first block is not
+        // a multiple of the stride, the last block is placed flush with the
+        // bottom and right border of the region. A region smaller than a block
+        // yields a single block at the region origin.
+        const Eigen::Array2i lastBlockOffset = (dims - blockSize_).max(0);
+        // Round the number of strides up without the overflow of adding the
+        // stride to the offset first.
+        const Eigen::Array2i numBlocks =
+            lastBlockOffset.binaryExpr(
+                blockStride_,
+                [](int excess, int stride) {
+                    return excess / stride + (excess % stride != 0 ? 1 : 0);
+                }) +
+            1;
         const Eigen::Array2i numCells = blockSize_ / cellSize_;
-
-        // A region smaller than the block size is valid and simply
-        // yields no blocks (numBlocks == 0). Only reject the case that
-        // cannot be represented as a tensor dimension.
-        if ((numBlocks < 0).any()) {
-            using namespace fmt::literals;
-
-            throw std::invalid_argument{fmt::format(
-                "IntegralHOGDescriptor features region {region} cannot be "
-                "smaller than the block size {block_size}",
-                "region"_a =
-                    fmt::join(dims.data(), dims.data() + dims.size(), ", "),
-                "block_size"_a =
-                    fmt::join(blockSize_.data(),
-                              blockSize_.data() + blockSize_.size(), ", "))};
-        }
 
         // Organize the features in a 5-D tensor (blocks (x,y), cells (x,y) and
         // bins).
@@ -439,14 +437,19 @@ public:
         for (int i = 0; i < numBlocks.x(); ++i) {
             for (int j = 0; j < numBlocks.y(); ++j) {
                 const Eigen::Array2i blockOffset =
-                    offset + Eigen::Array2i{i, j} * blockStride_;
+                    offset +
+                    (Eigen::Array2i{i, j} * blockStride_).min(lastBlockOffset);
 
                 for (int k = 0; k < numCells.x(); ++k) {
                     for (int l = 0; l < numCells.y(); ++l) {
                         const Eigen::Array2i cellOffset{k, l};
-                        const Eigen::Array2i& offset1 =
-                            blockOffset + cellOffset * cellSize_;
-                        const Eigen::Array2i& offset2 = offset1 + cellSize_;
+                        // Clip cells to the region so that a block larger
+                        // than the region accumulates only the votes of the
+                        // pixels inside of it.
+                        const Eigen::Array2i offset1 =
+                            (blockOffset + cellOffset * cellSize_).min(br);
+                        const Eigen::Array2i offset2 =
+                            (offset1 + cellSize_).min(br);
 
                         // Extract the histogram from the integral histogram
                         // as an intersection.

@@ -246,7 +246,7 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
     def __call__(self, rois: Iterable[ArrayLike], /) -> Optional[NDArray[Any]]: ...
 
     def __call__(self, roi_or_rois: Any) -> Optional[NDArray[Any]]:
-        """__call__(roi)
+        r"""__call__(roi)
         __call__(rois)
 
         Extracts the features of the specified region of interest `roi`, or,
@@ -275,6 +275,25 @@ class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):
         ValueError
             Thrown if `roi` describes a negative area, or, if `rois` was
             specified, if not all regions have the same dimensions.
+
+        Notes
+        -----
+        Blocks are placed such that every pixel of a non-empty region
+        contributes to the features. Along each axis with region extent
+        :math:`w`, block extent :math:`b` and block stride :math:`s`, the
+        region is covered by
+
+        .. math::
+
+            n = 1 + \left\lceil \frac{\max(w - b, 0)}{s} \right\rceil
+
+        blocks starting at :math:`x_i = \min(i s, \max(w - b, 0))` for
+        :math:`i = 0, \dots, n - 1`. If :math:`w - b` is not a multiple of
+        :math:`s`, the last block is therefore placed flush with the bottom or
+        right border of the region. A region smaller than a block yields a
+        single block whose cells are clipped to the region, such that only the
+        pixels inside the region contribute. An empty region yields no
+        blocks.
         """
         return super().__call__(roi_or_rois)
 
