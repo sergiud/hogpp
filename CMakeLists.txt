@@ -867,8 +867,9 @@ if (BUILD_TESTING)
     if (UNIX)
       # 32-bit ARM requires the compiler to accept -mfpu=neon, which the host
       # compiler rejects. Every 64-bit ARM processor implements NEON, whether
-      # it is named aarch64 as on Linux or arm64 as on macOS and Windows.
-      foreach (_processor IN ITEMS arm aarch64 arm64 ARM64)
+      # it is named aarch64 as on Linux or arm64 as on macOS and Windows. The
+      # name is matched case-insensitively.
+      foreach (_processor IN ITEMS arm aarch64 arm64)
         if (_processor STREQUAL arm)
           set (_expect_neon OFF)
         else (_processor STREQUAL arm)
@@ -880,11 +881,13 @@ if (BUILD_TESTING)
           -DPROJECT_SOURCE_DIR=${hogpp_SOURCE_DIR}
           -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_neon_${_processor}
           -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+          -DTEST_GENERATOR=${CMAKE_GENERATOR}
+          -DTEST_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
           -DTEST_SYSTEM_PROCESSOR=${_processor}
           -DTEST_EXPECT_NEON=${_expect_neon}
           -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm_neon_dispatch.cmake
         )
-      endforeach (_processor IN ITEMS arm aarch64 arm64 ARM64)
+      endforeach (_processor IN ITEMS arm aarch64 arm64)
 
       unset (_expect_neon)
     endif (UNIX)
