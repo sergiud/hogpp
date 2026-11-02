@@ -61,7 +61,9 @@ else ("$ENV{CIBUILDWHEEL}" EQUAL 1)
 endif ("$ENV{CIBUILDWHEEL}" EQUAL 1)
 
 if (NOT CIBUILDWHEEL)
-  find_package (Eigen3 3.4.1...5 NO_MODULE)
+  # Prefer a newer Eigen, and fall back to the oldest supported one without
+  # warning that the preferred one was not found.
+  find_package (Eigen3 3.4.1...5 QUIET NO_MODULE)
 
   if (NOT Eigen3_FOUND)
     find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
