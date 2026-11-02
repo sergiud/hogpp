@@ -765,15 +765,63 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(infinite_gradients_fast_binning, Scalar, Scalars)
     BOOST_TEST(isFinite(d.histogram()));
 }
 
-// SignedGradient<Scalar, Fast> (and UnsignedGradient) provide a
-// tensor-expression operator() overload that IntegralHOGDescriptor::compute()
-// uses to precompute the per-pixel bin weight for the whole image as a
-// single vectorized pass ahead of the histogram scan (see
-// detail::HasTensorBinning in integralhogdescriptor.hpp), instead of
-// calling the approximation once per pixel inside the scan. This exercises
-// that wiring end to end: the precomputed-weight result must agree with
-// calling the exact reference implementation per pixel, within the same
-// tolerance already established for the Fast binning approximation itself.
+namespace {
+
+// Bins every gradient into the first bin when called per pixel, but into the
+// middle bin when evaluated over a whole tensor, which reveals the evaluation
+// compute() uses.
+template<class Scalar>
+struct TensorBinningSpy
+{
+    static constexpr Scalar Middle = Scalar{1} / 2;
+
+    [[nodiscard]] Scalar operator()(Scalar /*dx*/, Scalar /*dy*/) const noexcept
+    {
+        return Scalar{0};
+    }
+
+    template<class Derived1, class Derived2>
+    [[nodiscard]] auto operator()(
+        const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
+        const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& /*dy*/)
+        const
+    {
+        return dx.constant(Middle);
+    }
+};
+
+} // namespace
+
+// A binning that can be evaluated over a whole tensor must be evaluated that
+// way once ahead of the scan instead of per pixel.
+BOOST_AUTO_TEST_CASE_TEMPLATE(compute_precomputes_tensor_binning, Scalar,
+                              Scalars)
+{
+    constexpr Eigen::DenseIndex Bins = 9;
+    constexpr Eigen::DenseIndex MiddleBin = (Bins - 1) / 2;
+
+    hogpp::IntegralHOGDescriptor<Scalar, hogpp::Gradient<Scalar>,
+                                 hogpp::GradientMagnitude<Scalar>,
+                                 TensorBinningSpy<Scalar>>
+        d;
+    d.setNumBins(Bins);
+    d.compute(makeImage<Scalar>());
+
+    // The last position of the integral histogram holds the votes of all
+    // pixels.
+    const Eigen::Tensor<Scalar, 3>& h = d.histogram();
+    const Eigen::DenseIndex rows = h.dimension(0) - 1;
+    const Eigen::DenseIndex cols = h.dimension(1) - 1;
+
+    using std::fpclassify;
+
+    BOOST_TEST(fpclassify(h(rows, cols, 0)) == FP_ZERO);
+    BOOST_TEST(h(rows, cols, MiddleBin) > Scalar{0});
+}
+
+// The features of the Fast binning, whose weights compute() precomputes for
+// the whole image, must agree with those of the exact binning within the
+// tolerance of the approximation.
 BOOST_AUTO_TEST_CASE_TEMPLATE(precomputed_binning_matches_reference, Scalar,
                               Scalars)
 {

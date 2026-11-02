@@ -60,8 +60,9 @@ struct SignedGradient<Scalar, Accurate>
  * minimax bound), verified numerically against @c std::atan2 across the
  * full angular range. After mapping to the normalized [0, 1) bin weight
  * this is at most @f$2.12 \times 10^{-5}@f$, several orders of magnitude
- * below the width of a single bin in a typical histogram, so bin
- * assignment is unaffected.
+ * below the width of a single bin in a typical histogram. A vote therefore
+ * changes its lower bin only if the exact weight lies within this bound of
+ * a bin boundary.
  */
 template<class Scalar>
 struct SignedGradient<Scalar, Fast>
@@ -95,50 +96,95 @@ struct SignedGradient<Scalar, Fast>
     }
 
     /**
-     * @brief Tensor-expression overload evaluating the same approximation
-     * as a lazy, elementwise Eigen expression instead of once per pixel.
+     * @brief Evaluates the approximation on every lane of an Eigen packet.
+     *
+     * Mirrors the scalar overload branch for branch using lane masks, so
+     * vectorized evaluations of the functor, such as by the tensor overload,
+     * agree with the scalar one.
+     */
+    template<class Packet>
+    [[nodiscard]] Packet packetOp(const Packet& dx,
+                                  const Packet& dy) const noexcept
+    {
+        using Eigen::internal::pabs;
+        using Eigen::internal::padd;
+        using Eigen::internal::pand;
+        using Eigen::internal::pcmp_lt;
+        using Eigen::internal::pdiv;
+        using Eigen::internal::por;
+        using Eigen::internal::pselect;
+        using Eigen::internal::pset1;
+        using Eigen::internal::psub;
+        using Eigen::internal::pzero;
+
+        const Packet zero = pzero(dx);
+        const Packet absDx = pabs(dx);
+        const Packet absDy = pabs(dy);
+        const Packet dyLarger = pcmp_lt(absDx, absDy);
+        const Packet largerMagnitude = pselect(dyLarger, absDy, absDx);
+        const Packet smallerMagnitude = pselect(dyLarger, absDx, absDy);
+        const Packet ratio =
+            pselect(pcmp_lt(zero, largerMagnitude),
+                    pdiv(smallerMagnitude, largerMagnitude), zero);
+
+        Packet angle = detail::fastAtanUnitPacket(ratio);
+        angle = pselect(dyLarger,
+                        psub(pset1<Packet>(constants::half_pi<Scalar>), angle),
+                        angle);
+        angle =
+            pselect(pcmp_lt(dx, zero),
+                    psub(pset1<Packet>(constants::pi<Scalar>), angle), angle);
+        // The angle is not negative, so setting its sign bit to that of dy
+        // computes copysign(angle, dy), including for dy = -0.
+        angle = por(angle, pand(dy, pset1<Packet>(Scalar{-0.0})));
+
+        // Map [-π, +π) to [0, 1)
+        return pdiv(padd(angle, pset1<Packet>(constants::pi<Scalar>)),
+                    pset1<Packet>(constants::two_pi<Scalar>));
+    }
+
+    /**
+     * @brief Evaluates the approximation over whole tensors as a lazy
+     * elementwise Eigen expression instead of once per pixel.
      *
      * hogpp::IntegralHOGDescriptor::compute() uses this, when available,
      * to precompute the bin weight for the whole image as a single
      * vectorized pass ahead of the histogram scan, which itself ends in
-     * a data-dependent scatter write and can never be vectorized. This
-     * overload is deliberately not provided for the Accurate profile: the
-     * generic dispatch fallback and the plain non-dispatch build keep the
-     * exact, unbatched per-pixel behavior.
+     * a data-dependent scatter write and can never be vectorized. The
+     * expression applies packetOp() and evaluates every intermediate once
+     * per packet. The Accurate profile deliberately lacks this overload,
+     * so the generic dispatch fallback and the plain non-dispatch build
+     * keep the exact per-pixel behavior.
      */
     template<class Derived1, class Derived2>
-    [[nodiscard]] constexpr decltype(auto) operator()(
+    [[nodiscard]] auto operator()(
         const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
         const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
     {
-        const auto absDx = dx.abs();
-        const auto absDy = dy.abs();
-        const auto dyLarger = absDy > absDx;
-        const auto largerMagnitude = dyLarger.select(absDy, absDx);
-        const auto smallerMagnitude = dyLarger.select(absDx, absDy);
-        const auto ratio =
-            (largerMagnitude > largerMagnitude.constant(Scalar{0}))
-                .select(smallerMagnitude / largerMagnitude,
-                        largerMagnitude.constant(Scalar{0}));
-
-        const auto ratioAngle = detail::fastAtanUnit(ratio);
-        const auto quadrant1Angle = dyLarger.select(
-            ratioAngle.constant(constants::half_pi<Scalar>) - ratioAngle,
-            ratioAngle);
-        const auto quadrant2Angle =
-            (dx < dx.constant(Scalar{0}))
-                .select(quadrant1Angle.constant(constants::pi<Scalar>) -
-                            quadrant1Angle,
-                        quadrant1Angle);
-        const auto signedAngle = (dy < dy.constant(Scalar{0}))
-                                     .select(-quadrant2Angle, quadrant2Angle);
-
-        // Map [-π, +π) to [0, 1)
-        return (signedAngle + signedAngle.constant(constants::pi<Scalar>)) /
-               signedAngle.constant(constants::two_pi<Scalar>);
+        return static_cast<const Derived1&>(dx).binaryExpr(
+            static_cast<const Derived2&>(dy), *this);
     }
 };
 
 } // namespace hogpp
+
+namespace Eigen::internal {
+
+//! Enables the vectorized evaluation of the Fast SignedGradient.
+template<class Scalar>
+struct functor_traits<hogpp::SignedGradient<Scalar, hogpp::Fast>>
+{
+    static constexpr int Divisions = 2;
+    static constexpr int OtherOperations = 16;
+    static constexpr int DivisionCost = scalar_div_cost<Scalar, true>::value;
+
+    static constexpr int Cost =
+        Divisions * DivisionCost + OtherOperations * NumTraits<Scalar>::AddCost;
+    static constexpr bool PacketAccess = packet_traits<Scalar>::Vectorizable &&
+                                         packet_traits<Scalar>::HasAbs &&
+                                         packet_traits<Scalar>::HasDiv;
+};
+
+} // namespace Eigen::internal
 
 #endif // HOGPP_SIGNEDGRADIENT_HPP

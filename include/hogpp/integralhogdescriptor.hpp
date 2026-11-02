@@ -48,26 +48,19 @@ namespace hogpp {
 
 namespace detail {
 
-//! Detects whether a Binning functor can be evaluated over a whole tensor
-//! at once, in addition to its required per-pixel scalar operator(). Only
-//! the Fast profile of SignedGradient/UnsignedGradient provides this (see
-//! their tensor-expression operator() overloads); the Accurate profile
-//! and arbitrary user-supplied Binning types do not, and
-//! IntegralHOGDescriptor::compute() falls back to calling them once per
-//! pixel as before.
-template<class Binning, class Tensor, class = void>
-struct HasTensorBinning : std::false_type
-{
-};
-
+/**
+ * @brief Determines whether a binning functor can be evaluated over a whole
+ * tensor at once in addition to its per-pixel scalar operator().
+ *
+ * The Fast profiles of SignedGradient and UnsignedGradient provide such an
+ * overload. IntegralHOGDescriptor::compute() calls other functors, such as
+ * the Accurate profiles and user-supplied ones, once per pixel.
+ */
 template<class Binning, class Tensor>
-struct HasTensorBinning<
-    Binning, Tensor,
-    std::void_t<decltype(std::declval<const Binning&>()(
-        std::declval<const Tensor&>(), std::declval<const Tensor&>()))>>
-    : std::true_type
-{
-};
+concept TensorBinning =
+    requires(const Binning& binning, const Tensor& gradient) {
+        binning(gradient, gradient);
+    };
 
 } // namespace detail
 
@@ -340,7 +333,7 @@ public:
         const auto scale = static_cast<Scalar>(bins_ - 1);
 
         // When the Binning functor can be evaluated over a whole tensor at
-        // once (see detail::HasTensorBinning), precompute the per-pixel
+        // once (see detail::TensorBinning), precompute the per-pixel
         // bin weight for the whole image here as a single vectorized
         // expression, instead of calling it once per pixel inside the
         // scan below. The scan itself ends in a data-dependent scatter
@@ -352,7 +345,7 @@ public:
         // either way.
         using InputTensor = Eigen::Tensor<Scalar, 3, DataLayout>;
         constexpr bool hasTensorBinning =
-            detail::HasTensorBinning<Binning, InputTensor>::value;
+            detail::TensorBinning<Binning, InputTensor>;
 
         Eigen::Tensor<Scalar, 3, DataLayout> weights;
 
