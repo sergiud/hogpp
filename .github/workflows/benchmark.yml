@@ -13,6 +13,11 @@ on: [push, pull_request]
 permissions:
   contents: read
 
+# Runs updating the shared history must not race on the history branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   benchmark:
     name: ${{matrix.os}}
@@ -23,7 +28,7 @@ jobs:
     # permissions values must be static (GitHub Actions does not evaluate
     # expressions here), so this can't be conditioned on github.event_name.
     # write is only actually exercised by the auto-push input below, which
-    # is itself gated to push events; for a pull_request from a fork,
+    # is itself gated to pushes to master; for a pull_request from a fork,
     # GitHub always downgrades GITHUB_TOKEN to read-only regardless of what
     # this declares, so declaring write here is not a fork-safety issue.
     permissions:
@@ -112,7 +117,9 @@ jobs:
           tool: 'pytest'
           output-file-path: output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: ${{ github.event_name == 'push' }}
+          # Only master defines the baseline. Other branches and pull
+          # requests are compared against it without replacing it.
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
           alert-threshold: '150%'
           comment-on-alert: true
           fail-on-alert: true
