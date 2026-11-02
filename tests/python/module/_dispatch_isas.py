@@ -38,6 +38,7 @@ def available_isas(python_executable, env_items):
     result = subprocess.run(
         [python_executable, '-c', 'import hogpp'],
         env=env,
+        check=False,
         capture_output=True,
         text=True,
     )

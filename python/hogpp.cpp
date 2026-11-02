@@ -34,6 +34,8 @@
 #include "type_caster/bounds.hpp"
 
 #define HOGPP_CAT(prefix, ...) prefix##__VA_ARGS__
+#define HOGPP_STRINGIFY_IMPL(value) #value
+#define HOGPP_STRINGIFY(value) HOGPP_STRINGIFY_IMPL(value)
 #define HOGPP_MAKE_INIT(suffix, ...)                  \
     void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__); \
     void HOGPP_CAT(init_hogpp_, suffix)(__VA_ARGS__)
@@ -211,5 +213,9 @@ HOGPP_MAKE_INIT(HOGPP_TARGET, pybind11::module& m)
         , py::arg("memo")
     )
     ;
-    // clang-format off
+    // clang-format on
+
+    // Names the instruction set the module was initialized with, which only
+    // the module itself can tell reliably.
+    m.attr("_isa") = HOGPP_STRINGIFY(HOGPP_TARGET);
 }
