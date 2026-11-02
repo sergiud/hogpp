@@ -68,11 +68,14 @@ def find_interior_extrema(f, n=2000):
     return roots
 
 
+MAX_ITERATIONS = 50
+
+
 def main():
     points = [mp.mpf('0.25'), mp.mpf('0.5'), mp.mpf('0.75'), mp.mpf('1.0')]
 
-    for iteration in range(50):
-        a, b, c, unused_e = solve_step(points)
+    for _ in range(MAX_ITERATIONS):
+        a, b, c, _ = solve_step(points)
         f = error_fn(a, b, c)
         interior = find_interior_extrema(f)
         new_points = sorted(set(interior + [mp.mpf(1)]))
@@ -83,11 +86,15 @@ def main():
             points = new_points
             break
         points = new_points
+    else:
+        raise RuntimeError(
+            f'the exchange did not converge within {MAX_ITERATIONS} iterations'
+        )
 
-    a, b, c, equiosc_e = solve_step(points)
+    a, b, c, _ = solve_step(points)
     f = error_fn(a, b, c)
 
-    grid = [mp.mpf(i) / 500000 for i in range(0, 500001)]
+    grid = [mp.mpf(i) / 500000 for i in range(500001)]
     max_err = max(abs(f(x)) for x in grid)
     print('max |error| on fine grid:', mp.nstr(max_err, 20))
     print('a =', repr(float(a)))
