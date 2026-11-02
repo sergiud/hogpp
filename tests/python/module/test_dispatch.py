@@ -40,13 +40,33 @@ def hogpp_import():
             env['HOGPP_DISPATCH'] = dispatch
 
         return subprocess.run(
-            [sys.executable, '-c', 'import hogpp'],
+            [sys.executable, '-c', _PRINT_INITIALIZED_ISA],
             env=env,
+            check=False,
             capture_output=True,
             text=True,
         )
 
     return _run
+
+
+# Prints the instruction set the extension module was initialized with. The
+# extension is a submodule of the installed package, but the package itself
+# in a build tree.
+_PRINT_INITIALIZED_ISA = '''
+import hogpp
+try:
+    from hogpp import _hogpp as extension
+except ImportError:
+    extension = hogpp
+print(getattr(extension, '_isa', None))
+'''
+
+
+def _module_name(isa):
+    # The per-ISA modules are named after the instruction set as a lowercase
+    # C identifier, e.g. sse4_1 for SSE4.1.
+    return isa.lower().replace('.', '_')
 
 
 @pytest.fixture(scope='session')
@@ -97,12 +117,46 @@ def test_empty_dispatch_uses_generic(hogpp_import):
     result = hogpp_import('')
 
     assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == 'generic'
 
 
 def test_dispatch_with_available_isa_succeeds(hogpp_import, isa):
     result = hogpp_import(isa)
 
     assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == _module_name(isa)
+
+
+# Instruction sets from the most to the least capable one, in which order the
+# automatic dispatch must prefer them.
+_DISPATCH_PRIORITY = (
+    'AVX10.2',
+    'AVX10.1',
+    'AVX512',
+    'AVX2',
+    'AVX',
+    'SSE4.2',
+    'SSE4.1',
+    'SSSE3',
+    'SSE3',
+    'SSE2',
+    'SVE512',
+    'SVE256',
+    'SVE128',
+    'NEON',
+)
+
+
+def test_dispatch_selects_best_available_isa(hogpp_import, available_isas):
+    result = hogpp_import(None)
+
+    expected = next(
+        (_module_name(isa) for isa in _DISPATCH_PRIORITY if isa in available_isas),
+        'generic',
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == expected
 
 
 def pytest_generate_tests(metafunc):
