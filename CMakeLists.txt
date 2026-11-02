@@ -925,6 +925,15 @@ if (BUILD_TESTING)
       ${_pytest_xdist_ARGS}
       ${hogpp_SOURCE_DIR}/tests/python/internal/test_opencv_type_caster.py)
   endif (TARGET type_caster_test AND OpenCV_FOUND)
+
+  if (Python_Interpreter_FOUND)
+    add_test (NAME python_remez_atan COMMAND
+      ${Python_EXECUTABLE} -m pytest -p no:benchmark -W error
+      ${hogpp_SOURCE_DIR}/tests/python/scripts/test_remez_atan.py)
+    # Without mpmath, pytest skips the module and exits with the status for no
+    # collected tests.
+    set_tests_properties (python_remez_atan PROPERTIES SKIP_RETURN_CODE 5)
+  endif (Python_Interpreter_FOUND)
 endif (BUILD_TESTING)
 
 if (TARGET pyhogpp AND Sphinx_FOUND)
