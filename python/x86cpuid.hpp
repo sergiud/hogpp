@@ -17,8 +17,8 @@
 // limitations under the License.
 //
 
-#ifndef PYTHON_AVX10_HPP
-#define PYTHON_AVX10_HPP
+#ifndef PYTHON_X86CPUID_HPP
+#define PYTHON_X86CPUID_HPP
 
 #include <array>
 #include <cstddef>
@@ -30,12 +30,13 @@ namespace pyhogpp {
 using CPUIDRegisters = std::array<std::uint32_t, 4>;
 
 /**
- * @brief Processor and operating system state that determines AVX10 support.
+ * @brief Processor and operating system state that determines the support of
+ * x86 instruction sets.
  *
  * Each member holds the register of the CPUID leaf, or the XCR0 register,
- * that the AVX10 enumeration reads.
+ * that the enumeration of the instruction sets reads.
  */
-struct AVX10Enumeration
+struct CPUIDEnumeration
 {
     //! Leaf that enumerates the AVX10 version
     static constexpr std::uint32_t AVX10Leaf = 0x24;
@@ -43,10 +44,14 @@ struct AVX10Enumeration
     static constexpr std::uint32_t ExtendedFeaturesLeaf = 7;
     //! Bit of CPUID.(EAX=1):ECX set if XGETBV can read XCR0
     static constexpr std::uint32_t OSXSAVE = 1U << 27;
+    //! Bit of CPUID.(EAX=1):ECX set if the processor implements AVX
+    static constexpr std::uint32_t AVX = 1U << 28;
     //! Bit of CPUID.(EAX=7,ECX=1):EDX set if the processor implements AVX10
     static constexpr std::uint32_t AVX10 = 1U << 19;
     //! Bits of CPUID.(EAX=24h,ECX=0):EBX holding the AVX10 version
     static constexpr std::uint32_t VersionMask = 0xff;
+    //! Bits of XCR0 for the SSE and YMM state
+    static constexpr std::uint64_t AVXState = 0x6;
     //! Bits of XCR0 for the SSE, YMM, opmask and ZMM state, which AVX10 shares
     //! with AVX-512
     static constexpr std::uint64_t AVX512State = 0xe6;
@@ -66,15 +71,29 @@ struct AVX10Enumeration
 };
 
 /**
+ * @brief Determines whether a processor supports AVX and the operating system
+ * enables it.
+ */
+[[nodiscard]] constexpr bool avxSupported(
+    const CPUIDEnumeration& enumeration) noexcept
+{
+    using E = CPUIDEnumeration;
+
+    return (enumeration.features & E::OSXSAVE) != 0 &&
+           (enumeration.features & E::AVX) != 0 &&
+           (enumeration.xcr0 & E::AVXState) == E::AVXState;
+}
+
+/**
  * @brief Determines the AVX10 version a processor supports and the operating
  * system enables.
  *
  * @return The AVX10 version, or 0 if AVX10 is not usable.
  */
 [[nodiscard]] constexpr unsigned avx10Version(
-    const AVX10Enumeration& enumeration) noexcept
+    const CPUIDEnumeration& enumeration) noexcept
 {
-    using E = AVX10Enumeration;
+    using E = CPUIDEnumeration;
 
     if (enumeration.maxLeaf < E::AVX10Leaf ||
         (enumeration.features & E::OSXSAVE) == 0 ||
@@ -88,7 +107,7 @@ struct AVX10Enumeration
 }
 
 /**
- * @brief Reads the state that determines AVX10 support.
+ * @brief Reads the state that determines the support of x86 instruction sets.
  *
  * Leaves beyond the highest one the processor implements are not queried,
  * and XCR0 is read only if the operating system enables XGETBV.
@@ -97,36 +116,36 @@ struct AVX10Enumeration
  * @param xgetbv Returns XCR0.
  */
 template<class CPUID, class XGETBV>
-[[nodiscard]] AVX10Enumeration enumerateAVX10(CPUID&& cpuid, XGETBV&& xgetbv)
+[[nodiscard]] CPUIDEnumeration enumerateCPUID(CPUID&& cpuid, XGETBV&& xgetbv)
 {
     constexpr std::size_t EAX = 0;
     constexpr std::size_t EBX = 1;
     constexpr std::size_t ECX = 2;
     constexpr std::size_t EDX = 3;
 
-    AVX10Enumeration result;
+    CPUIDEnumeration result;
     result.maxLeaf = cpuid(0U, 0U)[EAX];
 
     if (result.maxLeaf >= 1) {
         result.features = cpuid(1U, 0U)[ECX];
     }
 
-    if ((result.features & AVX10Enumeration::OSXSAVE) != 0) {
+    if ((result.features & CPUIDEnumeration::OSXSAVE) != 0) {
         result.xcr0 = xgetbv();
     }
 
-    if (result.maxLeaf >= AVX10Enumeration::ExtendedFeaturesLeaf) {
+    if (result.maxLeaf >= CPUIDEnumeration::ExtendedFeaturesLeaf) {
         result.maxExtendedSubleaf =
-            cpuid(AVX10Enumeration::ExtendedFeaturesLeaf, 0U)[EAX];
+            cpuid(CPUIDEnumeration::ExtendedFeaturesLeaf, 0U)[EAX];
 
         if (result.maxExtendedSubleaf >= 1) {
             result.extendedFeatures =
-                cpuid(AVX10Enumeration::ExtendedFeaturesLeaf, 1U)[EDX];
+                cpuid(CPUIDEnumeration::ExtendedFeaturesLeaf, 1U)[EDX];
         }
     }
 
-    if (result.maxLeaf >= AVX10Enumeration::AVX10Leaf) {
-        result.avx10Features = cpuid(AVX10Enumeration::AVX10Leaf, 0U)[EBX];
+    if (result.maxLeaf >= CPUIDEnumeration::AVX10Leaf) {
+        result.avx10Features = cpuid(CPUIDEnumeration::AVX10Leaf, 0U)[EBX];
     }
 
     return result;
@@ -134,4 +153,4 @@ template<class CPUID, class XGETBV>
 
 } // namespace pyhogpp
 
-#endif // PYTHON_AVX10_HPP
+#endif // PYTHON_X86CPUID_HPP

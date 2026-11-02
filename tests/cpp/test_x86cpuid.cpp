@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "../../python/avx10.hpp"
+#include "../../python/x86cpuid.hpp"
 
 #include <boost/test/included/unit_test.hpp>
 
@@ -36,6 +36,7 @@ namespace {
 constexpr std::uint32_t AVX10Leaf = 0x24;
 constexpr std::uint32_t OSXSAVE = 1U << 27;
 constexpr std::uint32_t AVX10 = 1U << 19;
+constexpr std::uint32_t AVX = 1U << 28;
 // x87, SSE, YMM, opmask, upper halves of ZMM0-15 and ZMM16-31
 constexpr std::uint64_t AVX512State = 0xe7;
 // x87, SSE and YMM only
@@ -43,10 +44,10 @@ constexpr std::uint64_t AVXState = 0x7;
 
 // A processor implementing AVX10 of the given version with all of its
 // register state enabled by the operating system.
-[[nodiscard]] constexpr pyhogpp::AVX10Enumeration avx10Processor(
+[[nodiscard]] constexpr pyhogpp::CPUIDEnumeration avx10Processor(
     std::uint32_t version) noexcept
 {
-    pyhogpp::AVX10Enumeration result;
+    pyhogpp::CPUIDEnumeration result;
     result.maxLeaf = AVX10Leaf;
     result.features = OSXSAVE;
     result.maxExtendedSubleaf = 1;
@@ -78,7 +79,7 @@ BOOST_AUTO_TEST_CASE(version_ignores_upper_bits)
 
 BOOST_AUTO_TEST_CASE(avx512_without_avx10)
 {
-    pyhogpp::AVX10Enumeration enumeration = avx10Processor(1);
+    pyhogpp::CPUIDEnumeration enumeration = avx10Processor(1);
     enumeration.extendedFeatures = 0;
 
     BOOST_TEST(pyhogpp::avx10Version(enumeration) == 0U);
@@ -88,7 +89,7 @@ BOOST_AUTO_TEST_CASE(avx512_without_avx10)
 // leave disabled.
 BOOST_AUTO_TEST_CASE(avx512_state_disabled)
 {
-    pyhogpp::AVX10Enumeration enumeration = avx10Processor(1);
+    pyhogpp::CPUIDEnumeration enumeration = avx10Processor(1);
     enumeration.xcr0 = AVXState;
 
     BOOST_TEST(pyhogpp::avx10Version(enumeration) == 0U);
@@ -97,7 +98,7 @@ BOOST_AUTO_TEST_CASE(avx512_state_disabled)
 // Without OSXSAVE, XCR0 cannot be read and its value is meaningless.
 BOOST_AUTO_TEST_CASE(osxsave_disabled)
 {
-    pyhogpp::AVX10Enumeration enumeration = avx10Processor(1);
+    pyhogpp::CPUIDEnumeration enumeration = avx10Processor(1);
     enumeration.features = 0;
 
     BOOST_TEST(pyhogpp::avx10Version(enumeration) == 0U);
@@ -106,7 +107,7 @@ BOOST_AUTO_TEST_CASE(osxsave_disabled)
 // The version is enumerated by leaf 24h, which the processor must implement.
 BOOST_AUTO_TEST_CASE(avx10_leaf_unavailable)
 {
-    pyhogpp::AVX10Enumeration enumeration = avx10Processor(1);
+    pyhogpp::CPUIDEnumeration enumeration = avx10Processor(1);
     enumeration.maxLeaf = AVX10Leaf - 1;
 
     BOOST_TEST(pyhogpp::avx10Version(enumeration) == 0U);
@@ -116,7 +117,7 @@ BOOST_AUTO_TEST_CASE(avx10_leaf_unavailable)
 // must implement.
 BOOST_AUTO_TEST_CASE(extended_subleaf_unavailable)
 {
-    pyhogpp::AVX10Enumeration enumeration = avx10Processor(1);
+    pyhogpp::CPUIDEnumeration enumeration = avx10Processor(1);
     enumeration.maxExtendedSubleaf = 0;
 
     BOOST_TEST(pyhogpp::avx10Version(enumeration) == 0U);
@@ -126,6 +127,8 @@ namespace {
 
 // Self-snoop flag of CPUID.(EAX=1):EDX at the bit position OSXSAVE has in ECX
 constexpr std::uint32_t SelfSnoop = 1U << 27;
+// Hyper-threading flag of CPUID.(EAX=1):EDX at the bit position AVX has in ECX
+constexpr std::uint32_t HyperThreading = 1U << 28;
 
 using Leaf = std::pair<std::uint32_t, std::uint32_t>;
 
@@ -133,9 +136,9 @@ using Leaf = std::pair<std::uint32_t, std::uint32_t>;
 // often XCR0 is read.
 struct FakeProcessor
 {
-    [[nodiscard]] pyhogpp::AVX10Enumeration enumerate()
+    [[nodiscard]] pyhogpp::CPUIDEnumeration enumerate()
     {
-        return pyhogpp::enumerateAVX10(
+        return pyhogpp::enumerateCPUID(
             [this](std::uint32_t leaf, std::uint32_t subleaf) {
                 queried.emplace_back(leaf, subleaf);
                 const auto pos = leaves.find(Leaf{leaf, subleaf});
@@ -226,4 +229,63 @@ BOOST_AUTO_TEST_CASE(does_not_query_unimplemented_leaves)
     BOOST_TEST(pyhogpp::avx10Version(processor.enumerate()) == 0U);
     BOOST_TEST(!processor.wasQueried(AVX10Leaf, 0));
     BOOST_TEST(!processor.wasQueried(7, 1));
+}
+
+namespace {
+
+// A processor implementing AVX with the YMM state enabled by the operating
+// system.
+[[nodiscard]] constexpr pyhogpp::CPUIDEnumeration avxProcessor() noexcept
+{
+    pyhogpp::CPUIDEnumeration result;
+    result.maxLeaf = 1;
+    result.features = OSXSAVE | AVX;
+    result.xcr0 = AVXState;
+    return result;
+}
+
+} // namespace
+
+BOOST_AUTO_TEST_CASE(avx_processor)
+{
+    BOOST_TEST(pyhogpp::avxSupported(avxProcessor()));
+}
+
+// The operating system may leave the YMM state disabled.
+BOOST_AUTO_TEST_CASE(avx_state_disabled)
+{
+    pyhogpp::CPUIDEnumeration enumeration = avxProcessor();
+    enumeration.xcr0 = 0x3;
+
+    BOOST_TEST(!pyhogpp::avxSupported(enumeration));
+}
+
+BOOST_AUTO_TEST_CASE(avx_without_osxsave)
+{
+    pyhogpp::CPUIDEnumeration enumeration = avxProcessor();
+    enumeration.features = AVX;
+
+    BOOST_TEST(!pyhogpp::avxSupported(enumeration));
+}
+
+BOOST_AUTO_TEST_CASE(processor_without_avx)
+{
+    pyhogpp::CPUIDEnumeration enumeration = avxProcessor();
+    enumeration.features = OSXSAVE;
+
+    BOOST_TEST(!pyhogpp::avxSupported(enumeration));
+}
+
+// The AVX flag is a flag of ECX. The flag at the same position of EDX denotes
+// hyper-threading, which is unrelated.
+BOOST_AUTO_TEST_CASE(enumerates_avx_from_ecx)
+{
+    FakeProcessor processor = avx10FakeProcessor();
+    processor.leaves[{1, 0}] = {0, 0, OSXSAVE, HyperThreading};
+
+    BOOST_TEST(!pyhogpp::avxSupported(processor.enumerate()));
+
+    processor.leaves[{1, 0}] = {0, 0, OSXSAVE | AVX, 0};
+
+    BOOST_TEST(pyhogpp::avxSupported(processor.enumerate()));
 }

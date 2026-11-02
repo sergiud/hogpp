@@ -558,9 +558,9 @@ if (hogpp_BUILD_TESTS)
 
   # The tests include the header-only variant of Boost.Test.
   if (Boost_FOUND)
-    set (cpp_tests avx10 binning block_norm cartesian_product descriptor
-      gradient integral_histogram levenshtein maskingref multiply_add
-      spatialweighting)
+    set (cpp_tests binning block_norm cartesian_product descriptor gradient
+      integral_histogram levenshtein maskingref multiply_add spatialweighting
+      x86cpuid)
 
     if (HAVE_LIBC_MALLOC)
       list (APPEND cpp_tests allocations)
