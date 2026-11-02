@@ -213,12 +213,12 @@ int main() { return static_cast<int>(svcntw()); }
     if (_hogpp_system_processor MATCHES "^(arm|aarch64)" OR
         _hogpp_generator_platform MATCHES "^arm")
       if (HAVE_MFPU_NEON OR
-          _hogpp_system_processor MATCHES "^aarch64" OR
+          _hogpp_system_processor MATCHES "^(aarch64|arm64)" OR
           _hogpp_generator_platform MATCHES "^arm64")
         list (APPEND HOGPP_ISAS NEON)
         set (HAVE_ISA_NEON 1)
       endif (HAVE_MFPU_NEON OR
-             _hogpp_system_processor MATCHES "^aarch64" OR
+             _hogpp_system_processor MATCHES "^(aarch64|arm64)" OR
              _hogpp_generator_platform MATCHES "^arm64")
 
       if (HAVE_SVE)
@@ -841,13 +841,28 @@ if (BUILD_TESTING)
 
   if (TARGET pyhogpp)
     if (UNIX)
-      add_test (NAME cmake_arm32_neon_requires_compiler_support COMMAND
-        ${CMAKE_COMMAND}
-        -DPROJECT_SOURCE_DIR=${hogpp_SOURCE_DIR}
-        -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_arm32_neon
-        -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm32_neon_dispatch.cmake
-      )
+      # 32-bit ARM requires the compiler to accept -mfpu=neon, which the host
+      # compiler rejects. Every 64-bit ARM processor implements NEON, whether
+      # it is named aarch64 as on Linux or arm64 as on macOS and Windows.
+      foreach (_processor IN ITEMS arm aarch64 arm64 ARM64)
+        if (_processor STREQUAL arm)
+          set (_expect_neon OFF)
+        else (_processor STREQUAL arm)
+          set (_expect_neon ON)
+        endif (_processor STREQUAL arm)
+
+        add_test (NAME cmake_neon_dispatch_${_processor} COMMAND
+          ${CMAKE_COMMAND}
+          -DPROJECT_SOURCE_DIR=${hogpp_SOURCE_DIR}
+          -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_neon_${_processor}
+          -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+          -DTEST_SYSTEM_PROCESSOR=${_processor}
+          -DTEST_EXPECT_NEON=${_expect_neon}
+          -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm_neon_dispatch.cmake
+        )
+      endforeach (_processor IN ITEMS arm aarch64 arm64 ARM64)
+
+      unset (_expect_neon)
     endif (UNIX)
 
     add_test (NAME python_hogpp COMMAND
