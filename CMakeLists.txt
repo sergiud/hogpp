@@ -340,7 +340,7 @@ int main() { return static_cast<int>(svcntw()); }
     # type detail is not needed for coverage, so cap Debug builds to
     # line-table-only info here.
     target_compile_options (${target_name} PRIVATE
-      $<$<CONFIG:Debug>:-g1>
+      $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-g1>
     )
 
     if (arch STREQUAL generic)
@@ -397,7 +397,7 @@ int main() { return static_cast<int>(svcntw()); }
             target_compile_options (${target_name} PRIVATE -mfma)
           endif (hogpp_isa_${_eigen_suffix}_requires_fma)
 
-          if (arch MATCHES "^AVX")
+          if (arch MATCHES "^AVX" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             # GCC's inliner judges the wider AVX/AVX2/AVX512 codegen for
             # Eigen's tensor layout-swap/shuffle helper (used by
             # IntegralHOGDescriptor::compute()) too costly to inline,
@@ -411,7 +411,7 @@ int main() { return static_cast<int>(svcntw()); }
               --param=max-inline-insns-auto=400
               --param=inline-unit-growth=200
             )
-          endif (arch MATCHES "^AVX")
+          endif (arch MATCHES "^AVX" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         endif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
       endif (arch STREQUAL NEON)
 
