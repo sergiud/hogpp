@@ -37,6 +37,22 @@
 #    include <isa_availability.h>
 #endif // defined(HAVE___CHECK_ISA_SUPPORT)
 
+#if defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || \
+    defined(__x86_64__)
+#    define HOGPP_X86
+#    if defined(_MSC_VER) && !defined(__clang__)
+#        include <intrin.h>
+#    else // !(defined(_MSC_VER) && !defined(__clang__))
+#        include <cpuid.h>
+#    endif // defined(_MSC_VER) && !defined(__clang__)
+#endif     // defined(_M_IX86) || defined(_M_X64) || defined(__i386__) ||
+           // defined(__x86_64__)
+
+#include <array>
+#include <cstdint>
+
+#include "avx10.hpp"
+
 // Cacade macro definition by constraining it to x86/x86-64 instead of checking
 // for the platform inline to avoid unused macro definition warnings.
 #if defined(__i386__) || defined(__x86_64__)
@@ -48,6 +64,60 @@
 #endif         // defined(__i386__) || defined(__x86_64__)
 
 namespace pyhogpp {
+
+#if defined(HOGPP_X86)
+
+namespace {
+
+[[nodiscard]] CPUIDRegisters cpuid(std::uint32_t leaf,
+                                   std::uint32_t subleaf) noexcept
+{
+    CPUIDRegisters result{};
+#    if defined(_MSC_VER) && !defined(__clang__)
+    std::array<int, 4> registers{};
+    __cpuidex(registers.data(), static_cast<int>(leaf),
+              static_cast<int>(subleaf));
+
+    for (std::size_t i = 0; i < registers.size(); ++i) {
+        result[i] = static_cast<std::uint32_t>(registers[i]);
+    }
+#    else  // !(defined(_MSC_VER) && !defined(__clang__))
+    unsigned eax = 0;
+    unsigned ebx = 0;
+    unsigned ecx = 0;
+    unsigned edx = 0;
+    __cpuid_count(leaf, subleaf, eax, ebx, ecx, edx);
+    result = {eax, ebx, ecx, edx};
+#    endif // defined(_MSC_VER) && !defined(__clang__)
+    return result;
+}
+
+// Reads XCR0, which is valid only if the operating system sets OSXSAVE.
+[[nodiscard]] std::uint64_t xcr0() noexcept
+{
+#    if defined(_MSC_VER) && !defined(__clang__)
+    return _xgetbv(0);
+#    else  // !(defined(_MSC_VER) && !defined(__clang__))
+    // The encoding of XGETBV avoids requiring the XSAVE target feature for
+    // the intrinsic, like the CPU detection of GCC does.
+    std::uint32_t low = 0;
+    std::uint32_t high = 0;
+    __asm__(".byte 0x0f, 0x01, 0xd0" : "=a"(low), "=d"(high) : "c"(0));
+    return (std::uint64_t{high} << 32) | low;
+#    endif // defined(_MSC_VER) && !defined(__clang__)
+}
+
+// Queries the state that determines AVX10 support. The AVX10 version is
+// enumerated by CPUID alike on every compiler, unlike the AVX10 support of
+// the CPU detection built into compilers, which varies between them.
+[[nodiscard]] AVX10Enumeration queryAVX10() noexcept
+{
+    return enumerateAVX10(cpuid, xcr0);
+}
+
+} // namespace
+
+#endif // defined(HOGPP_X86)
 
 bool CPUFeature<ISA::SSE2>::supported() noexcept
 {
@@ -131,26 +201,20 @@ bool CPUFeature<ISA::AVX512>::supported() noexcept
 
 bool CPUFeature<ISA::AVX10_1>::supported() noexcept
 {
-#if defined(HAVE___CHECK_ISA_SUPPORT)
-    return __check_isa_support(__IA_SUPPORT_VECTOR512, 1);
-#elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS) && defined(__GNUC__) && \
-    (__GNUC__ >= 15)
-    return __builtin_cpu_supports("avx10.1");
-#else  // !defined(HAVE___CHECK_ISA_SUPPORT)
+#if defined(HOGPP_X86)
+    return avx10Version(queryAVX10()) >= 1;
+#else  // !defined(HOGPP_X86)
     return false;
-#endif // defined(HAVE___CHECK_ISA_SUPPORT)
+#endif // defined(HOGPP_X86)
 }
 
 bool CPUFeature<ISA::AVX10_2>::supported() noexcept
 {
-#if defined(HAVE___CHECK_ISA_SUPPORT)
-    return __check_isa_support(__IA_SUPPORT_AVX10_2, 0);
-#elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS) && defined(__GNUC__) && \
-    (__GNUC__ >= 15)
-    return __builtin_cpu_supports("avx10.2");
-#else  // !defined(HAVE___CHECK_ISA_SUPPORT)
+#if defined(HOGPP_X86)
+    return avx10Version(queryAVX10()) >= 2;
+#else  // !defined(HOGPP_X86)
     return false;
-#endif // defined(HAVE___CHECK_ISA_SUPPORT)
+#endif // defined(HOGPP_X86)
 }
 
 bool CPUFeature<ISA::NEON>::supported() noexcept

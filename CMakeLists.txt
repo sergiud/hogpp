@@ -481,6 +481,30 @@ if (BUILD_TESTING)
     add_test (NAME levenshtein_closest_match_rejects_unrelated_name COMMAND test_levenshtein -t closest_match_rejects_unrelated_name)
     add_test (NAME levenshtein_closest_match_empty_supported_list COMMAND test_levenshtein -t closest_match_empty_supported_list)
 
+    add_executable (test_avx10 tests/cpp/test_avx10.cpp)
+    target_compile_features (test_avx10 PRIVATE cxx_std_20)
+    target_link_libraries (test_avx10 PRIVATE Boost::unit_test_framework)
+
+    foreach (_case IN ITEMS avx10_1_processor avx10_2_processor
+                            version_ignores_upper_bits avx512_without_avx10
+                            avx512_state_disabled osxsave_disabled
+                            avx10_leaf_unavailable extended_subleaf_unavailable
+                            enumerates_avx10_processor
+                            enumerates_osxsave_from_ecx
+                            enumerates_avx10_flag_from_subleaf_1
+                            enumerates_version_from_ebx
+                            does_not_query_unimplemented_leaves)
+      add_test (NAME avx10_${_case} COMMAND test_avx10 -t ${_case})
+    endforeach (_case IN ITEMS avx10_1_processor avx10_2_processor
+                               version_ignores_upper_bits avx512_without_avx10
+                               avx512_state_disabled osxsave_disabled
+                               avx10_leaf_unavailable extended_subleaf_unavailable
+                               enumerates_avx10_processor
+                               enumerates_osxsave_from_ecx
+                               enumerates_avx10_flag_from_subleaf_1
+                               enumerates_version_from_ebx
+                               does_not_query_unimplemented_leaves)
+
     add_executable (test_integral_histogram
       tests/cpp/test_integral_histogram.cpp
     )
