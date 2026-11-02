@@ -649,6 +649,12 @@ if (BUILD_TESTING)
     add_test (NAME descriptor_nan_pixel_double COMMAND test_descriptor -t "nan_pixel<double>")
     add_test (NAME descriptor_nan_pixel_long_double COMMAND test_descriptor -t "nan_pixel<long double>")
 
+    foreach (_type IN ITEMS float double "long double")
+      string (MAKE_C_IDENTIFIER "${_type}" _type_name)
+      add_test (NAME descriptor_infinite_pixel_${_type_name} COMMAND test_descriptor -t "infinite_pixel<${_type}>")
+      add_test (NAME descriptor_infinite_gradients_fast_binning_${_type_name} COMMAND test_descriptor -t "infinite_gradients_fast_binning<${_type}>")
+    endforeach (_type IN ITEMS float double "long double")
+
     add_test (NAME descriptor_precomputed_binning_matches_reference_float COMMAND test_descriptor -t "precomputed_binning_matches_reference<float>")
     add_test (NAME descriptor_precomputed_binning_matches_reference_double COMMAND test_descriptor -t "precomputed_binning_matches_reference<double>")
     add_test (NAME descriptor_precomputed_binning_matches_reference_long_double COMMAND test_descriptor -t "precomputed_binning_matches_reference<long double>")

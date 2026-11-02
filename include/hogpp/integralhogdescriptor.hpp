@@ -24,6 +24,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -380,11 +381,13 @@ public:
 
             Scalar mag = std::apply(mags, ijk);
 
-            if (!(mag > 0)) {
-                // No gradient (zero magnitude), or a non-finite value
-                // propagated from a masked/invalid input pixel; skip
-                // voting instead of relying on an invariant that would
-                // otherwise be violated.
+            constexpr Scalar Largest = std::numeric_limits<Scalar>::max();
+
+            if (!(mag > 0 && mag <= Largest)) {
+                // No gradient, or a non-finite magnitude propagated from an
+                // invalid input pixel. Its vote would make the integral
+                // histogram non-finite, and the binning of infinite
+                // derivatives is not defined.
                 return;
             }
 
