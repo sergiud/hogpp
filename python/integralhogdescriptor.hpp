@@ -39,6 +39,8 @@
 #include "blocknormalizer.hpp"
 #include "interpolation.hpp"
 #include "magnitude.hpp"
+#include "maskingref.hpp"
+#include "type_caster/maskingref.hpp"
 #include "type_caster/typesequence.hpp"
 
 template<class T, class SpatialWeighting = hogpp::NoSpatialWeighting,
@@ -268,8 +270,10 @@ public:
             epsilon,
         double sigma, const std::optional<InterpolationType>& interpolation);
 
-    void compute(const Rank2Or3Tensor& image, const pybind11::handle& mask);
-    void compute(const Rank2Or3TensorPair& dydx, const pybind11::handle& mask);
+    void compute(const Rank2Or3Tensor& image,
+                 const std::optional<pyhogpp::MaskingRef>& mask);
+    void compute(const Rank2Or3TensorPair& dydx,
+                 const std::optional<pyhogpp::MaskingRef>& mask);
 
     [[nodiscard]] pybind11::object features() const;
     [[nodiscard]] pybind11::object featuresROI(const hogpp::Bounds& rect) const;

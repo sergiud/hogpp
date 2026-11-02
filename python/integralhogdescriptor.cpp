@@ -437,8 +437,8 @@ template<class Scalar, class... Scalars>
 
 } // namespace
 
-void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
-                                    const pybind11::handle& mask)
+void IntegralHOGDescriptor::compute(
+    const Rank2Or3Tensor& t, const std::optional<pyhogpp::MaskingRef>& mask)
 {
     // TODO Maybe support dtype parameter?
 
@@ -449,43 +449,16 @@ void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
 
     std::visit(
         [&image, &info, &mask](auto& descriptor) {
-            if (mask.is_none()) {
-                auto convert = [&descriptor](const auto& t) {
-                    descriptor.compute(t);
+            if (mask) {
+                auto convert = [&descriptor, &mask](const auto& t) {
+                    descriptor.compute(t, *mask);
                 };
 
                 bufferToTensor(image, info, convert, SupportedTypes{});
             }
             else {
-                pybind11::object getitem;
-
-                if (pybind11::hasattr(mask, "__getitem__")) {
-                    // mask can be indexed, e.g., it's a numpy.ndarray
-                    getitem = pybind11::getattr(mask, "__getitem__");
-                }
-                else if (pybind11::hasattr(mask, "__call__")) {
-                    // mask is a callable
-                    getitem =
-                        pybind11::reinterpret_borrow<pybind11::object>(mask);
-                }
-                else {
-                    throw std::invalid_argument{fmt::format(
-                        FMT_STRING(
-                            "IntegralHOGDescriptor.compute mask must be "
-                            "either a callable or provide an indexer in terms "
-                            "of a __getitem__ method that accepts a 2-tuple, "
-                            "e.g., a numpy.ndarray instance, but a {} object "
-                            "was given"),
-                        pybind11::type::handle_of(mask))};
-                }
-
-                auto masking = [&getitem](Eigen::DenseIndex i,
-                                          Eigen::DenseIndex j) {
-                    return pybind11::bool_(getitem(pybind11::make_tuple(i, j)));
-                };
-
-                auto convert = [&descriptor, &masking](const auto& t) {
-                    descriptor.compute(t, masking);
+                auto convert = [&descriptor](const auto& t) {
+                    descriptor.compute(t);
                 };
 
                 bufferToTensor(image, info, convert, SupportedTypes{});
@@ -494,8 +467,9 @@ void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
         descriptor_);
 }
 
-void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
-                                    const pybind11::handle& mask)
+void IntegralHOGDescriptor::compute(
+    const Rank2Or3TensorPair& dydx,
+    const std::optional<pyhogpp::MaskingRef>& mask)
 {
     pybind11::buffer_info info = dydx.buf1.buf.request();
 
@@ -505,50 +479,23 @@ void IntegralHOGDescriptor::compute(const Rank2Or3TensorPair& dydx,
         [&dydx, &info, &mask](auto& descriptor) {
             using Scalar = typename std::decay_t<decltype(descriptor)>::Scalar;
 
-            if (mask.is_none()) {
-                auto convert = [&descriptor](const auto& dx, const auto& dy) {
+            if (mask) {
+                auto convert = [&descriptor, &mask](const auto& dx,
+                                                    const auto& dy) {
                     Eigen::Tensor<Scalar, 3> dxs = dx.template cast<Scalar>();
                     Eigen::Tensor<Scalar, 3> dys = dy.template cast<Scalar>();
 
-                    descriptor.compute(dxs, dys, nullptr);
+                    descriptor.compute(dxs, dys, *mask);
                 };
 
                 bufferToTensor(dydx, info, convert, SupportedTypes{});
             }
             else {
-                pybind11::object getitem;
-
-                if (pybind11::hasattr(mask, "__getitem__")) {
-                    // mask can be indexed, e.g., it's a numpy.ndarray
-                    getitem = pybind11::getattr(mask, "__getitem__");
-                }
-                else if (pybind11::hasattr(mask, "__call__")) {
-                    // mask is a callable
-                    getitem =
-                        pybind11::reinterpret_borrow<pybind11::object>(mask);
-                }
-                else {
-                    throw std::invalid_argument{fmt::format(
-                        FMT_STRING(
-                            "IntegralHOGDescriptor.compute mask must be "
-                            "either a callable or provide an indexer in terms "
-                            "of a __getitem__ method that accepts a 2-tuple, "
-                            "e.g., a numpy.ndarray instance, but a {} object "
-                            "was given"),
-                        pybind11::type::handle_of(mask))};
-                }
-
-                auto masking = [&getitem](Eigen::DenseIndex i,
-                                          Eigen::DenseIndex j) {
-                    return pybind11::bool_(getitem(pybind11::make_tuple(i, j)));
-                };
-
-                auto convert = [&descriptor, &masking](const auto& dx,
-                                                       const auto& dy) {
+                auto convert = [&descriptor](const auto& dx, const auto& dy) {
                     Eigen::Tensor<Scalar, 3> dxs = dx.template cast<Scalar>();
                     Eigen::Tensor<Scalar, 3> dys = dy.template cast<Scalar>();
 
-                    descriptor.compute(dxs, dys, masking);
+                    descriptor.compute(dxs, dys, nullptr);
                 };
 
                 bufferToTensor(dydx, info, convert, SupportedTypes{});

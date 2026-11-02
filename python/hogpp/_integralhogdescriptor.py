@@ -38,7 +38,7 @@ BlockNorm = Literal['l1', 'l1-sqrt', 'l1-hys', 'l2', 'l2-hys']
 Interpolation = Literal['orientation', 'trilinear']
 Size = Tuple[int, int]
 Number = Union[int, float]
-Mask = Union[Callable[[int, int], bool], ArrayLike]
+Mask = Union[Callable[[Tuple[int, int]], bool], ArrayLike]
 
 
 class IntegralHOGDescriptor(_hogpp.IntegralHOGDescriptor):

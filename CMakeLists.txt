@@ -138,6 +138,8 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
     python/type_caster/bounds.hpp
+    python/type_caster/maskingref.cpp
+    python/type_caster/maskingref.hpp
     python/type_caster/stride.hpp
     python/type_caster/tensor.hpp
     python/type_caster/typesequence.hpp
@@ -466,6 +468,15 @@ if (BUILD_TESTING)
     add_test (NAME block_norm_positive_near_zero_l2norm_float COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<float*")
     add_test (NAME block_norm_positive_near_zero_l2norm_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<double*")
     add_test (NAME block_norm_positive_near_zero_l2norm_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<long double*")
+
+    add_executable (test_maskingref tests/cpp/test_maskingref.cpp)
+    target_compile_features (test_maskingref PRIVATE cxx_std_20)
+    target_link_libraries (test_maskingref PRIVATE
+      Boost::unit_test_framework
+      hogpp::hogpp
+    )
+
+    add_test (NAME maskingref_copy_refers_to_callable COMMAND test_maskingref -t copy_refers_to_callable)
   endif (Boost_unit_test_framework_FOUND)
 
   # pytest-xdist running on PyPy with extension modules compiled using MSVC runs

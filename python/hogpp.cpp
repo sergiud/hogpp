@@ -85,7 +85,7 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
     .def
     (
           "compute"
-        , py::overload_cast<const Rank2Or3Tensor&, const py::handle&>(&IntegralHOGDescriptor::compute)
+        , py::overload_cast<const Rank2Or3Tensor&, const std::optional<pyhogpp::MaskingRef>&>(&IntegralHOGDescriptor::compute)
         , py::arg("image")
         // LCOV_EXCL_START
         , py::pos_only() // 'image' can only be provided as positional argument
@@ -96,7 +96,7 @@ HOGPP_MODULE(HOGPP_MODULE_NAME, m)
     .def
     (
           "compute"
-        , py::overload_cast<const Rank2Or3TensorPair&, const py::handle&>(&IntegralHOGDescriptor::compute)
+        , py::overload_cast<const Rank2Or3TensorPair&, const std::optional<pyhogpp::MaskingRef>&>(&IntegralHOGDescriptor::compute)
         , py::arg("dydx")
         , py::pos_only() // 'dxdy' can only be provided as positional argument
         , py::kw_only() // All following arguments are keyword-only

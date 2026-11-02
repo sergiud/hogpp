@@ -405,18 +405,43 @@ def test_compute_mask_callable(horizontal_gradient_image):
     np.testing.assert_array_almost_equal(desc.features_, desc1.features_)
 
 
+def test_compute_mask_indexer_precedes_callable(horizontal_gradient_image):
+    image = horizontal_gradient_image
+    i = image.shape[0] // 2
+    masked = np.zeros(image.shape, dtype=bool)
+    masked[i - 1 : i + 1, ...] = True
+
+    class Mask:
+        def __getitem__(self, key):
+            return masked[key]
+
+        def __call__(self, key):
+            return False
+
+    desc = IntegralHOGDescriptor()
+    desc.compute(image, mask=Mask())
+
+    expected = IntegralHOGDescriptor()
+    expected.compute(image, mask=masked)
+
+    np.testing.assert_array_equal(desc.features_, expected.features_)
+
+
 @pytest.mark.parametrize('mask', [0, False, 0.0])
-@pytest.mark.xfail(raises=ValueError)
 def test_compute_image_mask_invalid(mask, horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
-    desc.compute(horizontal_gradient_image, mask=mask)
+
+    with pytest.raises(TypeError, match=re.escape(f'but a {type(mask)} object')):
+        desc.compute(horizontal_gradient_image, mask=mask)
 
 
 @pytest.mark.parametrize('mask', [0, False, 0.0])
-@pytest.mark.xfail(raises=ValueError)
 def test_compute_gradient_mask_invalid(mask, horizontal_gradient_image):
     desc = IntegralHOGDescriptor()
-    desc.compute(np.gradient(horizontal_gradient_image, axis=(0, 1)), mask=mask)
+    dydx = np.gradient(horizontal_gradient_image, axis=(0, 1))
+
+    with pytest.raises(TypeError, match=re.escape(f'but a {type(mask)} object')):
+        desc.compute(dydx, mask=mask)
 
 
 @pytest.mark.xfail(raises=TypeError)
