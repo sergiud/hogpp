@@ -107,8 +107,8 @@ def merge(paths, labels, output_path):
             data = json.load(f)
 
         # Disambiguate each ISA's entry: every run otherwise reports the
-        # same "test_compute" name, and a tool tracking these over time
-        # would not be able to tell them apart.
+        # same test names, and a tool tracking these over time would not be
+        # able to tell them apart.
         for benchmark in data['benchmarks']:
             benchmark['name'] = f"{benchmark['name']}[{label}]"
             benchmark['fullname'] = f"{benchmark['fullname']}[{label}]"
