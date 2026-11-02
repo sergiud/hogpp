@@ -711,6 +711,19 @@ BOOST_AUTO_TEST_CASE(
 // not violate the internal "gradient magnitude is strictly positive at
 // this point" invariant used while voting, since that invariant
 // degrades to undefined behavior in release builds.
+namespace {
+
+template<class Scalar>
+[[nodiscard]] bool isFinite(const Eigen::Tensor<Scalar, 3>& t)
+{
+    return std::all_of(t.data(), t.data() + t.size(), [](Scalar value) {
+        using std::isfinite;
+        return isfinite(value);
+    });
+}
+
+} // namespace
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(nan_pixel, Scalar, Scalars)
 {
     auto image = makeImage<Scalar>();
@@ -719,20 +732,37 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(nan_pixel, Scalar, Scalars)
     hogpp::IntegralHOGDescriptor<Scalar> d;
     d.compute(image);
 
-    const Eigen::Tensor<Scalar, 3>& h = d.histogram();
+    BOOST_TEST(isFinite(d.histogram()));
+}
 
-    bool allFinite = true;
+// The neighbors of an infinite pixel have infinite gradient magnitudes, whose
+// votes would make the integral histogram non-finite.
+BOOST_AUTO_TEST_CASE_TEMPLATE(infinite_pixel, Scalar, Scalars)
+{
+    auto image = makeImage<Scalar>();
+    image(1, 1, 0) = std::numeric_limits<Scalar>::infinity();
 
-    for (Eigen::DenseIndex i = 0; i < h.size(); ++i) {
-        using std::isfinite;
+    hogpp::IntegralHOGDescriptor<Scalar> d;
+    d.compute(image);
 
-        if (!isfinite(h.data()[i])) {
-            allFinite = false;
-            break;
-        }
-    }
+    BOOST_TEST(isFinite(d.histogram()));
+}
 
-    BOOST_TEST(allFinite);
+// Two infinite neighbors make both derivatives of the center pixel infinite,
+// for which the ratio of the fast binning is not defined.
+BOOST_AUTO_TEST_CASE_TEMPLATE(infinite_gradients_fast_binning, Scalar, Scalars)
+{
+    auto image = makeImage<Scalar>();
+    image(1, 2, 0) = std::numeric_limits<Scalar>::infinity();
+    image(2, 1, 0) = std::numeric_limits<Scalar>::infinity();
+
+    hogpp::IntegralHOGDescriptor<Scalar, hogpp::Gradient<Scalar>,
+                                 hogpp::GradientMagnitude<Scalar>,
+                                 hogpp::SignedGradient<Scalar, hogpp::Fast>>
+        d;
+    d.compute(image);
+
+    BOOST_TEST(isFinite(d.histogram()));
 }
 
 // SignedGradient<Scalar, Fast> (and UnsignedGradient) provide a
