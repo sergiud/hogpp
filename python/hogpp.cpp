@@ -42,7 +42,6 @@ HOGPP_MAKE_INIT(HOGPP_TARGET, pybind11::module& m)
 {
     namespace py = pybind11;
 
-
     using pyhogpp::BinningType;
     using pyhogpp::BlockNormalizerType;
     using pyhogpp::IntegralHOGDescriptor;
