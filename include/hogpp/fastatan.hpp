@@ -22,9 +22,17 @@
 
 #include <type_traits>
 
-#include <unsupported/Eigen/CXX11/Tensor>
+#include <Eigen/Core>
 
 namespace hogpp::detail {
+
+// Coefficients of the polynomial, rounded to double by scripts/remez_atan.py.
+template<class T>
+inline constexpr T fastAtanDegree3 = static_cast<T>(-0.3262382105724919);
+template<class T>
+inline constexpr T fastAtanDegree5 = static_cast<T>(0.1553161994609051);
+template<class T>
+inline constexpr T fastAtanDegree7 = static_cast<T>(-0.04381294810998689);
 
 /**
  * @brief Degree-7 minimax polynomial approximation of
@@ -61,16 +69,15 @@ template<class Scalar>
     requires std::is_floating_point_v<Scalar>
 [[nodiscard]] constexpr Scalar fastAtanUnit(Scalar ratio) noexcept
 {
-    // Plain multiply-add rather than std::fma: without -mfma (e.g. the
-    // AVX2 dispatch object, which this project builds without requiring
-    // FMA3 support), std::fma is not inlined as a single hardware
-    // instruction and instead calls into libm, reintroducing exactly the
-    // non-vectorizable call overhead this approximation exists to avoid.
-    // The sub-ULP rounding difference from not fusing is negligible next
-    // to the polynomial's own approximation error.
-    constexpr Scalar degree3Coefficient{-0.3262382105724919};
-    constexpr Scalar degree5Coefficient{0.1553161994609051};
-    constexpr Scalar degree7Coefficient{-0.04381294810998689};
+    // Plain multiply-add rather than std::fma. On instruction sets without
+    // FMA, std::fma calls into libm and reintroduces the non-vectorizable
+    // call this approximation avoids. hogpp::multiplyAdd() selects the
+    // fused operation where it is fast but is not constexpr. The rounding
+    // difference from not fusing is negligible next to the approximation
+    // error of the polynomial.
+    constexpr Scalar degree3Coefficient = fastAtanDegree3<Scalar>;
+    constexpr Scalar degree5Coefficient = fastAtanDegree5<Scalar>;
+    constexpr Scalar degree7Coefficient = fastAtanDegree7<Scalar>;
 
     const Scalar ratioSquared = ratio * ratio;
     Scalar poly = (degree7Coefficient * ratioSquared) + degree5Coefficient;
@@ -80,45 +87,28 @@ template<class Scalar>
 }
 
 /**
- * @brief Tensor-expression overload of fastAtanUnit(), evaluating the same
- * minimax polynomial as a lazy, elementwise Eigen expression.
+ * @brief Packet overload of fastAtanUnit() evaluating the same polynomial on
+ * every lane of an Eigen packet.
  *
- * Unlike the scalar overload, this is meant to be evaluated over a whole
- * tensor at once (e.g. the full image) rather than once per pixel inside
- * a scalar hot loop, so Eigen can pack it into the target ISA's native
- * vector width instead of being forced through scalar code regardless of
- * the compiled instruction set.
+ * Evaluates each term once per packet with the same separate multiplications
+ * and additions as the scalar overload.
  */
-template<class Derived>
-[[nodiscard]] constexpr decltype(auto) fastAtanUnit(
-    const Eigen::TensorBase<Derived, Eigen::ReadOnlyAccessors>& ratio)
+template<class Packet>
+[[nodiscard]] inline Packet fastAtanUnitPacket(const Packet& ratio) noexcept
 {
-    using Scalar = typename Derived::Scalar;
+    using Scalar = typename Eigen::internal::unpacket_traits<Packet>::type;
+    using Eigen::internal::padd;
+    using Eigen::internal::pmul;
+    using Eigen::internal::pset1;
 
-    constexpr Scalar degree3Coefficient{-0.3262382105724919};
-    constexpr Scalar degree5Coefficient{0.1553161994609051};
-    constexpr Scalar degree7Coefficient{-0.04381294810998689};
+    const Packet ratioSquared = pmul(ratio, ratio);
+    Packet poly =
+        padd(pmul(pset1<Packet>(fastAtanDegree7<Scalar>), ratioSquared),
+             pset1<Packet>(fastAtanDegree5<Scalar>));
+    poly =
+        padd(pmul(poly, ratioSquared), pset1<Packet>(fastAtanDegree3<Scalar>));
 
-    const auto ratioSquared = ratio.square();
-
-    // Eigen's Tensor arithmetic operators only re-derive the concrete
-    // expression type of the object a method is called on, not of a
-    // same-typed argument passed to it: ratio's declared parameter type
-    // is the TensorBase reference itself, so using it bare as the
-    // right-hand side of an operator below (rather than as the object a
-    // method is called on, as above) would embed that reference type
-    // into the expression tree instead of the concrete one, and fail to
-    // compile. Calling a no-op left-hand operation on it first, as done
-    // throughout this codebase (e.g. GradientSquareMagnitude), recovers
-    // the concrete type.
-    const auto ratioIdentity = ratio + ratio.constant(Scalar{0});
-
-    return (((ratioSquared * ratioSquared.constant(degree7Coefficient)) +
-             ratioSquared.constant(degree5Coefficient)) *
-                ratioSquared +
-            ratioSquared.constant(degree3Coefficient)) *
-               ratioSquared * ratioIdentity +
-           ratioIdentity;
+    return padd(pmul(pmul(poly, ratioSquared), ratio), ratio);
 }
 
 } // namespace hogpp::detail

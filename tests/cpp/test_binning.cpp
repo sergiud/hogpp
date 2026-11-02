@@ -19,6 +19,7 @@
 
 #define BOOST_TEST_MODULE hogpp
 
+#include <array>
 #include <cmath>
 #include <utility>
 
@@ -220,6 +221,80 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast_tensor, Scalar, Scalars)
     for (int i = 0; i < samples; ++i) {
         BOOST_TEST(batched(i) == approx(dx(i), dy(i)),
                    tt::tolerance(tensorBinningAgreementTolerance<Scalar>));
+    }
+}
+
+// The sign of a zero vertical derivative selects between -π and +π, which the
+// binning maps to opposite ends of the histogram, so the tensor overload must
+// respect it like the scalar one.
+BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast_tensor_signed_zero, Scalar,
+                              Scalars)
+{
+    constexpr std::array<Scalar, 4> Horizontal{Scalar{-1}, Scalar{1},
+                                               -Scalar{0}, Scalar{0}};
+    constexpr std::array<Scalar, 2> Vertical{-Scalar{0}, Scalar{0}};
+    constexpr auto Samples =
+        static_cast<Eigen::DenseIndex>(Horizontal.size() * Vertical.size());
+
+    hogpp::SignedGradient<Scalar, hogpp::Fast> approx;
+
+    Eigen::Tensor<Scalar, 1> dx(Samples);
+    Eigen::Tensor<Scalar, 1> dy(Samples);
+    Eigen::DenseIndex i = 0;
+
+    for (const Scalar x : Horizontal) {
+        for (const Scalar y : Vertical) {
+            dx(i) = x;
+            dy(i) = y;
+            ++i;
+        }
+    }
+
+    const Eigen::Tensor<Scalar, 1> batched = approx(dx, dy);
+
+    for (i = 0; i < Samples; ++i) {
+        BOOST_TEST_CONTEXT("dx " << dx(i) << ", dy " << dy(i))
+        {
+            BOOST_TEST(batched(i) == approx(dx(i), dy(i)));
+        }
+    }
+}
+
+// A zero horizontal derivative yields a vertical gradient whose direction
+// follows the sign of the vertical derivative alone. Dividing by -0 instead
+// flips the sign of the ratio, so the tensor overload must not derive the
+// angle from it.
+BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient_fast_tensor_signed_zero, Scalar,
+                              Scalars)
+{
+    constexpr std::array<Scalar, 4> Horizontal{-Scalar{0}, Scalar{0},
+                                               Scalar{-1}, Scalar{1}};
+    constexpr std::array<Scalar, 4> Vertical{Scalar{-1}, Scalar{1}, -Scalar{0},
+                                             Scalar{0}};
+    constexpr auto Samples =
+        static_cast<Eigen::DenseIndex>(Horizontal.size() * Vertical.size());
+
+    hogpp::UnsignedGradient<Scalar, hogpp::Fast> approx;
+
+    Eigen::Tensor<Scalar, 1> dx(Samples);
+    Eigen::Tensor<Scalar, 1> dy(Samples);
+    Eigen::DenseIndex i = 0;
+
+    for (const Scalar x : Horizontal) {
+        for (const Scalar y : Vertical) {
+            dx(i) = x;
+            dy(i) = y;
+            ++i;
+        }
+    }
+
+    const Eigen::Tensor<Scalar, 1> batched = approx(dx, dy);
+
+    for (i = 0; i < Samples; ++i) {
+        BOOST_TEST_CONTEXT("dx " << dx(i) << ", dy " << dy(i))
+        {
+            BOOST_TEST(batched(i) == approx(dx(i), dy(i)));
+        }
     }
 }
 

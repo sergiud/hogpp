@@ -67,8 +67,9 @@ struct UnsignedGradient<Scalar, Accurate>
  * verified numerically against @c std::atan across the full domain.
  * After mapping to the normalized [0, 1) bin weight this is at most
  * @f$4.24 \times 10^{-5}@f$, several orders of magnitude below the width
- * of a single bin in a typical histogram, so bin assignment is
- * unaffected.
+ * of a single bin in a typical histogram. A vote therefore changes its
+ * lower bin only if the exact weight lies within this bound of a bin
+ * boundary.
  */
 template<class Scalar>
 struct UnsignedGradient<Scalar, Fast>
@@ -110,59 +111,96 @@ struct UnsignedGradient<Scalar, Fast>
     }
 
     /**
-     * @brief Tensor-expression overload evaluating the same approximation
-     * as a lazy, elementwise Eigen expression instead of once per pixel.
+     * @brief Evaluates the approximation on every lane of an Eigen packet.
      *
-     * See SignedGradient<Scalar, Fast>'s tensor overload: this is not
-     * provided for the Accurate profile, which keeps the exact,
-     * unbatched per-pixel behavior.
+     * Mirrors the scalar overload using lane masks, so vectorized
+     * evaluations of the functor, such as by the tensor overload, agree
+     * with the scalar one.
+     */
+    template<class Packet>
+    [[nodiscard]] Packet packetOp(const Packet& dx,
+                                  const Packet& dy) const noexcept
+    {
+        using Eigen::internal::pabs;
+        using Eigen::internal::padd;
+        using Eigen::internal::pand;
+        using Eigen::internal::pcmp_eq;
+        using Eigen::internal::pcmp_le;
+        using Eigen::internal::pdiv;
+        using Eigen::internal::por;
+        using Eigen::internal::pselect;
+        using Eigen::internal::pset1;
+        using Eigen::internal::psub;
+        using Eigen::internal::pzero;
+
+        const Packet zero = pzero(dx);
+        const Packet one = pset1<Packet>(Scalar{1});
+        const Packet signMask = pset1<Packet>(Scalar{-0.0});
+        const Packet halfPi = pset1<Packet>(constants::half_pi<Scalar>);
+        const Packet dxIsZero = pcmp_eq(dx, zero);
+        const Packet bothZero = pand(dxIsZero, pcmp_eq(dy, zero));
+
+        // The lanes with dx = 0 divide by zero here. Their result is
+        // replaced below.
+        const Packet ratio = pdiv(dy, dx);
+        const Packet absRatio = pabs(ratio);
+        const Packet ratioSmall = pcmp_le(absRatio, one);
+        // A single evaluation of the polynomial covers both branches of the
+        // scalar overload, which differ only in its argument.
+        const Packet unitAngle = detail::fastAtanUnitPacket(
+            pselect(ratioSmall, absRatio, pdiv(one, absRatio)));
+        const Packet magnitudeAngle =
+            pselect(ratioSmall, unitAngle, psub(halfPi, unitAngle));
+        // The angles are not negative, so setting their sign bit computes
+        // copysign.
+        const Packet generalAngle = por(magnitudeAngle, pand(ratio, signMask));
+        const Packet dxZeroAngle = por(halfPi, pand(dy, signMask));
+        const Packet angle = pselect(dxIsZero, dxZeroAngle, generalAngle);
+
+        // Map [-π/2, +π/2) to [0, 1)
+        const Packet weight =
+            pdiv(padd(angle, halfPi), pset1<Packet>(constants::pi<Scalar>));
+
+        return pselect(bothZero, pset1<Packet>(Scalar(0.5)), weight);
+    }
+
+    /**
+     * @brief Evaluates the approximation over whole tensors as a lazy
+     * elementwise Eigen expression instead of once per pixel.
+     *
+     * See the tensor overload of SignedGradient<Scalar, Fast>. The Accurate
+     * profile deliberately lacks this overload and keeps the exact
+     * per-pixel behavior.
      */
     template<class Derived1, class Derived2>
-    [[nodiscard]] constexpr decltype(auto) operator()(
+    [[nodiscard]] auto operator()(
         const Eigen::TensorBase<Derived1, Eigen::ReadOnlyAccessors>& dx,
         const Eigen::TensorBase<Derived2, Eigen::ReadOnlyAccessors>& dy) const
     {
-        const auto dxIsZero = dx == dx.constant(Scalar{0});
-        const auto bothZero = dxIsZero && (dy == dy.constant(Scalar{0}));
-
-        // dx is used below as the right-hand side of operator/, not as
-        // the object a method is called on: Eigen's Tensor arithmetic
-        // operators only re-derive the concrete expression type of the
-        // latter, so a bare TensorBase-reference-typed parameter used
-        // the other way fails to compile. A no-op left-hand operation
-        // recovers the concrete type first, as elsewhere in this file.
-        const auto dxIdentity = dx + dx.constant(Scalar{0});
-
-        // At dx == 0 lanes the general-case expression below is discarded
-        // by select() regardless of its value, so dividing by exactly
-        // zero there (producing +-inf) is safe.
-        const auto ratio = dy / dxIdentity;
-        const auto absRatio = ratio.abs();
-        const auto ratioSmall = absRatio <= absRatio.constant(Scalar{1});
-        const auto reciprocal = absRatio.constant(Scalar{1}) / absRatio;
-
-        const auto magnitudeAngle =
-            ratioSmall.select(detail::fastAtanUnit(absRatio),
-                              absRatio.constant(constants::half_pi<Scalar>) -
-                                  detail::fastAtanUnit(reciprocal));
-        const auto generalAngle = (ratio < ratio.constant(Scalar{0}))
-                                      .select(-magnitudeAngle, magnitudeAngle);
-
-        const auto dxZeroAngle =
-            (dy < dy.constant(Scalar{0}))
-                .select(dy.constant(-constants::half_pi<Scalar>),
-                        dy.constant(constants::half_pi<Scalar>));
-
-        const auto angle =
-            bothZero.select(generalAngle.constant(Scalar{0}),
-                            dxIsZero.select(dxZeroAngle, generalAngle));
-
-        // Map [-π/2, +π/2) to [0, 1)
-        return (angle + angle.constant(constants::half_pi<Scalar>)) /
-               angle.constant(constants::pi<Scalar>);
+        return static_cast<const Derived1&>(dx).binaryExpr(
+            static_cast<const Derived2&>(dy), *this);
     }
 };
 
 } // namespace hogpp
+
+namespace Eigen::internal {
+
+//! Enables the vectorized evaluation of the Fast UnsignedGradient.
+template<class Scalar>
+struct functor_traits<hogpp::UnsignedGradient<Scalar, hogpp::Fast>>
+{
+    static constexpr int Divisions = 3;
+    static constexpr int OtherOperations = 18;
+    static constexpr int DivisionCost = scalar_div_cost<Scalar, true>::value;
+
+    static constexpr int Cost =
+        Divisions * DivisionCost + OtherOperations * NumTraits<Scalar>::AddCost;
+    static constexpr bool PacketAccess = packet_traits<Scalar>::Vectorizable &&
+                                         packet_traits<Scalar>::HasAbs &&
+                                         packet_traits<Scalar>::HasDiv;
+};
+
+} // namespace Eigen::internal
 
 #endif // HOGPP_UNSIGNEDGRADIENT_HPP
