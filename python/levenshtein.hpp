@@ -81,7 +81,8 @@ template<std::ranges::random_access_range R1,
 // this bound the closest of an unrelated set of names would always be
 // suggested, however dissimilar it is to the requested one.
 template<std::ranges::random_access_range R>
-    requires std::convertible_to<typename R::value_type, std::string_view>
+    requires std::convertible_to<std::ranges::range_value_t<R>,
+                                 std::string_view>
 [[nodiscard]] inline std::optional<std::string_view> findClosestMatch(
     std::string_view isa, const R& supported, const std::locale& loc)
 {
@@ -100,7 +101,12 @@ template<std::ranges::random_access_range R>
         }
     }
 
-    const auto threshold = std::max<std::size_t>(2, isa.size() / 2);
+    // A plausible typo changes at most half of the name, and a short name
+    // tolerates a few edits regardless of its length.
+    constexpr std::size_t MinimumThreshold = 2;
+    constexpr std::size_t ThresholdDivisor = 2;
+    const auto threshold =
+        std::max(MinimumThreshold, isa.size() / ThresholdDivisor);
 
     if (bestDistance <= threshold) {
         return best;

@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(single_edits)
 
 // The first DP row must be fully initialized up to and including its last
 // element, particularly when the second string is longer than the first.
-BOOST_AUTO_TEST_CASE(empty_versus_non_empty_regression)
+BOOST_AUTO_TEST_CASE(empty_versus_non_empty)
 {
     using namespace std::string_view_literals;
 
@@ -74,6 +74,21 @@ BOOST_AUTO_TEST_CASE(closest_match_suggests_plausible_typo)
     using namespace std::string_view_literals;
 
     const std::array supported{"SSE2"sv, "AVX2"sv, "AVX512"sv};
+
+    const auto match =
+        findClosestMatch("AVX"sv, supported, std::locale::classic());
+
+    BOOST_TEST_REQUIRE(match.has_value());
+    BOOST_TEST(*match == "AVX2");
+}
+
+// Any random access range of names is accepted, including a C array, which
+// has no member type value_type.
+BOOST_AUTO_TEST_CASE(closest_match_accepts_c_array)
+{
+    using namespace std::string_view_literals;
+
+    const std::string_view supported[]{"SSE2"sv, "AVX2"sv, "AVX512"sv};
 
     const auto match =
         findClosestMatch("AVX"sv, supported, std::locale::classic());

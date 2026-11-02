@@ -475,11 +475,12 @@ if (BUILD_TESTING)
 
     add_test (NAME levenshtein_identical_strings COMMAND test_levenshtein -t identical_strings)
     add_test (NAME levenshtein_single_edits COMMAND test_levenshtein -t single_edits)
-    add_test (NAME levenshtein_empty_versus_non_empty_regression COMMAND test_levenshtein -t empty_versus_non_empty_regression)
+    add_test (NAME levenshtein_empty_versus_non_empty COMMAND test_levenshtein -t empty_versus_non_empty)
     add_test (NAME levenshtein_distance_is_symmetric COMMAND test_levenshtein -t distance_is_symmetric)
     add_test (NAME levenshtein_closest_match_suggests_plausible_typo COMMAND test_levenshtein -t closest_match_suggests_plausible_typo)
     add_test (NAME levenshtein_closest_match_rejects_unrelated_name COMMAND test_levenshtein -t closest_match_rejects_unrelated_name)
     add_test (NAME levenshtein_closest_match_empty_supported_list COMMAND test_levenshtein -t closest_match_empty_supported_list)
+    add_test (NAME levenshtein_closest_match_accepts_c_array COMMAND test_levenshtein -t closest_match_accepts_c_array)
 
     add_executable (test_x86cpuid tests/cpp/test_x86cpuid.cpp)
     target_compile_features (test_x86cpuid PRIVATE cxx_std_20)
