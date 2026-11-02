@@ -86,8 +86,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient, Scalar, Scalars)
 // std::atan2/std::atan across the full angular range. After mapping to
 // the normalized [0, 1) bin weight this is at most ~2.13e-5 (signed) /
 // ~4.24e-5 (unsigned), more than three orders of magnitude below the
-// width of a single bin in the default 9-bin histogram (1/9 ~ 0.111), so
-// it cannot change bin assignment.
+// width of a single bin in the default 9-bin histogram (1/9 ~ 0.111). It
+// changes the lower bin of a vote only if the exact weight lies within
+// this bound of a bin boundary.
 //
 // boost::unit_test::tolerance() compares relative to the operands'
 // magnitude, which is unstable for weight values close to zero. Both

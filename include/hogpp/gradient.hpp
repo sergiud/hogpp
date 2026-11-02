@@ -122,8 +122,10 @@ struct CentralDifferences<T, Vertical_t>
         using std::midpoint;
         const auto& tensor = static_cast<const Derived&>(image);
         if constexpr (std::is_floating_point_v<PrecisionType>) {
-            // Halving a normal number is exact, so the difference of the
-            // halves rounds like std::midpoint, and neither half can overflow.
+            // Halving is exact for magnitudes of at least twice the smallest
+            // normal number, so the difference of the halves rounds like
+            // std::midpoint, and neither half can overflow. Below that, a
+            // half may round by a subnormal ulp.
             // Unlike std::midpoint, it does not branch on the magnitude of the
             // neighbors, which allows the sweep to be vectorized.
             return Scalar(PrecisionType(tensor(i + 1, j, k)) / 2 -
@@ -151,8 +153,10 @@ struct CentralDifferences<T, Horizontal_t>
         // the corresponding row (neighbor) pixels.
         const auto& tensor = static_cast<const Derived&>(image);
         if constexpr (std::is_floating_point_v<PrecisionType>) {
-            // Halving a normal number is exact, so the difference of the
-            // halves rounds like std::midpoint, and neither half can overflow.
+            // Halving is exact for magnitudes of at least twice the smallest
+            // normal number, so the difference of the halves rounds like
+            // std::midpoint, and neither half can overflow. Below that, a
+            // half may round by a subnormal ulp.
             // Unlike std::midpoint, it does not branch on the magnitude of the
             // neighbors, which allows the sweep to be vectorized.
             return Scalar(PrecisionType(tensor(i, j + 1, k)) / 2 -

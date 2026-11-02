@@ -402,8 +402,8 @@ public:
      * Invokes @p binning once for every input space position @c i as
      * @c binning(bins, i), where @c bins is a view of type Bins of the
      * histogram space elements of that position. On entry, the view holds the
-     * sums over all positions preceding @c i along every input space
-     * dimension. The votes of @c i are added to it in place. The order in
+     * sums over all positions @f$p \le i@f$ componentwise except
+     * @c i itself. The votes of @c i are added to it in place. The order in
      * which the positions are visited follows the memory layout of the
      * histogram and is otherwise unspecified.
      *

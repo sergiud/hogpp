@@ -49,11 +49,12 @@
            // defined(__x86_64__)
 
 #include <array>
+#include <climits>
 #include <cstdint>
 
 #include "x86cpuid.hpp"
 
-// Cacade macro definition by constraining it to x86/x86-64 instead of checking
+// Cascade macro definition by constraining it to x86/x86-64 instead of checking
 // for the platform inline to avoid unused macro definition warnings.
 #if defined(__i386__) || defined(__x86_64__)
 #    if defined(__has_builtin)
@@ -125,7 +126,8 @@ bool CPUFeature<ISA::SSE2>::supported() noexcept
     return __check_isa_support(__IA_SUPPORT_VECTOR128, 0);
 #elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("sse2");
-#else  // !defined(HAVE___CHECK_ISA_SUPPORT)
+#else  // !defined(HAVE___CHECK_ISA_SUPPORT) &&
+       // !defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return false;
 #endif // defined(HAVE___CHECK_ISA_SUPPORT)
 }
@@ -154,7 +156,8 @@ bool CPUFeature<ISA::SSE4_2>::supported() noexcept
     return __check_isa_support(__IA_SUPPORT_SSE42, 0);
 #elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("sse4.2");
-#else  // !defined(HAVE___CHECK_ISA_SUPPORT)
+#else  // !defined(HAVE___CHECK_ISA_SUPPORT) &&
+       // !defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return false;
 #endif // defined(HAVE___CHECK_ISA_SUPPORT)
 }
@@ -183,7 +186,8 @@ bool CPUFeature<ISA::AVX2>::supported() noexcept
     return __check_isa_support(__IA_SUPPORT_VECTOR256, 0);
 #elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("avx2");
-#else  // !defined(HAVE___CHECK_ISA_SUPPORT)
+#else  // !defined(HAVE___CHECK_ISA_SUPPORT) &&
+       // !defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return false;
 #endif // defined(HAVE___CHECK_ISA_SUPPORT)
 }
@@ -194,7 +198,8 @@ bool CPUFeature<ISA::AVX512>::supported() noexcept
     return __check_isa_support(__IA_SUPPORT_VECTOR512, 0);
 #elif defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return __builtin_cpu_supports("avx512f");
-#else  // !defined(HAVE___CHECK_ISA_SUPPORT)
+#else  // !defined(HAVE___CHECK_ISA_SUPPORT) &&
+       // !defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
     return false;
 #endif // defined(HAVE___CHECK_ISA_SUPPORT)
 }
@@ -224,7 +229,9 @@ bool CPUFeature<ISA::NEON>::supported() noexcept
 #elif defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) && \
     defined(HWCAP_NEON)
     return (getauxval(AT_HWCAP) & HWCAP_NEON) == HWCAP_NEON;
-#else  // !defined(__aarch64__) || defined(__ARM_NEON__) || defined(_M_ARM64)
+#else  // !(defined(__aarch64__) || defined(__ARM_NEON__) ||
+       // defined(_M_ARM64)) && !(defined(HAVE_GETAUXVAL) &&
+       // defined(HAVE_ASM_HWCAP_H) && defined(HWCAP_NEON))
     return false;
 #endif // defined(__aarch64__) || defined(__ARM_NEON__) || defined(_M_ARM64)
 }
@@ -233,8 +240,8 @@ bool CPUFeature<ISA::SVE>::supported() noexcept
 {
 #if defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) && defined(HWCAP_SVE)
     return (getauxval(AT_HWCAP) & HWCAP_SVE) == HWCAP_SVE;
-#else  // !defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) &&
-       // defined(HWCAP_SVE)
+#else  // !(defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) &&
+       // defined(HWCAP_SVE))
     return false;
 #endif // defined(HAVE_GETAUXVAL) && defined(HAVE_ASM_HWCAP_H) &&
        // defined(HWCAP_SVE)
@@ -253,7 +260,8 @@ namespace {
     const long vl = prctl(PR_SVE_GET_VL);
 
     if (vl > 0) {
-        return (vl & PR_SVE_VL_LEN_MASK) * 8;
+        // The vector length is reported in bytes.
+        return (vl & PR_SVE_VL_LEN_MASK) * CHAR_BIT;
     }
 #endif // defined(HAVE_PRCTL) && defined(HAVE_SYS_PRCTL_H) &&
        // defined(PR_SVE_GET_VL)
@@ -261,21 +269,28 @@ namespace {
     return 0;
 }
 
+constexpr long SVE128Bits = 128;
+constexpr long SVE256Bits = 256;
+constexpr long SVE512Bits = 512;
+
 } // namespace
 
 bool CPUFeature<ISA::SVE128>::supported() noexcept
 {
-    return CPUFeature<ISA::SVE>::supported() && sveVectorLengthBits() == 128;
+    return CPUFeature<ISA::SVE>::supported() &&
+           sveVectorLengthBits() == SVE128Bits;
 }
 
 bool CPUFeature<ISA::SVE256>::supported() noexcept
 {
-    return CPUFeature<ISA::SVE>::supported() && sveVectorLengthBits() == 256;
+    return CPUFeature<ISA::SVE>::supported() &&
+           sveVectorLengthBits() == SVE256Bits;
 }
 
 bool CPUFeature<ISA::SVE512>::supported() noexcept
 {
-    return CPUFeature<ISA::SVE>::supported() && sveVectorLengthBits() == 512;
+    return CPUFeature<ISA::SVE>::supported() &&
+           sveVectorLengthBits() == SVE512Bits;
 }
 
 } // namespace pyhogpp

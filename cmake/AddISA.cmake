@@ -10,9 +10,11 @@ include (CheckCXXCompilerFlag)
 # runtime CPU dispatch, appending <name> to HOGPP_ISAS when the current
 # compiler supports it.
 #
-# <name> is the single canonical identifier used everywhere: the
-# HAVE_ISA_<name> feature macro, the pyhogpp_<name> object library and
-# init_hogpp_<name> symbol suffix, and the EIGEN_VECTORIZE_<name> define. It
+# <name> is the single canonical identifier from which the HAVE_ISA_<name>
+# feature macro, the pyhogpp_<name> object library, the init_hogpp_<name>
+# symbol and the EIGEN_VECTORIZE_<name> define are derived, as a C identifier
+# that is lowercase in the target and symbol names, e.g. HAVE_ISA_SSE4_1 and
+# pyhogpp_sse4_1 for SSE4.1. It
 # intentionally does not have to match the compiler flag spelling (e.g.
 # canonical name AVX512 pairs with GNU_FLAG -mavx512f and MSVC_FLAG
 # /arch:AVX512): deriving the flag from the name instead would let the
