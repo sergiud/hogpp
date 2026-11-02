@@ -22,6 +22,7 @@
 
 #include <Eigen/Core>
 #include <numeric>
+#include <type_traits>
 #include <utility>
 
 #include <unsupported/Eigen/CXX11/Tensor>
@@ -120,8 +121,18 @@ struct CentralDifferences<T, Vertical_t>
     {
         using std::midpoint;
         const auto& tensor = static_cast<const Derived&>(image);
-        return Scalar(midpoint(-PrecisionType(tensor(i - 1, j, k)),
-                               +PrecisionType(tensor(i + 1, j, k))));
+        if constexpr (std::is_floating_point_v<PrecisionType>) {
+            // Halving a normal number is exact, so the difference of the
+            // halves rounds like std::midpoint, and neither half can overflow.
+            // Unlike std::midpoint, it does not branch on the magnitude of the
+            // neighbors, which allows the sweep to be vectorized.
+            return Scalar(PrecisionType(tensor(i + 1, j, k)) / 2 -
+                          PrecisionType(tensor(i - 1, j, k)) / 2);
+        }
+        else {
+            return Scalar(midpoint(-PrecisionType(tensor(i - 1, j, k)),
+                                   +PrecisionType(tensor(i + 1, j, k))));
+        }
     }
 };
 
@@ -139,8 +150,18 @@ struct CentralDifferences<T, Horizontal_t>
         // Compute the dot product beween the kernel [-1 0 +1] and
         // the corresponding row (neighbor) pixels.
         const auto& tensor = static_cast<const Derived&>(image);
-        return Scalar(midpoint(-PrecisionType(tensor(i, j - 1, k)),
-                               +PrecisionType(tensor(i, j + 1, k))));
+        if constexpr (std::is_floating_point_v<PrecisionType>) {
+            // Halving a normal number is exact, so the difference of the
+            // halves rounds like std::midpoint, and neither half can overflow.
+            // Unlike std::midpoint, it does not branch on the magnitude of the
+            // neighbors, which allows the sweep to be vectorized.
+            return Scalar(PrecisionType(tensor(i, j + 1, k)) / 2 -
+                          PrecisionType(tensor(i, j - 1, k)) / 2);
+        }
+        else {
+            return Scalar(midpoint(-PrecisionType(tensor(i, j - 1, k)),
+                                   +PrecisionType(tensor(i, j + 1, k))));
+        }
     }
 };
 
@@ -285,6 +306,50 @@ private:
 
             return std::pair{secondary, primary};
         };
+
+        // The inner loop must run along the dimension that is contiguous in
+        // memory. Differentiating across it with the derivative's axis as the
+        // inner loop instead touches a new cache line for every pixel and
+        // cannot be vectorized. The axis is then swept in the outer loop, with
+        // each sampler applied to a whole row of pixels at a time.
+        constexpr Eigen::DenseIndex Contiguous =
+            Tensor::Layout == Eigen::ColMajor ? 0 : 1;
+
+        if constexpr (Axis::value != Contiguous) {
+            auto row = [&image, &out, m, coord](Eigen::DenseIndex p,
+                                                Eigen::DenseIndex k,
+                                                const auto& sample) {
+                for (Eigen::DenseIndex s = 0; s < m; ++s) {
+                    const auto [i, j] = coord(p, s);
+                    out(i, j, k) = sample(image, i, j, k);
+                }
+            };
+
+            for (Eigen::DenseIndex k = 0; k < channels; ++k) {
+                if (n == 0) {
+                    continue;
+                }
+
+                if (n == 1) {
+                    for (Eigen::DenseIndex s = 0; s < m; ++s) {
+                        const auto [i, j] = coord(0, s);
+                        out(i, j, k) = Scalar{0};
+                    }
+
+                    continue;
+                }
+
+                row(0, k, lower);
+
+                for (Eigen::DenseIndex p = 1; p + 1 < n; ++p) {
+                    row(p, k, interior);
+                }
+
+                row(n - 1, k, upper);
+            }
+
+            return;
+        }
 
         for (Eigen::DenseIndex k = 0; k < channels; ++k) {
             for (Eigen::DenseIndex s = 0; s < m; ++s) {
