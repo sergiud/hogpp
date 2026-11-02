@@ -24,6 +24,7 @@
 #include <limits>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -206,9 +207,11 @@ template<class Scalar>
 
     constexpr auto max = std::numeric_limits<Scalar>::max();
 
+    using Common = std::common_type_t<double, Scalar>;
+
     // Converting a value outside of the range of the working precision is
     // undefined.
-    if (!(sigma <= max)) {
+    if (!(static_cast<Common>(sigma) <= static_cast<Common>(max))) {
         throw std::invalid_argument{fmt::format(
             "IntegralHOGDescriptor sigma must lie within [0, {max}] in the "
             "working precision but {value} was given",
@@ -409,6 +412,8 @@ IntegralHOGDescriptor::IntegralHOGDescriptor(
     update();
 }
 
+namespace {
+
 [[nodiscard]] DescriptorVariant makeDescriptor(
     [[maybe_unused]] const pybind11::dtype& dt, TypeSequence<> /*unused*/,
     double sigma, InterpolationType interpolation)
@@ -429,6 +434,8 @@ template<class Scalar, class... Scalars>
 
     return makeDescriptor(dt, TypeSequence<Scalars...>{}, sigma, interpolation);
 }
+
+} // namespace
 
 void IntegralHOGDescriptor::compute(const Rank2Or3Tensor& t,
                                     const pybind11::handle& mask)

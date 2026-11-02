@@ -55,7 +55,9 @@ inline constexpr bool HasFastFma<long double> = true;
  * fused multiply-add.
  *
  * Otherwise, @c std::fma is emulated in software at several times the cost of
- * a separate multiplication and addition, and prevents vectorization.
+ * a separate multiplication and addition, and prevents vectorization. The
+ * product and the sum are then rounded separately, so that the result does
+ * not depend on whether the compiler contracts the expression.
  */
 template<class T>
 [[nodiscard]] inline T multiplyAdd(T a, T b, T c) noexcept
@@ -65,6 +67,11 @@ template<class T>
         return fma(a, b, c);
     }
     else {
+        // Clang contracts the expression into a fused multiply-add by default
+        // even if the macros above do not announce a fast one.
+#if defined(__clang__)
+#    pragma clang fp contract(off)
+#endif // defined(__clang__)
         return a * b + c;
     }
 }

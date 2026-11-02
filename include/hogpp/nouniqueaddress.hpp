@@ -22,18 +22,13 @@
 
 // Allows members of an empty type to occupy no storage. MSVC and clang-cl
 // accept the standard attribute but ignore it to retain ABI compatibility.
-#if !defined(HOGPP_NO_UNIQUE_ADDRESS)
-#    if defined(_MSC_VER) && defined(__has_cpp_attribute)
-#        if __has_cpp_attribute(msvc::no_unique_address)
-#            define HOGPP_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
-#        endif // __has_cpp_attribute(msvc::no_unique_address)
-#    endif     // defined(_MSC_VER) && defined(__has_cpp_attribute)
-#endif         // !defined(HOGPP_NO_UNIQUE_ADDRESS)
-
+// MSVC lays out classes with members declared [[msvc::no_unique_address]] such
+// that non-empty members overlap, so the empty members occupy storage there.
 #if !defined(HOGPP_NO_UNIQUE_ADDRESS)
 #    if !defined(_MSC_VER) && defined(__has_cpp_attribute)
 #        if __has_cpp_attribute(no_unique_address)
 #            define HOGPP_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#            define HOGPP_HAS_NO_UNIQUE_ADDRESS 1
 #        endif // __has_cpp_attribute(no_unique_address)
 #    endif     // !defined(_MSC_VER) && defined(__has_cpp_attribute)
 #endif         // !defined(HOGPP_NO_UNIQUE_ADDRESS)
@@ -42,5 +37,9 @@
 #if !defined(HOGPP_NO_UNIQUE_ADDRESS)
 #    define HOGPP_NO_UNIQUE_ADDRESS
 #endif // !defined(HOGPP_NO_UNIQUE_ADDRESS)
+
+#if !defined(HOGPP_HAS_NO_UNIQUE_ADDRESS)
+#    define HOGPP_HAS_NO_UNIQUE_ADDRESS 0
+#endif // !defined(HOGPP_HAS_NO_UNIQUE_ADDRESS)
 
 #endif // HOGPP_NOUNIQUEADDRESS_HPP

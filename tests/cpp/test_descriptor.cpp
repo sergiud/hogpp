@@ -29,6 +29,7 @@
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <type_traits>
 
 #include <hogpp/integralhogdescriptor.hpp>
 #include <hogpp/spatialinterpolation.hpp>
@@ -330,6 +331,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(default_descriptor_has_no_spatial_interpolation,
     BOOST_CHECK_NO_THROW((void)d.features());
 }
 
+namespace {
+
 // Leaves block histograms untouched so that features() exposes the raw cell
 // histograms.
 struct IdentityBlockNormalizer
@@ -471,6 +474,21 @@ template<class Scalar, class SpatialInterpolation, class Reference>
     return maxAbsError / maxAbsExpected;
 }
 
+// Tolerance of the relative error against a double precision reference. The
+// reference rounds to double precision and therefore cannot verify a more
+// precise Scalar beyond the accuracy of double.
+template<class Scalar>
+[[nodiscard]] double referenceTolerance()
+{
+    using Verifiable = std::conditional_t<(std::numeric_limits<Scalar>::digits <
+                                           std::numeric_limits<double>::digits),
+                                          Scalar, double>;
+
+    using std::sqrt;
+    return static_cast<double>(
+        sqrt(std::numeric_limits<Verifiable>::epsilon()));
+}
+
 template<class Scalar>
 void checkTrilinearInterpolationAgainstBruteForce(
     Eigen::DenseIndex rows, Eigen::DenseIndex cols,
@@ -479,12 +497,12 @@ void checkTrilinearInterpolationAgainstBruteForce(
     const double error = relativeError<Scalar, hogpp::TrilinearInterpolation>(
         makeRandomImage(rows, cols), cellSize, bruteForceBilinearSplat);
 
-    using std::sqrt;
-    const auto tolerance =
-        static_cast<double>(sqrt(std::numeric_limits<Scalar>::epsilon()));
+    const double tolerance = referenceTolerance<Scalar>();
 
     BOOST_TEST(error <= tolerance);
 }
+
+} // namespace
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(trilinear_interpolation_even_cell_size, Scalar,
                               Scalars)
@@ -526,6 +544,8 @@ BOOST_AUTO_TEST_CASE(trilinear_interpolation_large_float_image)
 
     BOOST_TEST(trilinearError <= Slack * boxError);
 }
+
+namespace {
 
 // Gaussian weight of the block-relative position u along an axis with the
 // block extent normalized by the weight of the position closest to the block
@@ -637,6 +657,8 @@ template<class Scalar>
     return maxAbsError / maxAbsExpected;
 }
 
+} // namespace
+
 // Combines the Gaussian down-weighting with the trilinear interpolation for
 // block strides at and below the cell size, which select different
 // evaluations of the weighting, and for blocks placed flush with the border.
@@ -653,9 +675,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(trilinear_interpolation_with_gaussian_weighting,
 
     const Eigen::Tensor<double, 3> image = makeRandomImage(Rows, Cols);
 
-    using std::sqrt;
-    const auto tolerance =
-        static_cast<double>(sqrt(std::numeric_limits<Scalar>::epsilon()));
+    const double tolerance = referenceTolerance<Scalar>();
 
     for (const Eigen::Array2i& stride : strides) {
         BOOST_TEST(weightedRelativeError<Scalar>(image, cellSize, blockSize,

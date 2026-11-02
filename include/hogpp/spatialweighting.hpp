@@ -28,6 +28,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <limits>
 #include <stdexcept>
 #include <tuple>
@@ -318,10 +319,12 @@ public:
         const auto& H = histogram.histogram();
         const auto& W = state.weighted_.histogram();
 
+        // The prepared weights only apply to the sigma they were built for,
+        // so only an exactly equal sigma may reuse them.
         const bool valid =
             !state.weighted_.isEmpty() && state.geometry_ == geometry &&
-            state.sigma_ == sigma && state.bins_ == H.dimension(2) &&
-            W.dimension(0) == H.dimension(0) &&
+            std::equal_to<S>{}(state.sigma_, sigma) &&
+            state.bins_ == H.dimension(2) && W.dimension(0) == H.dimension(0) &&
             W.dimension(1) == H.dimension(1);
 
         return Query<S, Options>{histogram, valid ? &state.weighted_ : nullptr,

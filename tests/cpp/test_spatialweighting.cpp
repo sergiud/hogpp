@@ -33,6 +33,7 @@
 #include <fmt/format.h>
 
 #include <hogpp/integralhogdescriptor.hpp>
+#include <hogpp/nouniqueaddress.hpp>
 #include <hogpp/spatialweighting.hpp>
 
 #include <boost/mpl/list.hpp>
@@ -109,8 +110,6 @@ struct PrepareLog
 class RecordingWeighting : public hogpp::NoSpatialWeighting
 {
 public:
-    RecordingWeighting() = default;
-
     explicit RecordingWeighting(PrepareLog* log) noexcept
         : log_{log}
     {
@@ -204,16 +203,6 @@ public:
                                               Eigen::DenseIndex k) const
     {
         return values_[index(i, j, k)];
-    }
-
-    [[nodiscard]] int rows() const noexcept
-    {
-        return rows_;
-    }
-
-    [[nodiscard]] int cols() const noexcept
-    {
-        return cols_;
     }
 
     [[nodiscard]] Eigen::DenseIndex bins() const noexcept
@@ -467,8 +456,7 @@ template<class T>
                                   const ReferenceFeatures& expected)
 {
     for (std::size_t n = 0; n < expected.dims.size(); ++n) {
-        BOOST_TEST_REQUIRE(actual.dimension(static_cast<Eigen::Index>(n)) ==
-                           expected.dims[n]);
+        BOOST_TEST_REQUIRE(actual.dimension(n) == expected.dims[n]);
     }
 
     const Reference eps{std::numeric_limits<T>::epsilon()};
@@ -913,8 +901,16 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(disabled_weighting_adds_no_storage, T, Scalars)
         std::is_empty_v<hogpp::NoSpatialWeighting::State<T>>,
         "NoSpatialWeighting must not keep any state alongside the histogram");
 
+    // Members must never overlap, so the descriptor cannot be smaller than one
+    // without spatial weighting. It is only as small if empty members can
+    // occupy no storage.
+#if HOGPP_HAS_NO_UNIQUE_ADDRESS
     BOOST_TEST(sizeof(hogpp::IntegralHOGDescriptor<T>) ==
                sizeof(UnweightedDescriptor<T>));
+#else  // !HOGPP_HAS_NO_UNIQUE_ADDRESS
+    BOOST_TEST(sizeof(hogpp::IntegralHOGDescriptor<T>) >=
+               sizeof(UnweightedDescriptor<T>));
+#endif // HOGPP_HAS_NO_UNIQUE_ADDRESS
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(masked_pixels_excluded, T, Scalars)

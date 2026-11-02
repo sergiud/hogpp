@@ -17,6 +17,8 @@
 // limitations under the License.
 //
 
+#include <hogpp/prefix.hpp>
+
 #include "interpolation.hpp"
 
 namespace pybind11::detail {
@@ -57,3 +59,5 @@ handle type_caster<InterpolationType>::cast(InterpolationType in,
 }
 
 } // namespace pybind11::detail
+
+#include <hogpp/suffix.hpp>

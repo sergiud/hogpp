@@ -282,6 +282,60 @@ BOOST_AUTO_TEST_CASE(interpolate_matches_brute_force_bilinear_splat)
     }
 }
 
+// Interpolating must not depend on the memory layout of the histogram. The
+// taps are summed in the same order for both layouts, so the results must
+// agree exactly. Multiple bins and a non-square domain make each stride
+// distinguishable.
+BOOST_AUTO_TEST_CASE(interpolate_row_major_matches_column_major)
+{
+    constexpr Eigen::DenseIndex Rows = 11;
+    constexpr Eigen::DenseIndex Cols = 14;
+    constexpr Eigen::DenseIndex Bins = 3;
+
+    std::default_random_engine g{1};
+    std::uniform_real_distribution<double> value{-1.0, 1.0};
+
+    Eigen::Tensor<double, 3> colMajor(Rows, Cols, Bins);
+    Eigen::Tensor<double, 3, Eigen::RowMajor> rowMajor(Rows, Cols, Bins);
+
+    for (Eigen::DenseIndex b = 0; b < Bins; ++b) {
+        for (Eigen::DenseIndex j = 0; j < Cols; ++j) {
+            for (Eigen::DenseIndex i = 0; i < Rows; ++i) {
+                colMajor(i, j, b) = value(g);
+                rowMajor(i, j, b) = colMajor(i, j, b);
+            }
+        }
+    }
+
+    hogpp::IntegralHistogram<double, 2, 1> colMajorHistogram;
+    colMajorHistogram.setHistogram(colMajor);
+    hogpp::IntegralHistogram<double, 2, 1, Eigen::RowMajor> rowMajorHistogram;
+    rowMajorHistogram.setHistogram(rowMajor);
+
+    for (const auto& [sx, sy] :
+         {std::pair<Eigen::DenseIndex, Eigen::DenseIndex>{4, 6},
+          std::pair<Eigen::DenseIndex, Eigen::DenseIndex>{3, 5}}) {
+        for (Eigen::DenseIndex x = 0; x + sx < Rows; x += sx) {
+            for (Eigen::DenseIndex y = 0; y + sy < Cols; y += sy) {
+                const auto a = std::make_tuple(x, y);
+                const auto b = std::make_tuple(x + sx, y + sy);
+
+                const Eigen::Tensor<double, 1> expected =
+                    colMajorHistogram.interpolate(a, b);
+                const Eigen::Tensor<double, 1, Eigen::RowMajor> actual =
+                    rowMajorHistogram.interpolate(a, b);
+
+                for (Eigen::DenseIndex k = 0; k < Bins; ++k) {
+                    BOOST_TEST(actual(k) == expected(k),
+                               "bin " << k << " of the cell at (" << x << ", "
+                                      << y << ") of size (" << sx << ", " << sy
+                                      << ")");
+                }
+            }
+        }
+    }
+}
+
 // Unsigned coordinates of a cell close to the lower domain boundary must not
 // wrap around while computing the taps preceding the cell.
 BOOST_AUTO_TEST_CASE(interpolate_unsigned_coordinates_near_lower_boundary)

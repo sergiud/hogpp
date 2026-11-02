@@ -27,6 +27,16 @@ check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
 check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
 check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 
+# Lifts the limit on the number of sections of an object file that heavily
+# templated sources exceed.
+function (hogpp_enable_big_obj target)
+  if (HAVE_MBIG_OBJ)
+    set_property (TARGET ${target} APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
+  elseif (HAVE_BIGOBJ)
+    set_property (TARGET ${target} APPEND PROPERTY COMPILE_OPTIONS /bigobj)
+  endif (HAVE_MBIG_OBJ)
+endfunction (hogpp_enable_big_obj)
+
 set (PYBIND11_NOPYTHON ON)
 
 find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
@@ -164,11 +174,7 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     python/magnitude.hpp
   )
 
-  if (HAVE_MBIG_OBJ)
-    set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
-  elseif (HAVE_BIGOBJ)
-    set_property (TARGET pyhogpp APPEND PROPERTY COMPILE_OPTIONS /bigobj)
-  endif (HAVE_MBIG_OBJ)
+  hogpp_enable_big_obj (pyhogpp)
 
   if (OpenCV_FOUND)
     target_compile_definitions (pyhogpp PRIVATE HAVE_OPENCV)
@@ -220,6 +226,7 @@ if (BUILD_TESTING)
     add_test (NAME integral_histogram_volumetric COMMAND test_integral_histogram -t volumetric)
     add_test (NAME integral_histogram_cascade_matches_closed_form_for_constant_field COMMAND test_integral_histogram -t cascade_matches_closed_form_for_constant_field)
     add_test (NAME integral_histogram_interpolate_matches_brute_force_bilinear_splat COMMAND test_integral_histogram -t interpolate_matches_brute_force_bilinear_splat)
+    add_test (NAME integral_histogram_interpolate_row_major_matches_column_major COMMAND test_integral_histogram -t interpolate_row_major_matches_column_major)
     add_test (NAME integral_histogram_interpolate_unsigned_coordinates_near_lower_boundary COMMAND test_integral_histogram -t interpolate_unsigned_coordinates_near_lower_boundary)
 
     add_executable (test_cartesian_product tests/cpp/test_cartesian_product.cpp)
@@ -268,6 +275,7 @@ if (BUILD_TESTING)
     add_executable (test_descriptor tests/cpp/test_descriptor.cpp)
     target_link_libraries (test_descriptor PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
+    hogpp_enable_big_obj (test_descriptor)
 
     add_test (NAME descriptor_empty_float COMMAND test_descriptor -t "empty<float>")
     add_test (NAME descriptor_empty_double COMMAND test_descriptor -t "empty<double>")
@@ -337,6 +345,7 @@ if (BUILD_TESTING)
     add_executable (test_spatialweighting tests/cpp/test_spatialweighting.cpp)
     target_link_libraries (test_spatialweighting PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
+    hogpp_enable_big_obj (test_spatialweighting)
 
     add_test (NAME spatialweighting_gaussian_matches_reference_float COMMAND test_spatialweighting -t "gaussian_matches_reference<float>")
     add_test (NAME spatialweighting_gaussian_matches_reference_double COMMAND test_spatialweighting -t "gaussian_matches_reference<double>")

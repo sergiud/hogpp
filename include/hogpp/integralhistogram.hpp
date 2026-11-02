@@ -337,15 +337,6 @@ public:
     [[nodiscard]] Eigen::Tensor<T, K, Options> interpolate(
         const std::tuple<X, Y>& a, const std::tuple<X, Y>& b) const
     {
-        const Stencil xs =
-            stencil(static_cast<Eigen::DenseIndex>(std::get<0>(a)),
-                    static_cast<Eigen::DenseIndex>(std::get<0>(b)),
-                    histogram_.dimension(0));
-        const Stencil ys =
-            stencil(static_cast<Eigen::DenseIndex>(std::get<1>(a)),
-                    static_cast<Eigen::DenseIndex>(std::get<1>(b)),
-                    histogram_.dimension(1));
-
         std::array<Eigen::DenseIndex, static_cast<std::size_t>(K)> bins;
         std::copy_n(histogram_.dimensions().begin() + N, K, bins.begin());
 
@@ -382,19 +373,12 @@ public:
         const Eigen::DenseIndex cols = histogram_.dimension(1);
         const Eigen::DenseIndex bins = result.size();
 
-        // Offset of the first bin of the slot (x, y) and the distance between
+        // Distances between consecutive slots along each axis and between
         // consecutive bins in the storage of the histogram
-        const auto slot = [rows, cols, bins](Eigen::DenseIndex x,
-                                             Eigen::DenseIndex y) {
-            if constexpr ((Options & Eigen::RowMajor) != 0) {
-                return (x * cols + y) * bins;
-            }
-            else {
-                return x + rows * y;
-            }
-        };
-        const Eigen::DenseIndex stride =
-            (Options & Eigen::RowMajor) != 0 ? 1 : rows * cols;
+        constexpr bool RowMajor = (Options & Eigen::RowMajor) != 0;
+        const Eigen::DenseIndex xStride = RowMajor ? cols * bins : 1;
+        const Eigen::DenseIndex yStride = RowMajor ? bins : rows;
+        const Eigen::DenseIndex stride = RowMajor ? 1 : rows * cols;
 
         const T normalization =
             static_cast<T>(xs.normalization) * static_cast<T>(ys.normalization);
@@ -405,9 +389,9 @@ public:
 
             for (std::size_t i = 0; i < xs.size; ++i) {
                 for (std::size_t j = 0; j < ys.size; ++j) {
-                    sum +=
-                        static_cast<T>(xs.weights[i] * ys.weights[j]) *
-                        data[slot(xs.indices[i], ys.indices[j]) + bin * stride];
+                    sum += static_cast<T>(xs.weights[i] * ys.weights[j]) *
+                           data[xs.indices[i] * xStride +
+                                ys.indices[j] * yStride + bin * stride];
                 }
             }
 
