@@ -36,25 +36,40 @@ def remez_atan():
     return module
 
 
+# The widest long double format is IEEE 754 binary128, whose significand has
+# this many bits.
+LONG_DOUBLE_DIGITS = 113
+
+
 def _header_coefficients():
     text = HEADER.read_text()
     return [
-        float(
-            re.search(
-                rf'fastAtanDegree{degree} = static_cast<T>\(([^)]+)\)', text
-            ).group(1)
-        )
+        re.search(
+            rf'fastAtanDegree{degree} =\s*static_cast<T>\(([^)]+?)L\)', text
+        ).group(1)
         for degree in (3, 5, 7)
     ]
 
 
-# The coefficients compiled into the library must be those the script derives.
+# The coefficients compiled into the library must carry the minimax
+# coefficients to the precision of every long double format.
+def test_header_coefficients_are_long_double_accurate(remez_atan):
+    mp = remez_atan.mp
+    exact = remez_atan.minimax_coefficients()
+
+    for literal, coefficient in zip(_header_coefficients(), exact, strict=True):
+        assert abs(mp.mpf(literal) - coefficient) <= abs(coefficient) * mp.ldexp(
+            1, -LONG_DOUBLE_DIGITS
+        ), literal
+
+
+# The script must print the coefficients exactly as the header spells them.
 def test_coefficients_match_header(remez_atan, capsys):
     remez_atan.main()
 
     output = capsys.readouterr().out
     derived = [
-        float(re.search(rf'^{name} = (\S+)$', output, re.MULTILINE).group(1))
+        re.search(rf'^{name} = (\S+)$', output, re.MULTILINE).group(1)
         for name in ('a', 'b', 'c')
     ]
 

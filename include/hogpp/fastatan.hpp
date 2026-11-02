@@ -26,13 +26,17 @@
 
 namespace hogpp::detail {
 
-// Coefficients of the polynomial, rounded to double by scripts/remez_atan.py.
+// Coefficients of the polynomial as printed by scripts/remez_atan.py. Their 36
+// significant digits carry the precision of every long double format.
 template<class T>
-inline constexpr T fastAtanDegree3 = static_cast<T>(-0.3262382105724919);
+inline constexpr T fastAtanDegree3 =
+    static_cast<T>(-0.326238210572491894188139203084029924L);
 template<class T>
-inline constexpr T fastAtanDegree5 = static_cast<T>(0.1553161994609051);
+inline constexpr T fastAtanDegree5 =
+    static_cast<T>(0.155316199460905119325455802589131889L);
 template<class T>
-inline constexpr T fastAtanDegree7 = static_cast<T>(-0.04381294810998689);
+inline constexpr T fastAtanDegree7 =
+    static_cast<T>(-0.0438129481099868885245779175645305897L);
 
 /**
  * @brief Degree-7 minimax polynomial approximation of
@@ -51,19 +55,14 @@ inline constexpr T fastAtanDegree7 = static_cast<T>(-0.04381294810998689);
  * @f]
  * with @f$a@f$, @f$b@f$, @f$c@f$ chosen as the minimax (equioscillating)
  * solution on @f$[0, 1]@f$, computed to 80 decimal digits with the Remez
- * exchange algorithm using mpmath and rounded to the nearest
- * double-precision value. The verified maximum absolute error over
- * @f$[0, 1]@f$ is approximately @f$1.3312 \times 10^{-4}@f$ rad.
+ * exchange algorithm using mpmath and rounded to 36 significant digits. The
+ * verified maximum absolute error over @f$[0, 1]@f$ is approximately
+ * @f$1.3312 \times 10^{-4}@f$ rad.
  *
- * The coefficients were produced by the Remez exchange algorithm
- * implemented in scripts/remez_atan.py, which prints a maximum error of
- * @f$1.3312261902197300292 \times 10^{-4}@f$ and
- *
- * @code{.py}
- * a = -0.3262382105724919
- * b = 0.1553161994609051
- * c = -0.04381294810998689
- * @endcode
+ * The coefficients fastAtanDegree3, fastAtanDegree5 and fastAtanDegree7 were
+ * produced by the Remez exchange algorithm implemented in
+ * scripts/remez_atan.py, which prints a maximum error of
+ * @f$1.3312261902197300292 \times 10^{-4}@f$.
  */
 template<class Scalar>
     requires std::is_floating_point_v<Scalar>
