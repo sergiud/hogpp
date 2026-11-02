@@ -1229,3 +1229,87 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(separable_sum_matches_sequential_sum, T, Scalars)
         }
     }
 }
+
+// The weighted cells must not depend on the memory layout of the integral
+// histogram, down to the rounding. Entries spanning many orders of magnitude
+// with both signs make every rounding depend on the summation order.
+BOOST_AUTO_TEST_CASE_TEMPLATE(row_major_histogram_matches_column_major, T,
+                              Scalars)
+{
+    constexpr Eigen::DenseIndex Bins = 9;
+    constexpr T MinExponent = -20;
+    constexpr T MaxExponent = 20;
+
+    std::default_random_engine g{DefaultSeed};
+    std::uniform_real_distribution<T> exponent{MinExponent, MaxExponent};
+    std::bernoulli_distribution negative;
+
+    Eigen::Tensor<T, 3> colMajor(ImageRows + 1, ImageCols + 1, Bins);
+    Eigen::Tensor<T, 3, Eigen::RowMajor> rowMajor(ImageRows + 1, ImageCols + 1,
+                                                  Bins);
+
+    for (Eigen::DenseIndex b = 0; b < Bins; ++b) {
+        for (Eigen::DenseIndex j = 0; j <= ImageCols; ++j) {
+            for (Eigen::DenseIndex i = 0; i <= ImageRows; ++i) {
+                using std::exp2;
+                const T magnitude = exp2(exponent(g));
+                colMajor(i, j, b) = negative(g) ? -magnitude : magnitude;
+                rowMajor(i, j, b) = colMajor(i, j, b);
+            }
+        }
+    }
+
+    hogpp::IntegralHistogram<T, 2, 1> colMajorHistogram;
+    colMajorHistogram.setHistogram(colMajor);
+    hogpp::IntegralHistogram<T, 2, 1, Eigen::RowMajor> rowMajorHistogram;
+    rowMajorHistogram.setHistogram(rowMajor);
+
+    const hogpp::GaussianWeighting<T> weighting{T(2)};
+    // Without prepared weights, every query sums the votes.
+    const typename hogpp::GaussianWeighting<T>::template State<T> state;
+
+    for (const Geometry& geom : Geometries) {
+        const hogpp::BlockGeometry geometry{geom.cellSize, geom.blockSize,
+                                            geom.blockStride};
+        auto colMajorQuery =
+            weighting.cellQuery(state, colMajorHistogram, geometry);
+        auto rowMajorQuery =
+            weighting.cellQuery(state, rowMajorHistogram, geometry);
+
+        const Eigen::Array2i last = Eigen::Array2i{ImageRows, ImageCols} -
+                                    geom.cellSize - Eigen::Array2i{1, 1};
+
+        for (int x = 0; x <= last.x(); x += geom.cellSize.x()) {
+            for (int y = 0; y <= last.y(); y += geom.cellSize.y()) {
+                const Eigen::Array2i first{x, y};
+                const Eigen::Array2i index{0, 0};
+                const Eigen::Array2i end = first + geom.cellSize;
+
+                Eigen::Tensor<T, 1> expected(Bins);
+                Eigen::Tensor<T, 1> actual(Bins);
+
+                colMajorQuery(expected, index, first, end);
+                rowMajorQuery(actual, index, first, end);
+
+                for (Eigen::DenseIndex b = 0; b < Bins; ++b) {
+                    BOOST_TEST_CONTEXT("sum at " << x << ", " << y << " bin "
+                                                 << b)
+                    {
+                        BOOST_TEST(actual(b) == expected(b));
+                    }
+                }
+
+                colMajorQuery.interpolate(expected, index, first, end);
+                rowMajorQuery.interpolate(actual, index, first, end);
+
+                for (Eigen::DenseIndex b = 0; b < Bins; ++b) {
+                    BOOST_TEST_CONTEXT("interpolation at " << x << ", " << y
+                                                           << " bin " << b)
+                    {
+                        BOOST_TEST(actual(b) == expected(b));
+                    }
+                }
+            }
+        }
+    }
+}
