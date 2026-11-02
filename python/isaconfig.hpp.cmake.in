@@ -59,7 +59,7 @@
 // Indicates whether the <sys/auxv.h> header is available.
 #if !defined(HAVE_SYS_AUXV_H)
 // pyconfig.h already defines HAVE_SYS_AUXV_H as of Python 3.13. Avoid
-// redifinition.
+// redefinition.
 #cmakedefine HAVE_SYS_AUXV_H
 #endif // !defined(HAVE_SYS_AUXV_H)
 // Indicates whether the <sys/prctl.h> header is available.

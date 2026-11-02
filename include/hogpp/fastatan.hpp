@@ -36,7 +36,7 @@ inline constexpr T fastAtanDegree7 = static_cast<T>(-0.04381294810998689);
 
 /**
  * @brief Degree-7 minimax polynomial approximation of
- * @f$\atan(\mathit{ratio})@f$ for @f$\mathit{ratio} \in [0, 1]@f$.
+ * @f$\arctan(\mathit{ratio})@f$ for @f$\mathit{ratio} \in [0, 1]@f$.
  *
  * Evaluated with plain multiply-add arithmetic only, deliberately
  * avoiding both the libm transcendental call and std::fma (not inlined
@@ -47,7 +47,7 @@ inline constexpr T fastAtanDegree7 = static_cast<T>(-0.04381294810998689);
  *
  * The polynomial has the form
  * @f[
- *   \atan(x) \approx x + a x^3 + b x^5 + c x^7
+ *   \arctan(x) \approx x + a x^3 + b x^5 + c x^7
  * @f]
  * with @f$a@f$, @f$b@f$, @f$c@f$ chosen as the minimax (equioscillating)
  * solution on @f$[0, 1]@f$, computed to 80 decimal digits with the Remez

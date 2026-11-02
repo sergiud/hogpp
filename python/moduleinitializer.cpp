@@ -50,9 +50,9 @@ namespace {
     throw pybind11::import_error{fmt::format(
         FMT_STRING(
             "The instruction set specified by the HOGPP_DISPATCH environment "
-            "variable (\"{isa}\") is neither available nor supported. Only "
-            "the generic (non-vectorized) dispatch is available in this "
-            "build."),
+            "variable (\"{isa}\") is neither available nor supported. No "
+            "instruction set other than the generic one is both built and "
+            "supported by this processor."),
         "isa"_a = isa)};
 }
 
@@ -120,8 +120,8 @@ void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
         const auto& supported = supportedCPUFeatureNames();
 
         if (supported.empty()) {
-            // No dispatch for additional instruction sets defined: nothing to
-            // do
+            // None of the instruction sets built in addition to the generic
+            // one is supported by the processor: nothing to suggest
             reportUnsupportedDispatch(*isa);
         }
 
@@ -132,7 +132,7 @@ void ModuleInitializer::run(CPUFeatures<> /*unused*/) const
         reportUnsupportedDispatch(*isa, supported);
     }
 
-    // Exhaused all SIMD features: fallback to generic dispatch
+    // Exhausted all SIMD features: fall back to generic dispatch
     ModuleDispatch<ISA::Generic>::initialize(m);
 }
 

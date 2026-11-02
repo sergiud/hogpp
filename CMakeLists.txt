@@ -223,12 +223,12 @@ int main() { return static_cast<int>(svcntw()); }
   set (HOGPP_ISAS)
 
   if (WITH_DISPATCH)
-    # Each hogpp_add_isa() call below tests both the GNU/Clang and MSVC flag
-    # spelling for the same canonical ISA name, appending it to HOGPP_ISAS on
-    # success. The canonical name (used for the HAVE_ISA_* macro, the
-    # pyhogpp_<name> target/init_hogpp_<name> symbol, and the Eigen
-    # vectorization define) is independent of the compiler flag spelling,
-    # e.g. AVX512 pairs with -mavx512f on GNU/Clang and /arch:AVX512 on MSVC.
+    # Each hogpp_add_isa() call below tests the flag spelling of the compiler
+    # in use for a canonical ISA name, appending the name to HOGPP_ISAS on
+    # success. The name, from which the HAVE_ISA_* macro, the pyhogpp_<name>
+    # target, the init_hogpp_<name> symbol and the Eigen vectorization define
+    # are derived, is independent of the flag spelling, e.g. AVX512 pairs with
+    # -mavx512f on GNU/Clang and /arch:AVX512 on MSVC.
     hogpp_add_isa (SSE2 GNU_FLAG -msse2 MSVC_FLAG /arch:SSE2)
     hogpp_add_isa (SSE3 GNU_FLAG -msse3)
     hogpp_add_isa (SSSE3 GNU_FLAG -mssse3)
@@ -355,6 +355,12 @@ int main() { return static_cast<int>(svcntw()); }
     python_type_caster
   )
 
+  # Inline functions of pybind11, fmt and the standard library are not renamed
+  # by namespace and are therefore compiled once per instruction set. The
+  # linker keeps the first definition it encounters, so the generic objects
+  # must be linked first to make the processor-independent copy win. A
+  # function emitted only by the objects of another instruction set is
+  # called only from those objects and therefore only after dispatch.
   set (_arch
     generic
     ${HOGPP_ISAS}
