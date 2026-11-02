@@ -262,6 +262,59 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(
         Scalar, hogpp::GaussianWeighting<Scalar>>();
 }
 
+namespace {
+
+template<class Descriptor>
+[[nodiscard]] long long computeAllocations(Eigen::DenseIndex rows,
+                                           Eigen::DenseIndex cols)
+{
+    using Scalar = typename Descriptor::Scalar;
+
+    Descriptor d = makeDescriptor<Descriptor>();
+    const Eigen::Tensor<Scalar, 3> image = makeImage<Scalar>(rows, cols);
+
+    const HeapProbe probe;
+    d.compute(image);
+
+    return probe.allocations();
+}
+
+// Additional allocations of compute() on a larger image over a smaller one.
+template<class Descriptor>
+[[nodiscard]] long long computeAllocationGrowth()
+{
+    constexpr Eigen::DenseIndex SmallRows = 32;
+    constexpr Eigen::DenseIndex SmallCols = 40;
+    constexpr Eigen::DenseIndex LargeRows = 96;
+    constexpr Eigen::DenseIndex LargeCols = 120;
+
+    return computeAllocations<Descriptor>(LargeRows, LargeCols) -
+           computeAllocations<Descriptor>(SmallRows, SmallCols);
+}
+
+} // namespace
+
+// Voting into the integral histogram must not allocate per pixel. The
+// allocations of compute() are therefore independent of the image size.
+BOOST_AUTO_TEST_CASE_TEMPLATE(compute_allocates_no_more_per_pixel, Scalar,
+                              Scalars)
+{
+    BOOST_TEST((computeAllocationGrowth<
+                   Descriptor<Scalar, hogpp::NoSpatialWeighting,
+                              hogpp::NoSpatialInterpolation>>()) == 0);
+}
+
+// The spatial weighting repeats the voting of every pixel and accumulates the
+// weighted votes in an integral histogram of its own, neither of which may
+// allocate per pixel.
+BOOST_AUTO_TEST_CASE_TEMPLATE(weighted_compute_allocates_no_more_per_pixel,
+                              Scalar, Scalars)
+{
+    BOOST_TEST((computeAllocationGrowth<
+                   Descriptor<Scalar, hogpp::GaussianWeighting<Scalar>,
+                              hogpp::NoSpatialInterpolation>>()) == 0);
+}
+
 // Recomputing replaces the second-order integral histogram of the
 // interpolation. The previous one must be released first rather than being
 // kept alive next to its replacement.

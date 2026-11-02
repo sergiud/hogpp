@@ -261,6 +261,7 @@ public:
     using Binning = BinningType;
     using BlockNormalizer = BlockNormalizerType;
     using SpatialWeighting = SpatialWeightingType;
+    using Histogram = IntegralHistogram<Scalar, 2, 1>;
 
     [[nodiscard]] IntegralHOGDescriptor() = default;
 
@@ -359,84 +360,83 @@ public:
         }
 
         // Votes the pixel ij into the orientation bins.
-        auto binning =
-            [this, channels, &k, &dxs, &dys, &mags, &weights, scale, &masked](
-                Eigen::TensorRef<Eigen::Tensor<Scalar, 1, DataLayout>> bins,
-                const auto& ij) {
-                (void)masked; // Avoid error: lambda capture 'masked' is not
-                              // used [-Werror,-Wunused-lambda-capture] on
-                              // AppleClang
-                if constexpr (!std::is_null_pointer_v<Masking>) {
-                    if (std::apply(masked, ij)) {
-                        // Skip masked out pixels
-                        return;
-                    }
-                }
-
-                // Select a channel with the maximum magnitude
-                Eigen::DenseIndex kk =
-                    channels > 1 ? std::apply(k, ij) : Eigen::DenseIndex{0};
-                const auto ijk = std::tuple_cat(ij, std::make_tuple(kk));
-
-                Scalar mag = std::apply(mags, ijk);
-
-                if (!(mag > 0)) {
-                    // No gradient (zero magnitude), or a non-finite value
-                    // propagated from a masked/invalid input pixel; skip
-                    // voting instead of relying on an invariant that would
-                    // otherwise be violated.
+        auto binning = [this, channels, &k, &dxs, &dys, &mags, &weights, scale,
+                        &masked](typename Histogram::Bins bins,
+                                 const auto& ij) {
+            (void)masked; // Avoid error: lambda capture 'masked' is not
+                          // used [-Werror,-Wunused-lambda-capture] on
+                          // AppleClang
+            if constexpr (!std::is_null_pointer_v<Masking>) {
+                if (std::apply(masked, ij)) {
+                    // Skip masked out pixels
                     return;
                 }
+            }
 
-                // The gradient magnitude is strictly positive and finite at
-                // this point.
-                HOGPP_ASSUME(mag > 0);
+            // Select a channel with the maximum magnitude
+            Eigen::DenseIndex kk =
+                channels > 1 ? std::apply(k, ij) : Eigen::DenseIndex{0};
+            const auto ijk = std::tuple_cat(ij, std::make_tuple(kk));
 
-                // Gradient binning
-                Scalar weight;
+            Scalar mag = std::apply(mags, ijk);
 
-                if constexpr (hasTensorBinning) {
-                    weight = std::apply(weights, ijk);
-                }
-                else {
-                    Scalar dx = std::apply(dxs, ijk);
-                    Scalar dy = std::apply(dys, ijk);
-                    weight = this->binning_(dx, dy);
-                }
+            if (!(mag > 0)) {
+                // No gradient (zero magnitude), or a non-finite value
+                // propagated from a masked/invalid input pixel; skip
+                // voting instead of relying on an invariant that would
+                // otherwise be violated.
+                return;
+            }
 
-                HOGPP_ASSUME(weight >= 0 && weight <= 1);
+            // The gradient magnitude is strictly positive and finite at
+            // this point.
+            HOGPP_ASSUME(mag > 0);
 
-                using std::floor;
-                using std::min;
+            // Gradient binning
+            Scalar weight;
 
-                // Uniformly distribute the weight across [0, 1, ..., n - 1]
-                // where n is the number of bins.
-                Scalar center = weight * scale;
-                Scalar lower = floor(center);
-                // The upper bin will overflow n-1 iff the weight is 1. However,
-                // in that case the last bin obtains all the votes anyway.
-                Scalar upper = min(lower + 1, scale);
+            if constexpr (hasTensorBinning) {
+                weight = std::apply(weights, ijk);
+            }
+            else {
+                Scalar dx = std::apply(dxs, ijk);
+                Scalar dy = std::apply(dys, ijk);
+                weight = this->binning_(dx, dy);
+            }
 
-                // Soft binning: distribute magnitude to neighboring bins
-                // proportionally to the gradient distance to each center.
-                Scalar alpha = center - lower;
+            HOGPP_ASSUME(weight >= 0 && weight <= 1);
 
-                HOGPP_ASSUME(alpha >= 0 && alpha <= 1);
+            using std::floor;
+            using std::min;
 
-                const auto bin1 = static_cast<Eigen::DenseIndex>(lower);
-                const auto bin2 = static_cast<Eigen::DenseIndex>(upper);
+            // Uniformly distribute the weight across [0, 1, ..., n - 1]
+            // where n is the number of bins.
+            Scalar center = weight * scale;
+            Scalar lower = floor(center);
+            // The upper bin will overflow n-1 iff the weight is 1. However,
+            // in that case the last bin obtains all the votes anyway.
+            Scalar upper = min(lower + 1, scale);
 
-                HOGPP_ASSUME(bin1 <= bin2);
+            // Soft binning: distribute magnitude to neighboring bins
+            // proportionally to the gradient distance to each center.
+            Scalar alpha = center - lower;
 
-                // Distribute weighted values to neighboring bins.
-                Scalar& value1 = bins.coeffRef(bin1);
-                Scalar& value2 = bins.coeffRef(bin2);
+            HOGPP_ASSUME(alpha >= 0 && alpha <= 1);
 
-                // The bin closest to the target orientation obtains
-                // proportionally a higher magnitude.
-                value1 = multiplyAdd(1 - alpha, mag, value1);
-                value2 = multiplyAdd(alpha, mag, value2);
-            };
+            const auto bin1 = static_cast<Eigen::DenseIndex>(lower);
+            const auto bin2 = static_cast<Eigen::DenseIndex>(upper);
+
+            HOGPP_ASSUME(bin1 <= bin2);
+
+            // Distribute weighted values to neighboring bins.
+            Scalar& value1 = bins(bin1);
+            Scalar& value2 = bins(bin2);
+
+            // The bin closest to the target orientation obtains
+            // proportionally a higher magnitude.
+            value1 = multiplyAdd(1 - alpha, mag, value1);
+            value2 = multiplyAdd(alpha, mag, value2);
+        };
 
         histogram_.scan(binning);
 
@@ -448,15 +448,14 @@ public:
             // weightings that do not visit any votes must not incur any cost.
             this->spatialWeighting_.prepare(
                 spatialState_, geometry(), dims, bins_,
-                [&binning, bins = bins_,
-                 pixel = Eigen::Tensor<Scalar, 1, DataLayout>{}](
+                [&binning, bins = bins_, pixel = Eigen::Tensor<Scalar, 1>{}](
                     const auto& ij, auto&& emit) mutable {
                     if (pixel.size() != bins) {
                         pixel.resize(bins);
                     }
 
                     pixel.setZero();
-                    binning(pixel, ij);
+                    binning(typename Histogram::Bins{pixel.data(), bins}, ij);
 
                     for (Eigen::DenseIndex b = 0; b < pixel.size(); ++b) {
                         using std::fpclassify;
@@ -814,7 +813,7 @@ private:
         return BlockGeometry{cellSize_, blockSize_, blockStride_};
     }
 
-    IntegralHistogram<Scalar, 2, 1> histogram_;
+    Histogram histogram_;
     HOGPP_NO_UNIQUE_ADDRESS SpatialWeightingState spatialState_;
     HOGPP_NO_UNIQUE_ADDRESS InterpolationCache interpolationCache_;
     Eigen::DenseIndex bins_ = 9;
