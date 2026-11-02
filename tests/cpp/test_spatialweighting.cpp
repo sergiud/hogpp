@@ -1159,3 +1159,73 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(descriptor_prepares_weighting, T, Scalars)
                                        (eps * expected)) <= Tolerance);
     }
 }
+
+// The separable sum must add the terms of each inner sum in ascending order,
+// and the inner sums in ascending order, regardless of how many inner sums it
+// accumulates at once. Terms spanning many orders of magnitude with both signs
+// make every rounding depend on that order.
+BOOST_AUTO_TEST_CASE_TEMPLATE(separable_sum_matches_sequential_sum, T, Scalars)
+{
+    constexpr std::array<int, 4> RowCounts{0, 1, 5, 17};
+    constexpr std::array<int, 9> ColCounts{0, 1, 2, 3, 4, 5, 8, 9, 13};
+    constexpr T MinExponent = -20;
+    constexpr T MaxExponent = 20;
+
+    std::default_random_engine g{DefaultSeed};
+    std::uniform_real_distribution<T> exponent{MinExponent, MaxExponent};
+    std::bernoulli_distribution negative;
+
+    auto sample = [&g, &exponent, &negative] {
+        using std::exp2;
+        const T magnitude = exp2(exponent(g));
+        return negative(g) ? -magnitude : magnitude;
+    };
+
+    for (const int rows : RowCounts) {
+        for (const int cols : ColCounts) {
+            std::vector<T> rowWeights(static_cast<std::size_t>(rows));
+            std::vector<T> colWeights(static_cast<std::size_t>(cols));
+            std::vector<T> values(static_cast<std::size_t>(rows * cols));
+
+            std::generate(rowWeights.begin(), rowWeights.end(), sample);
+            std::generate(colWeights.begin(), colWeights.end(), sample);
+            std::generate(values.begin(), values.end(), sample);
+
+            auto value = [&values, rows](int p, int q) {
+                return values[static_cast<std::size_t>(q * rows + p)];
+            };
+
+            T expected{0};
+
+            for (int q = 0; q < cols; ++q) {
+                T row{0};
+
+                for (int p = 0; p < rows; ++p) {
+                    row = hogpp::multiplyAdd(
+                        rowWeights[static_cast<std::size_t>(p)], value(p, q),
+                        row);
+                }
+
+                expected = hogpp::multiplyAdd(
+                    colWeights[static_cast<std::size_t>(q)], row, expected);
+            }
+
+            const T actual = hogpp::detail::separableSum<T>(
+                rows, cols,
+                [&rowWeights](int p) {
+                    return rowWeights[static_cast<std::size_t>(p)];
+                },
+                [&colWeights](int q) {
+                    return colWeights[static_cast<std::size_t>(q)];
+                },
+                value);
+
+            BOOST_TEST_CONTEXT(rows << " rows and " << cols << " columns")
+            {
+                // Exact comparison, since both sums add the same terms in the
+                // same order.
+                BOOST_TEST(actual == expected);
+            }
+        }
+    }
+}

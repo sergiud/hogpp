@@ -103,6 +103,68 @@ struct NoSpatialWeighting
     }
 };
 
+namespace detail {
+
+/**
+ * @brief Computes the separable weighted sum
+ * @f$\sum_{q=0}^{c-1} w_c(q) \sum_{p=0}^{r-1} w_r(p) v(p, q)@f$.
+ *
+ * Each inner sum accumulates over @f$p@f$ in ascending order, and the outer
+ * sum over @f$q@f$, so the rounding does not depend on how the sums are
+ * scheduled.
+ *
+ * @param rows Number of terms @f$r@f$ of each inner sum.
+ * @param cols Number of inner sums @f$c@f$.
+ * @param rowWeight Weight @f$w_r(p)@f$ of the term @f$p@f$ of each inner sum.
+ * @param colWeight Weight @f$w_c(q)@f$ of the inner sum @f$q@f$.
+ * @param value Value @f$v(p, q)@f$.
+ */
+template<class S, class RowWeight, class ColWeight, class Value>
+[[nodiscard]] S separableSum(int rows, int cols, RowWeight&& rowWeight,
+                             ColWeight&& colWeight, Value&& value)
+{
+    // Each inner sum is a chain of dependent multiply-adds whose latency, not
+    // its throughput, bounds a single sum. Accumulating several inner sums at
+    // once interleaves independent chains. This matters most with fused
+    // multiply-adds, whose latency exceeds that of an addition.
+    constexpr int Lanes = 4;
+
+    S total{0};
+    int q = 0;
+
+    for (; q + Lanes <= cols; q += Lanes) {
+        std::array<S, Lanes> rowSums{};
+
+        for (int p = 0; p < rows; ++p) {
+            const S weight = rowWeight(p);
+
+            for (int lane = 0; lane < Lanes; ++lane) {
+                S& sum = rowSums[static_cast<std::size_t>(lane)];
+                sum = multiplyAdd(weight, value(p, q + lane), sum);
+            }
+        }
+
+        for (int lane = 0; lane < Lanes; ++lane) {
+            total = multiplyAdd(colWeight(q + lane),
+                                rowSums[static_cast<std::size_t>(lane)], total);
+        }
+    }
+
+    for (; q < cols; ++q) {
+        S row{0};
+
+        for (int p = 0; p < rows; ++p) {
+            row = multiplyAdd(rowWeight(p), value(p, q), row);
+        }
+
+        total = multiplyAdd(colWeight(q), row, total);
+    }
+
+    return total;
+}
+
+} // namespace detail
+
 /**
  * @brief Down-weights pixels by a Gaussian of their distance to the block
  * center.
@@ -454,23 +516,19 @@ private:
             const auto rows = static_cast<int>(rowKernel_.size());
             const auto cols = static_cast<int>(colKernel_.size());
 
+            const auto rowWeight = [this](int p) {
+                return rowKernel_[static_cast<std::size_t>(p)];
+            };
+            const auto colWeight = [this](int q) {
+                return colKernel_[static_cast<std::size_t>(q)];
+            };
+
             for (Eigen::DenseIndex b = 0; b < bins_; ++b) {
-                S total{0};
-
-                for (int q = 0; q < cols; ++q) {
-                    S row{0};
-
-                    for (int p = 0; p < rows; ++p) {
-                        row =
-                            multiplyAdd(rowKernel_[static_cast<std::size_t>(p)],
-                                        H(rowBegin + p, colBegin + q, b), row);
-                    }
-
-                    total = multiplyAdd(colKernel_[static_cast<std::size_t>(q)],
-                                        row, total);
-                }
-
-                cell_(b) = total;
+                cell_(b) = detail::separableSum<S>(
+                    rows, cols, rowWeight, colWeight,
+                    [&H, rowBegin, colBegin, b](int p, int q) {
+                        return H(rowBegin + p, colBegin + q, b);
+                    });
             }
 
             cell = cell_;
@@ -523,27 +581,24 @@ private:
         {
             const auto& H = histogram_->histogram();
 
+            const auto rowWeight = [this,
+                                    offset = first.x() - origin.x()](int p) {
+                return rowWeights_[static_cast<std::size_t>(offset + p)];
+            };
+            const auto colWeight = [this,
+                                    offset = first.y() - origin.y()](int q) {
+                return colWeights_[static_cast<std::size_t>(offset + q)];
+            };
+
             for (Eigen::DenseIndex b = 0; b < bins_; ++b) {
-                S total{0};
-
-                for (int y = first.y(); y < last.y(); ++y) {
-                    S row{0};
-
-                    for (int x = first.x(); x < last.x(); ++x) {
-                        const S vote = H(x + 1, y + 1, b) - H(x, y + 1, b) -
-                                       H(x + 1, y, b) + H(x, y, b);
-
-                        row = multiplyAdd(rowWeights_[static_cast<std::size_t>(
-                                              x - origin.x())],
-                                          vote, row);
-                    }
-
-                    total = multiplyAdd(
-                        colWeights_[static_cast<std::size_t>(y - origin.y())],
-                        row, total);
-                }
-
-                cell_(b) = total;
+                cell_(b) = detail::separableSum<S>(
+                    last.x() - first.x(), last.y() - first.y(), rowWeight,
+                    colWeight, [&H, &first, b](int p, int q) {
+                        const int x = first.x() + p;
+                        const int y = first.y() + q;
+                        return H(x + 1, y + 1, b) - H(x, y + 1, b) -
+                               H(x + 1, y, b) + H(x, y, b);
+                    });
             }
         }
 
