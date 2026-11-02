@@ -531,6 +531,20 @@ if (BUILD_TESTING)
     add_test (NAME gradient_single_column_double COMMAND test_gradient -t "single_column<double>")
     add_test (NAME gradient_single_column_long_double COMMAND test_gradient -t "single_column<long double>")
 
+    foreach (_type IN ITEMS float double "long double")
+      string (MAKE_C_IDENTIFIER "${_type}" _type_name)
+      add_test (NAME gradient_gradient_matches_samplers_${_type_name} COMMAND test_gradient -t "gradient_matches_samplers<${_type}>")
+      add_test (NAME gradient_central_differences_match_midpoint_${_type_name} COMMAND test_gradient -t "central_differences_match_midpoint<${_type}>")
+      add_test (NAME gradient_central_differences_do_not_overflow_${_type_name} COMMAND test_gradient -t "central_differences_do_not_overflow<${_type}>")
+    endforeach (_type IN ITEMS float double "long double")
+
+    foreach (_type IN ITEMS "unsigned char" short int)
+      string (MAKE_C_IDENTIFIER "${_type}" _type_name)
+      add_test (NAME gradient_central_differences_of_integer_images_match_midpoint_${_type_name} COMMAND test_gradient -t "central_differences_of_integer_images_match_midpoint<${_type}>")
+    endforeach (_type IN ITEMS "unsigned char" short int)
+
+    unset (_type_name)
+
     add_executable (test_binning tests/cpp/test_binning.cpp)
     target_link_libraries (test_binning PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
