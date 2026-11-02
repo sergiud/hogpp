@@ -23,14 +23,17 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <limits>
 #include <random>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include <boost/histogram.hpp>
+#include <boost/mp11/list.hpp>
 #include <boost/test/included/unit_test.hpp>
 
 #include <hogpp/integralhistogram.hpp>
@@ -376,3 +379,107 @@ static_assert(
     "a tuple of non-integral coordinates must not satisfy the concept");
 static_assert(!hogpp::detail::TupleOfIntegrals<int>,
               "a type that is not a tuple must not satisfy the concept");
+
+// Input and histogram space extents of the integral histograms whose scan is
+// compared with the tensor expression recurrence, in either data layout.
+template<int Layout>
+struct Plane
+{
+    static constexpr int Options = Layout;
+    static constexpr std::array<Eigen::DenseIndex, 2> Input{13, 11};
+    static constexpr std::array<Eigen::DenseIndex, 1> Bins{9};
+};
+
+template<int Layout>
+struct Volume
+{
+    static constexpr int Options = Layout;
+    static constexpr std::array<Eigen::DenseIndex, 3> Input{5, 6, 7};
+    static constexpr std::array<Eigen::DenseIndex, 1> Bins{4};
+};
+
+using ScanShapes =
+    boost::mp11::mp_list<Plane<Eigen::ColMajor>, Plane<Eigen::RowMajor>,
+                         Volume<Eigen::ColMajor>, Volume<Eigen::RowMajor>>;
+
+namespace {
+
+template<class T, std::size_t Size>
+[[nodiscard]] auto toTuple(const std::array<T, Size>& a)
+{
+    return std::apply([](auto... v) { return std::make_tuple(v...); }, a);
+}
+
+// Bit patterns compare floating-point values exactly, including the sign of
+// zero, without tripping -Wfloat-equal.
+template<class Tensor>
+[[nodiscard]] std::vector<std::uint32_t> bitPatterns(const Tensor& t)
+{
+    std::vector<std::uint32_t> result(static_cast<std::size_t>(t.size()));
+    std::transform(
+        t.data(), t.data() + t.size(), result.begin(),
+        [](float value) { return std::bit_cast<std::uint32_t>(value); });
+    return result;
+}
+
+} // namespace
+
+// The scan must reproduce the recurrence of the tensor expressions exactly,
+// i.e., add the same values in the same order. Votes spanning many orders of
+// magnitude with both signs make the rounding of every addition depend on
+// that order.
+BOOST_AUTO_TEST_CASE_TEMPLATE(scan_matches_tensor_expression, Shape, ScanShapes)
+{
+    constexpr auto N = static_cast<Eigen::DenseIndex>(Shape::Input.size());
+    constexpr auto K = static_cast<Eigen::DenseIndex>(Shape::Bins.size());
+    constexpr float MinExponent = -20;
+    constexpr float MaxExponent = 20;
+
+    constexpr std::size_t Rank = Shape::Input.size() + Shape::Bins.size();
+
+    using Tensor = Eigen::Tensor<float, N + K, Shape::Options>;
+    using Bins = Eigen::Tensor<float, K, Shape::Options>;
+
+    std::array<Eigen::DenseIndex, Rank> votesDims{};
+    std::copy(Shape::Input.begin(), Shape::Input.end(), votesDims.begin());
+    std::copy(Shape::Bins.begin(), Shape::Bins.end(), votesDims.begin() + N);
+
+    std::default_random_engine g{1};
+    std::uniform_real_distribution<float> exponent{MinExponent, MaxExponent};
+    std::bernoulli_distribution negative;
+
+    Tensor votes(votesDims);
+    std::generate_n(votes.data(), votes.size(), [&g, &exponent, &negative] {
+        const float magnitude = std::exp2(exponent(g));
+        return negative(g) ? -magnitude : magnitude;
+    });
+
+    hogpp::IntegralHistogram<float, N, K, Shape::Options> ih;
+    ih.resize(toTuple(Shape::Input), toTuple(Shape::Bins));
+    ih.scan([&votes](Eigen::TensorRef<Bins> h, const auto& i) {
+        const Bins v = hogpp::detail::chip(votes, i);
+
+        for (Eigen::DenseIndex m = 0; m < v.size(); ++m) {
+            h.coeffRef(m) += v.data()[m];
+        }
+    });
+
+    std::array<Eigen::DenseIndex, Rank> expectedDims = votesDims;
+
+    for (Eigen::DenseIndex d = 0; d < N; ++d) {
+        ++expectedDims[static_cast<std::size_t>(d)];
+    }
+
+    Tensor expected(expectedDims);
+    expected.setZero();
+
+    hogpp::cartesianProduct(
+        toTuple(Shape::Input), [&expected, &votes](const auto& i) {
+            hogpp::detail::chip(expected, hogpp::detail::offset<1>(i)) =
+                hogpp::detail::propagate(expected, i) +
+                hogpp::detail::chip(votes, i);
+        });
+
+    BOOST_TEST(bitPatterns(ih.histogram()) == bitPatterns(expected),
+               boost::test_tools::per_element());
+}
