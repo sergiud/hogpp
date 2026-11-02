@@ -77,7 +77,9 @@ if (BUILD_DEPS)
 
   FetchContent_MakeAvailable (eigen3 fmt)
 else (BUILD_DEPS)
-  find_package (Eigen3 ${hogpp_Eigen3_VERSION_RANGE} CONFIG)
+  # Prefer a newer Eigen, and fall back to the oldest supported one without
+  # warning that the preferred one was not found.
+  find_package (Eigen3 ${hogpp_Eigen3_VERSION_RANGE} CONFIG QUIET)
 
   if (NOT Eigen3_FOUND)
     find_package (Eigen3 ${hogpp_Eigen3_MIN_VERSION} REQUIRED CONFIG)
