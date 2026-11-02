@@ -51,7 +51,7 @@
 #include <array>
 #include <cstdint>
 
-#include "avx10.hpp"
+#include "x86cpuid.hpp"
 
 // Cacade macro definition by constraining it to x86/x86-64 instead of checking
 // for the platform inline to avoid unused macro definition warnings.
@@ -107,12 +107,12 @@ namespace {
 #    endif // defined(_MSC_VER) && !defined(__clang__)
 }
 
-// Queries the state that determines AVX10 support. The AVX10 version is
-// enumerated by CPUID alike on every compiler, unlike the AVX10 support of
-// the CPU detection built into compilers, which varies between them.
-[[nodiscard]] AVX10Enumeration queryAVX10() noexcept
+// Queries the state that determines the support of x86 instruction sets. It is
+// enumerated by CPUID alike on every compiler, unlike the CPU detection built
+// into compilers, whose support of instruction sets varies between them.
+[[nodiscard]] CPUIDEnumeration queryCPUID() noexcept
 {
-    return enumerateAVX10(cpuid, xcr0);
+    return enumerateCPUID(cpuid, xcr0);
 }
 
 } // namespace
@@ -170,11 +170,11 @@ bool CPUFeature<ISA::SSE4_1>::supported() noexcept
 
 bool CPUFeature<ISA::AVX>::supported() noexcept
 {
-#if defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
-    return __builtin_cpu_supports("avx");
-#else  // !defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
+#if defined(HOGPP_X86)
+    return avxSupported(queryCPUID());
+#else  // !defined(HOGPP_X86)
     return false;
-#endif // defined(HOGPP_USE_BUILTIN_CPU_SUPPORTS)
+#endif // defined(HOGPP_X86)
 }
 
 bool CPUFeature<ISA::AVX2>::supported() noexcept
@@ -202,7 +202,7 @@ bool CPUFeature<ISA::AVX512>::supported() noexcept
 bool CPUFeature<ISA::AVX10_1>::supported() noexcept
 {
 #if defined(HOGPP_X86)
-    return avx10Version(queryAVX10()) >= 1;
+    return avx10Version(queryCPUID()) >= 1;
 #else  // !defined(HOGPP_X86)
     return false;
 #endif // defined(HOGPP_X86)
@@ -211,7 +211,7 @@ bool CPUFeature<ISA::AVX10_1>::supported() noexcept
 bool CPUFeature<ISA::AVX10_2>::supported() noexcept
 {
 #if defined(HOGPP_X86)
-    return avx10Version(queryAVX10()) >= 2;
+    return avx10Version(queryCPUID()) >= 2;
 #else  // !defined(HOGPP_X86)
     return false;
 #endif // defined(HOGPP_X86)

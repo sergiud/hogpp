@@ -481,9 +481,9 @@ if (BUILD_TESTING)
     add_test (NAME levenshtein_closest_match_rejects_unrelated_name COMMAND test_levenshtein -t closest_match_rejects_unrelated_name)
     add_test (NAME levenshtein_closest_match_empty_supported_list COMMAND test_levenshtein -t closest_match_empty_supported_list)
 
-    add_executable (test_avx10 tests/cpp/test_avx10.cpp)
-    target_compile_features (test_avx10 PRIVATE cxx_std_20)
-    target_link_libraries (test_avx10 PRIVATE Boost::unit_test_framework)
+    add_executable (test_x86cpuid tests/cpp/test_x86cpuid.cpp)
+    target_compile_features (test_x86cpuid PRIVATE cxx_std_20)
+    target_link_libraries (test_x86cpuid PRIVATE Boost::unit_test_framework)
 
     foreach (_case IN ITEMS avx10_1_processor avx10_2_processor
                             version_ignores_upper_bits avx512_without_avx10
@@ -493,8 +493,10 @@ if (BUILD_TESTING)
                             enumerates_osxsave_from_ecx
                             enumerates_avx10_flag_from_subleaf_1
                             enumerates_version_from_ebx
-                            does_not_query_unimplemented_leaves)
-      add_test (NAME avx10_${_case} COMMAND test_avx10 -t ${_case})
+                            does_not_query_unimplemented_leaves
+                            avx_processor avx_state_disabled avx_without_osxsave
+                            processor_without_avx enumerates_avx_from_ecx)
+      add_test (NAME x86cpuid_${_case} COMMAND test_x86cpuid -t ${_case})
     endforeach (_case IN ITEMS avx10_1_processor avx10_2_processor
                                version_ignores_upper_bits avx512_without_avx10
                                avx512_state_disabled osxsave_disabled
@@ -503,7 +505,9 @@ if (BUILD_TESTING)
                                enumerates_osxsave_from_ecx
                                enumerates_avx10_flag_from_subleaf_1
                                enumerates_version_from_ebx
-                               does_not_query_unimplemented_leaves)
+                               does_not_query_unimplemented_leaves
+                               avx_processor avx_state_disabled avx_without_osxsave
+                               processor_without_avx enumerates_avx_from_ecx)
 
     add_executable (test_integral_histogram
       tests/cpp/test_integral_histogram.cpp
