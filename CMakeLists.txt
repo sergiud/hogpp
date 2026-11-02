@@ -146,7 +146,17 @@ target_link_libraries (hogpp INTERFACE
 
 if (pybind11_FOUND AND Python_Development.Module_FOUND)
   check_cxx_compiler_flag (-mfpu=neon HAVE_MFPU_NEON)
-  check_cxx_compiler_flag (-msve-vector-bits=scalable HAVE_MSVE_VECTOR_BITS)
+  # Code generation for SVE must be enabled explicitly, since the vector length
+  # option alone neither emits SVE instructions nor defines __ARM_FEATURE_SVE
+  # which Eigen requires to vectorize with SVE.
+  set (HOGPP_SVE_FLAGS -march=armv8.2-a+sve)
+  list (JOIN HOGPP_SVE_FLAGS " " CMAKE_REQUIRED_FLAGS)
+  string (APPEND CMAKE_REQUIRED_FLAGS " -msve-vector-bits=128")
+  check_cxx_source_compiles ("
+#include <arm_sve.h>
+int main() { return static_cast<int>(svcntw()); }
+" HAVE_SVE)
+  unset (CMAKE_REQUIRED_FLAGS)
 
   check_cxx_symbol_exists (__check_isa_support "immintrin.h" HAVE___CHECK_ISA_SUPPORT)
   check_cxx_symbol_exists (getauxval "sys/auxv.h" HAVE_GETAUXVAL)
@@ -211,12 +221,12 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
              _hogpp_system_processor MATCHES "^aarch64" OR
              _hogpp_generator_platform MATCHES "^arm64")
 
-      if (HAVE_MSVE_VECTOR_BITS)
+      if (HAVE_SVE)
         set (HAVE_ISA_SVE128 1)
         set (HAVE_ISA_SVE256 1)
         set (HAVE_ISA_SVE512 1)
         list (APPEND HOGPP_ISAS SVE128 SVE256 SVE512)
-      endif (HAVE_MSVE_VECTOR_BITS)
+      endif (HAVE_SVE)
     endif (_hogpp_system_processor MATCHES "^(arm|aarch64)" OR
            _hogpp_generator_platform MATCHES "^arm")
 
@@ -370,8 +380,13 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
           target_compile_options (${target_name} PRIVATE -mfpu=neon)
         endif (HAVE_MFPU_NEON)
       elseif (arch MATCHES "^SVE([0-9]+)$")
-        target_compile_definitions (${target_name} PRIVATE EIGEN_VECTORIZE_SVE)
-        target_compile_options (${target_name} PRIVATE -msve-vector-bits=${CMAKE_MATCH_1})
+        # Eigen configures SVE on its own, including the fixed vector length,
+        # but only if explicitly requested.
+        target_compile_definitions (${target_name} PRIVATE EIGEN_ARM64_USE_SVE)
+        target_compile_options (${target_name} PRIVATE
+          ${HOGPP_SVE_FLAGS}
+          -msve-vector-bits=${CMAKE_MATCH_1}
+        )
       else (arch STREQUAL NEON)
         target_compile_options (${target_name} PRIVATE
           ${hogpp_isa_${_eigen_suffix}_flags}
