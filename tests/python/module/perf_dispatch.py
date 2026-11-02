@@ -15,15 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Deliberately not named test_*, so plain `pytest tests/python/module` (used
-# by both CTest's python_hogpp target and cibuildwheel's test-command) does
-# not pick this up: benchmarks are slow and their timings are not a
-# pass/fail signal. Run this file explicitly, one HOGPP_DISPATCH value at a
-# time, via benchmark_isas.py in this directory.
+# Deliberately not named test_*, so plain `pytest tests/python/module`, as run
+# by cibuildwheel's test-command, does not pick this up: benchmarks are slow
+# and their timings are not a pass/fail signal. Run this file explicitly, one
+# HOGPP_DISPATCH value at a time, via benchmark_isas.py in this directory.
 #
-# Requires the pytest-benchmark package (not a project dependency, since
-# only benchmark_isas.py needs it): pip install pytest-benchmark
+# Requires the pytest-benchmark package listed in requirements.txt.
 
+from typing import Any
 import numpy as np
 import os
 import pytest
@@ -39,7 +38,7 @@ from hogpp import IntegralHOGDescriptor
 # is 16 pixels by default.
 SIGMA = 8
 
-CONFIGURATIONS = {
+CONFIGURATIONS: dict[str, dict[str, Any]] = {
     'default': {},
     'gaussian': {'sigma': SIGMA},
     'trilinear': {'interpolation': 'trilinear'},

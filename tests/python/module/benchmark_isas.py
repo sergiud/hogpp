@@ -73,11 +73,19 @@ def run_benchmark(dispatch, label):
             f'--benchmark-save={label}',
         ],
         env=env,
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
     logger.debug('%s', result.stdout)
+
+    if result.returncode != 0:
+        # The output is captured to find the saved file, so it must be
+        # reported here or the reason of the failure is lost.
+        raise RuntimeError(
+            f'benchmarking {label!r} failed with exit status '
+            f'{result.returncode}:\n{result.stdout}{result.stderr}'
+        )
 
     match = SAVED_PATH_RE.search(result.stderr)
 
