@@ -172,6 +172,7 @@ target_sources (hogpp INTERFACE FILE_SET HEADERS
     include/hogpp/l1sqrt.hpp
     include/hogpp/l2hys.hpp
     include/hogpp/l2norm.hpp
+    include/hogpp/layout.hpp
     include/hogpp/multiplyadd.hpp
     include/hogpp/normalize.hpp
     include/hogpp/normtraits.hpp
