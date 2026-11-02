@@ -726,6 +726,10 @@ if (BUILD_TESTING)
     add_test (NAME spatialweighting_descriptor_prepares_weighting_double COMMAND test_spatialweighting -t "descriptor_prepares_weighting<double>")
     add_test (NAME spatialweighting_descriptor_prepares_weighting_long_double COMMAND test_spatialweighting -t "descriptor_prepares_weighting<long double>")
 
+    add_test (NAME spatialweighting_separable_sum_matches_sequential_sum_float COMMAND test_spatialweighting -t "separable_sum_matches_sequential_sum<float>")
+    add_test (NAME spatialweighting_separable_sum_matches_sequential_sum_double COMMAND test_spatialweighting -t "separable_sum_matches_sequential_sum<double>")
+    add_test (NAME spatialweighting_separable_sum_matches_sequential_sum_long_double COMMAND test_spatialweighting -t "separable_sum_matches_sequential_sum<long double>")
+
     add_executable (test_block_norm tests/cpp/test_block_norm.cpp)
     target_link_libraries (test_block_norm PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
