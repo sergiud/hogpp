@@ -26,6 +26,7 @@
 
 import numpy as np
 import os
+import pytest
 
 if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
     path = os.getenv('HOGPPPATH')
@@ -34,10 +35,47 @@ if os.name == 'nt' and hasattr(os, 'add_dll_directory'):
 
 from hogpp import IntegralHOGDescriptor
 
+# Dalal and Triggs suggest a standard deviation of half the block width, which
+# is 16 pixels by default.
+SIGMA = 8
 
-def test_compute(benchmark):
+CONFIGURATIONS = {
+    'default': {},
+    'gaussian': {'sigma': SIGMA},
+    'trilinear': {'interpolation': 'trilinear'},
+    'gaussian-trilinear': {'sigma': SIGMA, 'interpolation': 'trilinear'},
+}
+
+
+def make_workload(configuration):
     rng = np.random.default_rng(0)
     image = rng.random((512, 512), dtype=np.float32)
-    descriptor = IntegralHOGDescriptor()
+    descriptor = IntegralHOGDescriptor(**CONFIGURATIONS[configuration])
 
+    return descriptor, image
+
+
+def compute_features(descriptor, image):
+    descriptor.compute(image)
+    return descriptor.features_
+
+
+@pytest.mark.parametrize('configuration', CONFIGURATIONS)
+def test_compute(benchmark, configuration):
+    descriptor, image = make_workload(configuration)
+
+    # Group by configuration, so that the comparison across instruction sets
+    # lists the timings of each configuration together.
+    benchmark.group = configuration
     benchmark(descriptor.compute, image)
+
+
+# Depending on the configuration, the spatial weighting and interpolation are
+# evaluated while computing the integral histogram or while extracting the
+# features. Only both steps together are comparable across configurations.
+@pytest.mark.parametrize('configuration', CONFIGURATIONS)
+def test_compute_features(benchmark, configuration):
+    descriptor, image = make_workload(configuration)
+
+    benchmark.group = f'{configuration} with features'
+    benchmark(compute_features, descriptor, image)
