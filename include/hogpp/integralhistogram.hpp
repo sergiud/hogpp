@@ -162,6 +162,20 @@ template<class Tensor, class... Types>
     return propagate(std::forward<Tensor>(t), i, std::make_index_sequence<N>{});
 }
 
+template<class... Types, std::size_t... Indices>
+[[nodiscard]] constexpr auto reverse(
+    const std::tuple<Types...>& t,
+    std::index_sequence<Indices...> /*unused*/) noexcept
+{
+    return std::make_tuple(std::get<sizeof...(Types) - 1 - Indices>(t)...);
+}
+
+template<class... Types>
+[[nodiscard]] constexpr auto reverse(const std::tuple<Types...>& t) noexcept
+{
+    return reverse(t, std::index_sequence_for<Types...>{});
+}
+
 // Histogram space elements of a single input space position. They are evenly
 // spaced in memory: a column-major histogram stores the histogram space
 // dimensions last, so consecutive elements lie as far apart as the input space
@@ -389,7 +403,9 @@ public:
      * @c binning(bins, i), where @c bins is a view of type Bins of the
      * histogram space elements of that position. On entry, the view holds the
      * sums over all positions preceding @c i along every input space
-     * dimension. The votes of @c i are added to it in place.
+     * dimension. The votes of @c i are added to it in place. The order in
+     * which the positions are visited follows the memory layout of the
+     * histogram and is otherwise unspecified.
      *
      * The view refers to a buffer that is reused for every position, so it
      * must not be retained beyond the invocation. Taking it as Bins rather
@@ -564,20 +580,35 @@ private:
         Eigen::Tensor<T, K, Options> buffer{binDims};
         Bins bins{buffer.data(), binDims};
 
-        // Wavefront scan
-        cartesianProduct(
-            std::make_tuple((dims[Indices] - 1)...),
-            [this, &binning, &bins](const auto& i) constexpr {
-                detail::propagateBins(histogram_, i, bins.data());
-                binning(bins, i);
+        auto visit = [this, &binning, &bins](const auto& i) constexpr {
+            detail::propagateBins(histogram_, i, bins.data());
+            binning(bins, i);
 
-                const detail::StridedBins<T> target =
-                    detail::stridedBins(histogram_, detail::offset<1>(i));
+            const detail::StridedBins<T> target =
+                detail::stridedBins(histogram_, detail::offset<1>(i));
 
-                for (Eigen::DenseIndex m = 0; m < target.size; ++m) {
-                    target.data[m * target.stride] = bins.data()[m];
-                }
-            });
+            for (Eigen::DenseIndex m = 0; m < target.size; ++m) {
+                target.data[m * target.stride] = bins.data()[m];
+            }
+        };
+
+        // Wavefront scan in the order of the memory layout. Each position
+        // depends on the position stored right before it. Along the
+        // contiguous dimension, that position lies next to the one being
+        // stored, which no corner reads. Across it, the stored position lies
+        // next to another corner, and compilers merge the loads of both into
+        // a single wide load that cannot be forwarded from the narrow store
+        // still in flight, which stalled the scan on wide SIMD instruction
+        // sets.
+        if constexpr (Tensor::Layout == Eigen::ColMajor) {
+            cartesianProduct(std::make_tuple((dims[N - 1 - Indices] - 1)...),
+                             [&visit](const auto& reversed) constexpr {
+                                 visit(detail::reverse(reversed));
+                             });
+        }
+        else {
+            cartesianProduct(std::make_tuple((dims[Indices] - 1)...), visit);
+        }
     }
 
     template<class Result, Eigen::DenseIndex... Indices>
