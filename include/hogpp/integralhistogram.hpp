@@ -162,6 +162,91 @@ template<class Tensor, class... Types>
     return propagate(std::forward<Tensor>(t), i, std::make_index_sequence<N>{});
 }
 
+// Histogram space elements of a single input space position. They are evenly
+// spaced in memory: a column-major histogram stores the histogram space
+// dimensions last, so consecutive elements lie as far apart as the input space
+// has positions, while a row-major histogram stores them contiguously. The
+// elements follow the order of the linear indices of the corresponding chip.
+template<class T>
+struct StridedBins
+{
+    T* data;
+    Eigen::DenseIndex stride;
+    Eigen::DenseIndex size;
+};
+
+template<class Tensor, class... Types>
+[[nodiscard]] auto stridedBins(Tensor& t,
+                               const std::tuple<Types...>& i) noexcept
+{
+    using Scalar = std::remove_reference_t<decltype(*t.data())>;
+
+    constexpr std::size_t N = sizeof...(Types);
+    constexpr auto Rank = static_cast<std::size_t>(Tensor::NumIndices);
+
+    std::array<Eigen::DenseIndex, Rank> index{};
+
+    std::apply(
+        [&index](auto... j) {
+            std::size_t d = 0;
+            ((index[d++] = static_cast<Eigen::DenseIndex>(j)), ...);
+        },
+        i);
+
+    Eigen::DenseIndex positions = 1;
+    Eigen::DenseIndex size = 1;
+
+    for (std::size_t d = 0; d < N; ++d) {
+        positions *= t.dimension(d);
+    }
+
+    for (std::size_t d = N; d < Rank; ++d) {
+        size *= t.dimension(d);
+    }
+
+    const Eigen::DenseIndex stride =
+        Tensor::Layout == Eigen::ColMajor ? positions : 1;
+
+    return StridedBins<Scalar>{&t(index), stride, size};
+}
+
+// Element-wise counterpart of propagate() that writes the result to the
+// histogram space elements at the position offset by one along every input
+// space dimension. The right fold adds the corners in the same order as
+// the tensor expression, so both round identically.
+//
+// The histogram space elements of a column-major histogram are strided, and
+// there are typically few of them, e.g., 9 orientation bins. Evaluating
+// propagate() as a vectorized tensor expression for every position gathers
+// each packet one coefficient at a time through a call to the tensor executor,
+// which made every SIMD instruction set slower than scalar code.
+template<class Tensor, class... Types, std::size_t... Combinations>
+void propagateBins(Tensor& t, const std::tuple<Types...>& i,
+                   std::index_sequence<Combinations...> /*unused*/) noexcept
+{
+    using Scalar = typename Tensor::Scalar;
+
+    constexpr std::size_t D = sizeof...(Types);
+
+    const StridedBins<Scalar> target = stridedBins(t, offset<1>(i));
+    const std::array<const Scalar*, sizeof...(Combinations)> corners{
+        stridedBins(t, neighbor<Combinations>(i)).data...};
+
+    for (Eigen::DenseIndex m = 0; m < target.size; ++m) {
+        const Eigen::DenseIndex position = m * target.stride;
+        target.data[position] = (negate<cornerSignbit<D>(Combinations)>(
+                                     corners[Combinations][position]) +
+                                 ...);
+    }
+}
+
+template<class Tensor, class... Types>
+void propagateBins(Tensor& t, const std::tuple<Types...>& i) noexcept
+{
+    constexpr std::size_t N = (1U << sizeof...(Types)) - 1U;
+    propagateBins(t, i, std::make_index_sequence<N>{});
+}
+
 template<bool Sign, class... Types1, class... Types2,
          std::enable_if_t<Sign>* = nullptr>
 [[nodiscard]] constexpr decltype(auto) select(
@@ -453,9 +538,10 @@ private:
         // Wavefront scan
         cartesianProduct(std::make_tuple((dims[Indices] - 1)...),
                          [this, &binning](const auto& i) constexpr {
-                             auto current = detail::offset<1>(i);
-                             auto&& H = detail::chip(histogram_, current);
-                             H = detail::propagate(histogram_, i);
+                             detail::propagateBins(histogram_, i);
+
+                             auto&& H =
+                                 detail::chip(histogram_, detail::offset<1>(i));
                              binning(H, i);
                          });
     }

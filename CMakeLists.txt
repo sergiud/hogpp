@@ -483,6 +483,15 @@ if (BUILD_TESTING)
     add_test (NAME integral_histogram_interpolate_row_major_matches_column_major COMMAND test_integral_histogram -t interpolate_row_major_matches_column_major)
     add_test (NAME integral_histogram_interpolate_unsigned_coordinates_near_lower_boundary COMMAND test_integral_histogram -t interpolate_unsigned_coordinates_near_lower_boundary)
 
+    foreach (_shape IN ITEMS Plane Volume)
+      foreach (_layout IN ITEMS 0 1)
+        string (TOLOWER "${_shape}" _lower_shape)
+        add_test (NAME integral_histogram_scan_matches_tensor_expression_${_lower_shape}_${_layout} COMMAND test_integral_histogram -t "scan_matches_tensor_expression<${_shape}<${_layout}>>")
+      endforeach (_layout IN ITEMS 0 1)
+    endforeach (_shape IN ITEMS Plane Volume)
+
+    unset (_lower_shape)
+
     add_executable (test_cartesian_product tests/cpp/test_cartesian_product.cpp)
     target_link_libraries (test_cartesian_product PRIVATE hogpp::hogpp
       Boost::unit_test_framework)
