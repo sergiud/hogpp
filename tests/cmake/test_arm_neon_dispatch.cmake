@@ -4,11 +4,11 @@ cmake_minimum_required (VERSION 3.18)
 # checks whether NEON dispatch is registered as TEST_EXPECT_NEON states.
 if (NOT DEFINED PROJECT_SOURCE_DIR OR NOT DEFINED TEST_BINARY_DIR OR
     NOT DEFINED TEST_CXX_COMPILER OR NOT DEFINED TEST_SYSTEM_PROCESSOR OR
-    NOT DEFINED TEST_EXPECT_NEON)
+    NOT DEFINED TEST_EXPECT_NEON OR NOT DEFINED TEST_GENERATOR)
   message (FATAL_ERROR "The configure test arguments are incomplete")
 endif (NOT DEFINED PROJECT_SOURCE_DIR OR NOT DEFINED TEST_BINARY_DIR OR
        NOT DEFINED TEST_CXX_COMPILER OR NOT DEFINED TEST_SYSTEM_PROCESSOR OR
-       NOT DEFINED TEST_EXPECT_NEON)
+       NOT DEFINED TEST_EXPECT_NEON OR NOT DEFINED TEST_GENERATOR)
 
 file (MAKE_DIRECTORY "${TEST_BINARY_DIR}")
 set (_toolchain_file "${TEST_BINARY_DIR}/toolchain.cmake")
@@ -23,6 +23,10 @@ execute_process (
   COMMAND ${CMAKE_COMMAND} -E env CCACHE_DISABLE=1 ${CMAKE_COMMAND}
     -S "${PROJECT_SOURCE_DIR}"
     -B "${TEST_BINARY_DIR}"
+    # The nested project must use the generator of the enclosing one, since
+    # the default generator may not be installed.
+    -G "${TEST_GENERATOR}"
+    -DCMAKE_MAKE_PROGRAM=${TEST_MAKE_PROGRAM}
     -DCMAKE_TOOLCHAIN_FILE=${_toolchain_file}
     -DCMAKE_CXX_COMPILER_LAUNCHER=
     -DBUILD_TESTING=OFF
