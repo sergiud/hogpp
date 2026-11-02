@@ -210,9 +210,9 @@ template<class Tensor, class... Types>
     return StridedBins<Scalar>{&t(index), stride, size};
 }
 
-// Element-wise counterpart of propagate() that writes the result to the
-// histogram space elements at the position offset by one along every input
-// space dimension. The right fold adds the corners in the same order as
+// Element-wise counterpart of propagate() that writes the histogram space
+// elements of the position offset by one along every input space dimension
+// contiguously to bins. The right fold adds the corners in the same order as
 // the tensor expression, so both round identically.
 //
 // The histogram space elements of a column-major histogram are strided, and
@@ -221,30 +221,32 @@ template<class Tensor, class... Types>
 // each packet one coefficient at a time through a call to the tensor executor,
 // which made every SIMD instruction set slower than scalar code.
 template<class Tensor, class... Types, std::size_t... Combinations>
-void propagateBins(Tensor& t, const std::tuple<Types...>& i,
+void propagateBins(const Tensor& t, const std::tuple<Types...>& i,
+                   typename Tensor::Scalar* bins,
                    std::index_sequence<Combinations...> /*unused*/) noexcept
 {
     using Scalar = typename Tensor::Scalar;
 
     constexpr std::size_t D = sizeof...(Types);
 
-    const StridedBins<Scalar> target = stridedBins(t, offset<1>(i));
+    const StridedBins<const Scalar> origin = stridedBins(t, i);
     const std::array<const Scalar*, sizeof...(Combinations)> corners{
         stridedBins(t, neighbor<Combinations>(i)).data...};
 
-    for (Eigen::DenseIndex m = 0; m < target.size; ++m) {
-        const Eigen::DenseIndex position = m * target.stride;
-        target.data[position] = (negate<cornerSignbit<D>(Combinations)>(
-                                     corners[Combinations][position]) +
-                                 ...);
+    for (Eigen::DenseIndex m = 0; m < origin.size; ++m) {
+        const Eigen::DenseIndex position = m * origin.stride;
+        bins[m] = (negate<cornerSignbit<D>(Combinations)>(
+                       corners[Combinations][position]) +
+                   ...);
     }
 }
 
 template<class Tensor, class... Types>
-void propagateBins(Tensor& t, const std::tuple<Types...>& i) noexcept
+void propagateBins(const Tensor& t, const std::tuple<Types...>& i,
+                   typename Tensor::Scalar* bins) noexcept
 {
     constexpr std::size_t N = (1U << sizeof...(Types)) - 1U;
-    propagateBins(t, i, std::make_index_sequence<N>{});
+    propagateBins(t, i, bins, std::make_index_sequence<N>{});
 }
 
 template<bool Sign, class... Types1, class... Types2,
@@ -352,6 +354,8 @@ public:
 
     using Scalar = T;
     using Tensor = Eigen::Tensor<T, N + K, Options>;
+    //! Histogram space elements of a single input space position.
+    using Bins = Eigen::TensorMap<Eigen::Tensor<T, K, Options>>;
 
     template<std::integral... InputDims, std::integral... BinDims>
     void resize(const std::tuple<InputDims...>& dims,
@@ -377,6 +381,20 @@ public:
         resize(dims, std::make_tuple(bins));
     }
 
+    /**
+     * @brief Builds the integral histogram from the votes of each input space
+     * position.
+     *
+     * Invokes @p binning once for every input space position @c i as
+     * @c binning(bins, i), where @c bins is a view of type Bins of the
+     * histogram space elements of that position. On entry, the view holds the
+     * sums over all positions preceding @c i along every input space
+     * dimension. The votes of @c i are added to it in place.
+     *
+     * The view refers to a buffer that is reused for every position, so it
+     * must not be retained beyond the invocation. Taking it as Bins rather
+     * than as an @c Eigen::TensorRef avoids an allocation for every position.
+     */
     // TODO Tensor of compatible dimension
     template<class Binning>
     void scan(Binning binning) // requires std::invocable<Binning,
@@ -535,15 +553,31 @@ private:
     {
         histogram_.setZero();
 
-        // Wavefront scan
-        cartesianProduct(std::make_tuple((dims[Indices] - 1)...),
-                         [this, &binning](const auto& i) constexpr {
-                             detail::propagateBins(histogram_, i);
+        // The votes of each position are accumulated in a contiguous buffer
+        // that is allocated once for the whole scan and stored to the
+        // histogram afterwards. Passing a view of the histogram itself would
+        // require an Eigen::TensorRef for the strided elements, whose
+        // construction allocates for every position.
+        std::array<Eigen::DenseIndex, static_cast<std::size_t>(K)> binDims{};
+        std::copy(dims.begin() + N, dims.end(), binDims.begin());
 
-                             auto&& H =
-                                 detail::chip(histogram_, detail::offset<1>(i));
-                             binning(H, i);
-                         });
+        Eigen::Tensor<T, K, Options> buffer{binDims};
+        Bins bins{buffer.data(), binDims};
+
+        // Wavefront scan
+        cartesianProduct(
+            std::make_tuple((dims[Indices] - 1)...),
+            [this, &binning, &bins](const auto& i) constexpr {
+                detail::propagateBins(histogram_, i, bins.data());
+                binning(bins, i);
+
+                const detail::StridedBins<T> target =
+                    detail::stridedBins(histogram_, detail::offset<1>(i));
+
+                for (Eigen::DenseIndex m = 0; m < target.size; ++m) {
+                    target.data[m * target.stride] = bins.data()[m];
+                }
+            });
     }
 
     template<class Result, Eigen::DenseIndex... Indices>

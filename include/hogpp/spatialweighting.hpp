@@ -244,7 +244,7 @@ public:
         weighted.resize(std::make_tuple(dims.x(), dims.y()),
                         numBlockCells * bins);
         weighted.scan([&weights, &visitVotes, &stride, numBlockCells, bins](
-                          Eigen::TensorRef<Eigen::Tensor<S, 1>> channels,
+                          typename IntegralHistogram<S, 2, 1>::Bins channels,
                           const auto& ij) {
             const auto [i, j] = ij;
             const S* const w = weights.data() + ((i % stride.x()) * stride.y() +
@@ -254,7 +254,7 @@ public:
             visitVotes(ij, [&channels, w, numBlockCells, bins](
                                Eigen::DenseIndex bin, S vote) {
                 for (Eigen::DenseIndex kl = 0; kl < numBlockCells; ++kl) {
-                    S& value = channels.coeffRef(kl * bins + bin);
+                    S& value = channels(kl * bins + bin);
                     value = multiplyAdd(w[kl], vote, value);
                 }
             });

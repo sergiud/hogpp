@@ -626,6 +626,8 @@ if (BUILD_TESTING)
         add_test (NAME allocations_trilinear_features_allocate_no_more_per_cell_${_type} COMMAND test_allocations -t "trilinear_features_allocate_no_more_per_cell<${_type}>")
         add_test (NAME allocations_weighted_trilinear_features_allocate_no_more_per_cell_${_type} COMMAND test_allocations -t "weighted_trilinear_features_allocate_no_more_per_cell<${_type}>")
         add_test (NAME allocations_trilinear_recompute_keeps_one_cascade_${_type} COMMAND test_allocations -t "trilinear_recompute_keeps_one_cascade<${_type}>")
+        add_test (NAME allocations_compute_allocates_no_more_per_pixel_${_type} COMMAND test_allocations -t "compute_allocates_no_more_per_pixel<${_type}>")
+        add_test (NAME allocations_weighted_compute_allocates_no_more_per_pixel_${_type} COMMAND test_allocations -t "weighted_compute_allocates_no_more_per_pixel<${_type}>")
       endforeach (_type IN ITEMS float double)
     endif (HAVE_LIBC_MALLOC)
 
