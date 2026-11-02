@@ -28,6 +28,7 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include <hogpp/axis.hpp>
+#include <hogpp/layout.hpp>
 #include <hogpp/precision.hpp>
 
 namespace hogpp {
@@ -316,8 +317,7 @@ private:
         // inner loop instead touches a new cache line for every pixel and
         // cannot be vectorized. The axis is then swept in the outer loop, with
         // each sampler applied to a whole row of pixels at a time.
-        constexpr Eigen::DenseIndex Contiguous =
-            Tensor::Layout == Eigen::ColMajor ? 0 : 1;
+        constexpr Eigen::DenseIndex Contiguous = IsColMajor<Tensor> ? 0 : 1;
 
         if constexpr (Axis::value != Contiguous) {
             auto row = [&image, &out, m, coord](Eigen::DenseIndex p,

@@ -32,6 +32,7 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include <hogpp/cartesianproduct.hpp>
+#include <hogpp/layout.hpp>
 
 namespace hogpp {
 
@@ -218,8 +219,7 @@ template<class Tensor, class... Types>
         size *= t.dimension(d);
     }
 
-    const Eigen::DenseIndex stride =
-        Tensor::Layout == Eigen::ColMajor ? positions : 1;
+    const Eigen::DenseIndex stride = IsColMajor<Tensor> ? positions : 1;
 
     return StridedBins<Scalar>{&t(index), stride, size};
 }
@@ -600,7 +600,7 @@ private:
         // a single wide load that cannot be forwarded from the narrow store
         // still in flight, which stalled the scan on wide SIMD instruction
         // sets.
-        if constexpr (Tensor::Layout == Eigen::ColMajor) {
+        if constexpr (IsColMajor<Tensor>) {
             cartesianProduct(std::make_tuple((dims[N - 1 - Indices] - 1)...),
                              [&visit](const auto& reversed) constexpr {
                                  visit(detail::reverse(reversed));
