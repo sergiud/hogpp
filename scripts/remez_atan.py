@@ -42,6 +42,9 @@ MAX_ITERATIONS = 50
 SEARCH_INTERVALS = 2000
 # Number of intervals of the grid on which the maximum error is verified.
 VERIFICATION_INTERVALS = 500000
+# Significant decimal digits that round-trip through IEEE 754 binary128, the
+# widest long double format.
+LONG_DOUBLE_DIGITS = 36
 # Largest change of an alternation point between iterations at convergence.
 TOLERANCE = mp.mpf('1e-60')
 
@@ -131,7 +134,7 @@ def main():
     max_err = max(abs(f(x)) for x in grid)
     print('max |error| on fine grid:', mp.nstr(max_err, 20))
     for name, coefficient in zip('abc', coefficients, strict=True):
-        print(name, '=', repr(float(coefficient)))
+        print(name, '=', mp.nstr(coefficient, LONG_DOUBLE_DIGITS))
 
 
 if __name__ == '__main__':
