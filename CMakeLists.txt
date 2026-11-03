@@ -223,12 +223,15 @@ int main() { return static_cast<int>(svcntw()); }
              _hogpp_system_processor MATCHES "^(aarch64|arm64)" OR
              _hogpp_generator_platform MATCHES "^arm64")
 
-      if (HAVE_SVE)
+      # Apple processors do not implement SVE, so its code would never run, and
+      # the backend of AppleClang rejects the calling convention of functions
+      # that pass SVE vectors although the compiler accepts the option.
+      if (HAVE_SVE AND NOT APPLE)
         set (HAVE_ISA_SVE128 1)
         set (HAVE_ISA_SVE256 1)
         set (HAVE_ISA_SVE512 1)
         list (APPEND HOGPP_ISAS SVE128 SVE256 SVE512)
-      endif (HAVE_SVE)
+      endif (HAVE_SVE AND NOT APPLE)
     endif (_hogpp_system_processor MATCHES "^(arm|aarch64)" OR
            _hogpp_generator_platform MATCHES "^arm")
 
@@ -890,11 +893,36 @@ if (BUILD_TESTING)
           -DTEST_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
           -DTEST_SYSTEM_PROCESSOR=${_processor}
           -DTEST_EXPECT_NEON=${_expect_neon}
-          -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm_neon_dispatch.cmake
+          -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm_dispatch.cmake
         )
       endforeach (_processor IN ITEMS arm aarch64 arm64)
 
       unset (_expect_neon)
+
+      # Apple processors do not implement SVE, unlike those running Linux.
+      foreach (_system IN ITEMS Linux Darwin)
+        if (_system STREQUAL Darwin)
+          set (_expect_sve OFF)
+        else (_system STREQUAL Darwin)
+          set (_expect_sve ON)
+        endif (_system STREQUAL Darwin)
+
+        add_test (NAME cmake_sve_dispatch_${_system} COMMAND
+          ${CMAKE_COMMAND}
+          -DPROJECT_SOURCE_DIR=${hogpp_SOURCE_DIR}
+          -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_sve_${_system}
+          -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+          -DTEST_GENERATOR=${CMAKE_GENERATOR}
+          -DTEST_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+          -DTEST_SYSTEM_NAME=${_system}
+          -DTEST_SYSTEM_PROCESSOR=arm64
+          -DTEST_EXPECT_NEON=ON
+          -DTEST_EXPECT_SVE=${_expect_sve}
+          -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm_dispatch.cmake
+        )
+      endforeach (_system IN ITEMS Linux Darwin)
+
+      unset (_expect_sve)
     endif (UNIX)
 
     add_test (NAME python_hogpp COMMAND
