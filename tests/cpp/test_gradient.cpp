@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(gradient_matches_samplers, Scalar, Scalars)
 
     std::default_random_engine g{1};
     std::uniform_real_distribution<Scalar> intensity{0, 1};
-    const hogpp::Gradient<Scalar> gradient;
+    const hogpp::Gradient<Scalar> gradient{};
 
     for (const auto& [rows, cols] : Shapes) {
         BOOST_TEST_CONTEXT("image of " << rows << "x" << cols << " pixels")
