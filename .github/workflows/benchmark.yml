@@ -13,7 +13,7 @@ on: [push, pull_request]
 permissions:
   contents: read
 
-# Runs updating the shared history must not race on the history branch.
+# Saving the history from concurrent runs would lose the results of one of them.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -27,17 +27,12 @@ jobs:
         shell: bash
     # permissions values must be static (GitHub Actions does not evaluate
     # expressions here), so this can't be conditioned on github.event_name.
-    # write is only actually exercised by the auto-push input below, which
-    # is itself gated to pushes to master; for a pull_request from a fork,
-    # GitHub always downgrades GITHUB_TOKEN to read-only regardless of what
-    # this declares, so declaring write here is not a fork-safety issue.
+    # write allows posting an alert as a commit comment. For a pull_request
+    # from a fork, GitHub always downgrades GITHUB_TOKEN to read-only regardless
+    # of what this declares, so declaring write here is not a fork-safety issue.
     permissions:
       contents: write
     strategy:
-      # benchmark-action/github-action-benchmark pushes to the shared
-      # gh-pages branch: running more than one push at a time risks a race,
-      # so these must not run concurrently.
-      max-parallel: 1
       fail-fast: false
       matrix:
         os:
@@ -111,17 +106,35 @@ jobs:
         run: |
           python tests/python/module/benchmark_isas.py --json output.json
 
-      - name: Compare against baseline and update history
+      # Cache entries are immutable, so each run saves its own and restoring
+      # selects the most recent one by the common prefix. Branches and pull
+      # requests can restore the entries of the default branch.
+      - name: Restore benchmark history
+        uses: actions/cache/restore@v6
+        with:
+          path: .benchmark-history
+          key: benchmark-${{matrix.os}}-${{github.run_id}}-${{github.run_attempt}}
+          restore-keys: benchmark-${{matrix.os}}-
+
+      - name: Compare against baseline
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: ${{matrix.os}}
           tool: 'pytest'
           output-file-path: output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Only master defines the baseline. Other branches and pull
-          # requests are compared against it without replacing it.
-          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          external-data-json-path: .benchmark-history/data.json
           alert-threshold: '150%'
           comment-on-alert: true
           fail-on-alert: true
           summary-always: true
+
+      # Only master defines the baseline. Other branches and pull requests are
+      # compared against it without replacing it. A run that fails on an alert
+      # skips this step and leaves the regression out of the baseline.
+      - name: Save benchmark history
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v6
+        with:
+          path: .benchmark-history
+          key: benchmark-${{matrix.os}}-${{github.run_id}}-${{github.run_attempt}}
