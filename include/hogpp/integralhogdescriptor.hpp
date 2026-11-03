@@ -62,6 +62,29 @@ concept TensorBinning =
         binning(gradient, gradient);
     };
 
+/**
+ * @brief Returns a callable that yields the binning weight of a pixel given
+ * its position.
+ *
+ * A binning that can be evaluated over a whole tensor reads the weights it
+ * precomputed. Any other binning is evaluated on the derivatives of the
+ * pixel. Each callable refers only to the arguments it reads, all of which
+ * must outlive it.
+ */
+template<bool Precomputed, class Binning, class Tensor>
+[[nodiscard]] auto binningWeights(const Binning& binning, const Tensor& dxs,
+                                  const Tensor& dys, const Tensor& weights)
+{
+    if constexpr (Precomputed) {
+        return [&weights](const auto& ijk) { return std::apply(weights, ijk); };
+    }
+    else {
+        return [&binning, &dxs, &dys](const auto& ijk) {
+            return binning(std::apply(dxs, ijk), std::apply(dys, ijk));
+        };
+    }
+}
+
 } // namespace detail
 
 template<class T>
@@ -353,10 +376,12 @@ public:
             weights = this->binning_(dxs, dys);
         }
 
+        const auto weightAt = detail::binningWeights<hasTensorBinning>(
+            this->binning_, dxs, dys, weights);
+
         // Votes the pixel ij into the orientation bins.
-        auto binning = [this, channels, &k, &dxs, &dys, &mags, &weights, scale,
-                        &masked](typename Histogram::Bins bins,
-                                 const auto& ij) {
+        auto binning = [channels, &k, &mags, &weightAt, scale, &masked](
+                           typename Histogram::Bins bins, const auto& ij) {
             (void)masked; // Avoid error: lambda capture 'masked' is not
                           // used [-Werror,-Wunused-lambda-capture] on
                           // AppleClang
@@ -389,16 +414,7 @@ public:
             HOGPP_ASSUME(mag > 0);
 
             // Gradient binning
-            Scalar weight;
-
-            if constexpr (hasTensorBinning) {
-                weight = std::apply(weights, ijk);
-            }
-            else {
-                Scalar dx = std::apply(dxs, ijk);
-                Scalar dy = std::apply(dys, ijk);
-                weight = this->binning_(dx, dy);
-            }
+            const Scalar weight = weightAt(ijk);
 
             HOGPP_ASSUME(weight >= 0 && weight <= 1);
 
