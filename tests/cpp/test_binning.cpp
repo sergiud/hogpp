@@ -233,7 +233,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast_tensor_signed_zero, Scalar,
 {
     constexpr std::array<Scalar, 4> Horizontal{Scalar{-1}, Scalar{1},
                                                -Scalar{0}, Scalar{0}};
-    constexpr std::array<Scalar, 2> Vertical{-Scalar{0}, Scalar{0}};
+    constexpr std::array<Scalar, 4> Vertical{Scalar{-1}, Scalar{1}, -Scalar{0},
+                                             Scalar{0}};
     constexpr auto Samples =
         static_cast<Eigen::DenseIndex>(Horizontal.size() * Vertical.size());
 
