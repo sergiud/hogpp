@@ -132,9 +132,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(signed_gradient_fast, Scalar, Scalars)
     }
 
     for (auto [dx, dy] :
-         {std::pair<Scalar, Scalar>{+1, 0}, std::pair<Scalar, Scalar>{-1, 0},
-          std::pair<Scalar, Scalar>{0, +1}, std::pair<Scalar, Scalar>{0, -1},
-          std::pair<Scalar, Scalar>{0, 0}}) {
+         {std::pair{Scalar{1}, Scalar{0}}, std::pair{-Scalar{1}, Scalar{0}},
+          std::pair{Scalar{0}, Scalar{1}}, std::pair{Scalar{0}, -Scalar{1}},
+          std::pair{Scalar{0}, Scalar{0}}}) {
         const auto [approxWeight, exactWeight] = shifted(dx, dy);
 
         BOOST_TEST(approxWeight == exactWeight,
@@ -171,9 +171,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unsigned_gradient_fast, Scalar, Scalars)
     }
 
     for (auto [dx, dy] :
-         {std::pair<Scalar, Scalar>{+1, 0}, std::pair<Scalar, Scalar>{-1, 0},
-          std::pair<Scalar, Scalar>{0, +1}, std::pair<Scalar, Scalar>{0, -1},
-          std::pair<Scalar, Scalar>{0, 0}}) {
+         {std::pair{Scalar{1}, Scalar{0}}, std::pair{-Scalar{1}, Scalar{0}},
+          std::pair{Scalar{0}, Scalar{1}}, std::pair{Scalar{0}, -Scalar{1}},
+          std::pair{Scalar{0}, Scalar{0}}}) {
         const auto [approxWeight, exactWeight] = shifted(dx, dy);
 
         BOOST_TEST(approxWeight == exactWeight,
