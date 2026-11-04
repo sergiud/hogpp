@@ -873,31 +873,47 @@ if (BUILD_TESTING)
 
   if (TARGET pyhogpp)
     if (UNIX)
-      # 32-bit ARM requires the compiler to accept -mfpu=neon, which the host
-      # compiler rejects. Every 64-bit ARM processor implements NEON, whether
-      # it is named aarch64 as on Linux or arm64 as on macOS and Windows. The
-      # name is matched case-insensitively.
-      foreach (_processor IN ITEMS arm aarch64 arm64)
-        if (_processor STREQUAL arm)
-          set (_expect_neon OFF)
-        else (_processor STREQUAL arm)
-          set (_expect_neon ON)
-        endif (_processor STREQUAL arm)
-
-        add_test (NAME cmake_neon_dispatch_${_processor} COMMAND
+      # Configures the project for an ARM target. The outcome depends neither on
+      # the host compiler, whose options are preset, nor on where packages can
+      # be found for the target, since their locations are passed on.
+      function (hogpp_add_arm_dispatch_test name)
+        add_test (NAME ${name} COMMAND
           ${CMAKE_COMMAND}
           -DPROJECT_SOURCE_DIR=${hogpp_SOURCE_DIR}
-          -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_neon_${_processor}
+          -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/${name}
           -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
           -DTEST_GENERATOR=${CMAKE_GENERATOR}
           -DTEST_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
-          -DTEST_SYSTEM_PROCESSOR=${_processor}
-          -DTEST_EXPECT_NEON=${_expect_neon}
+          -DTEST_EIGEN3_DIR=${Eigen3_DIR}
+          -DTEST_FMT_DIR=${fmt_DIR}
+          -DTEST_PYBIND11_DIR=${pybind11_DIR}
+          ${ARGN}
           -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm_dispatch.cmake
         )
-      endforeach (_processor IN ITEMS arm aarch64 arm64)
+      endfunction (hogpp_add_arm_dispatch_test)
 
-      unset (_expect_neon)
+      # 32-bit ARM requires the compiler to accept -mfpu=neon.
+      hogpp_add_arm_dispatch_test (cmake_neon_dispatch_arm
+        -DTEST_SYSTEM_PROCESSOR=arm
+        -DTEST_HAVE_MFPU_NEON=OFF
+        -DTEST_EXPECT_NEON=OFF
+      )
+      hogpp_add_arm_dispatch_test (cmake_neon_dispatch_arm_mfpu_neon
+        -DTEST_SYSTEM_PROCESSOR=arm
+        -DTEST_HAVE_MFPU_NEON=ON
+        -DTEST_EXPECT_NEON=ON
+      )
+
+      # Every 64-bit ARM processor implements NEON, whether it is named aarch64
+      # as on Linux or arm64 as on macOS and Windows. The name is matched
+      # case-insensitively.
+      foreach (_processor IN ITEMS aarch64 arm64)
+        hogpp_add_arm_dispatch_test (cmake_neon_dispatch_${_processor}
+          -DTEST_SYSTEM_PROCESSOR=${_processor}
+          -DTEST_HAVE_MFPU_NEON=OFF
+          -DTEST_EXPECT_NEON=ON
+        )
+      endforeach (_processor IN ITEMS aarch64 arm64)
 
       # Apple processors do not implement SVE, unlike those running Linux.
       foreach (_system IN ITEMS Linux Darwin)
@@ -907,18 +923,12 @@ if (BUILD_TESTING)
           set (_expect_sve ON)
         endif (_system STREQUAL Darwin)
 
-        add_test (NAME cmake_sve_dispatch_${_system} COMMAND
-          ${CMAKE_COMMAND}
-          -DPROJECT_SOURCE_DIR=${hogpp_SOURCE_DIR}
-          -DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/cmake_sve_${_system}
-          -DTEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-          -DTEST_GENERATOR=${CMAKE_GENERATOR}
-          -DTEST_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+        hogpp_add_arm_dispatch_test (cmake_sve_dispatch_${_system}
           -DTEST_SYSTEM_NAME=${_system}
           -DTEST_SYSTEM_PROCESSOR=arm64
+          -DTEST_HAVE_MFPU_NEON=OFF
           -DTEST_EXPECT_NEON=ON
           -DTEST_EXPECT_SVE=${_expect_sve}
-          -P ${hogpp_SOURCE_DIR}/tests/cmake/test_arm_dispatch.cmake
         )
       endforeach (_system IN ITEMS Linux Darwin)
 
