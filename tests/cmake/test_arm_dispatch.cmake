@@ -1,17 +1,20 @@
 cmake_minimum_required (VERSION 3.18)
 
-# Configures the project for an ARM processor named TEST_SYSTEM_PROCESSOR and
-# checks whether NEON dispatch is registered as TEST_EXPECT_NEON states. With
+# Configures the project for an ARM processor named TEST_SYSTEM_PROCESSOR with a
+# compiler that accepts -mfpu=neon as TEST_HAVE_MFPU_NEON states, and checks
+# whether NEON dispatch is registered as TEST_EXPECT_NEON states. With
 # TEST_EXPECT_SVE, the project is configured for TEST_SYSTEM_NAME as if the
 # compiler supported SVE, which the host compiler usually does not, and SVE
 # dispatch must be registered as TEST_EXPECT_SVE states.
 if (NOT DEFINED PROJECT_SOURCE_DIR OR NOT DEFINED TEST_BINARY_DIR OR
     NOT DEFINED TEST_CXX_COMPILER OR NOT DEFINED TEST_SYSTEM_PROCESSOR OR
-    NOT DEFINED TEST_EXPECT_NEON OR NOT DEFINED TEST_GENERATOR)
+    NOT DEFINED TEST_EXPECT_NEON OR NOT DEFINED TEST_GENERATOR OR
+    NOT DEFINED TEST_HAVE_MFPU_NEON)
   message (FATAL_ERROR "The configure test arguments are incomplete")
 endif (NOT DEFINED PROJECT_SOURCE_DIR OR NOT DEFINED TEST_BINARY_DIR OR
        NOT DEFINED TEST_CXX_COMPILER OR NOT DEFINED TEST_SYSTEM_PROCESSOR OR
-       NOT DEFINED TEST_EXPECT_NEON OR NOT DEFINED TEST_GENERATOR)
+       NOT DEFINED TEST_EXPECT_NEON OR NOT DEFINED TEST_GENERATOR OR
+       NOT DEFINED TEST_HAVE_MFPU_NEON)
 
 if (NOT DEFINED TEST_SYSTEM_NAME)
   set (TEST_SYSTEM_NAME Linux)
@@ -48,6 +51,10 @@ execute_process (
     -DWITH_DISPATCH=ON
     -DCMAKE_DISABLE_FIND_PACKAGE_OpenCV=ON
     -DCMAKE_DISABLE_FIND_PACKAGE_Sphinx=ON
+    -DHAVE_MFPU_NEON=${TEST_HAVE_MFPU_NEON}
+    -DEigen3_DIR=${TEST_EIGEN3_DIR}
+    -Dfmt_DIR=${TEST_FMT_DIR}
+    -Dpybind11_DIR=${TEST_PYBIND11_DIR}
     ${_sve_args}
   RESULT_VARIABLE _configure_result
   OUTPUT_VARIABLE _configure_output
