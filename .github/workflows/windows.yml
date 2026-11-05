@@ -280,7 +280,9 @@ jobs:
         with:
           python-version: ${{matrix.python}}
           architecture: ${{matrix.arch}}
-          cache: 'pip'
+          # PyPy on Windows stores truncated index responses in the cache of pip,
+          # which then fails every run that restores them.
+          cache: ${{ !startsWith(matrix.python, 'pypy') && 'pip' || '' }}
           cache-dependency-path: requirements.txt
 
       - name: Setup Dependencies
@@ -434,7 +436,9 @@ jobs:
         with:
           python-version: ${{matrix.python}}
           architecture: ${{matrix.arch}}
-          cache: 'pip'
+          # PyPy on Windows stores truncated index responses in the cache of pip,
+          # which then fails every run that restores them.
+          cache: ${{ !startsWith(matrix.python, 'pypy') && 'pip' || '' }}
           cache-dependency-path: requirements.txt
 
       - name: Setup Dependencies
