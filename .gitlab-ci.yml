@@ -1,4 +1,5 @@
 default:
+  interruptible: true
   tags:
     - docker
 
@@ -6,41 +7,43 @@ stages:
   - build
   - test
 
-.build_template: &build_definition
-  stage: build
-  script:
-    - export CCACHE_BASEDIR=$PWD
-    - export CCACHE_DIR=$PWD/.cache/
-    - export CXXFLAGS='-fdiagnostics-color --coverage -fuse-ld=mold'
-    - export pybind11_DIR=$(pybind11-config --cmakedir)
-    - cmake . -B build/
-      -DCMAKE_BUILD_TYPE=Debug
-      -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
-      -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON
-      -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON
-      -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON
-      -GNinja
-    - cmake --build build/
-  cache:
-    key: "$CI_PROJECT_ID"
-    paths:
-      - .cache/
-  artifacts:
-    paths:
-      - build/
-    exclude:
-      - build/**/*.o
+.python_matrix:
+  image: sergiud/hogpp:$PYTHON_VERSION
+  parallel:
+    matrix:
+      - PYTHON_VERSION:
+          - python3.11
+          - python3.12
+          - python3.13
+          - python3.14
+          - pypy3.11
 
-.skbuild_template: &skbuild_definition
+.matching_build:
+  needs:
+    - job: build
+      parallel:
+        matrix:
+          - PYTHON_VERSION: ['$[[ matrix.PYTHON_VERSION ]]']
+
+.lint:
+  stage: test
+  allow_failure: true
+  needs: []
+
+.compile:
+  variables:
+    CCACHE_BASEDIR: $CI_PROJECT_DIR
+    CCACHE_DIR: $CI_PROJECT_DIR/.cache/
+    CMAKE_CXX_COMPILER_LAUNCHER: /usr/bin/ccache
+    CXXFLAGS: -fdiagnostics-color --coverage -fuse-ld=mold
+
+build:
+  extends: [.python_matrix, .compile]
   stage: build
   before_script:
     - python -m venv .env/
   script:
     - source .env/bin/activate
-    - export CCACHE_BASEDIR=$PWD
-    - export CCACHE_DIR=$PWD/.cache/
-    - export CMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
-    - export CXXFLAGS='--coverage -fuse-ld=mold'
     - export pybind11_DIR=$(pybind11-config --cmakedir)
     - pip install -r requirements.txt --prefer-binary
     - pip install --no-build-isolation
@@ -49,27 +52,19 @@ stages:
       --verbose
       --editable .
   cache:
-    key: "$CI_PROJECT_ID"
+    key: ccache-$PYTHON_VERSION
     paths:
       - .cache/
   artifacts:
+    expire_in: 1 week
     paths:
       - .env/
       - build/
+    exclude:
+      - build/**/*.o
 
-.docs_template: &docs_definition
-  stage: build
-  script:
-    - PYTHONPATH=${CI_PROJECT_DIR}/build/
-      sphinx-build -M html
-      ${CI_PROJECT_DIR}/docs/
-      ${CI_PROJECT_DIR}/build/docs/_build/
-      -W --keep-going
-  artifacts:
-    paths:
-      - build/docs/
-
-.skdocs_template: &skdocs_definition
+docs:
+  extends: [.python_matrix, .matching_build]
   stage: build
   script:
     - source .env/bin/activate
@@ -81,10 +76,67 @@ stages:
     paths:
       - docs/_build/html/
 
-.test_template: &test_definition
+test:
+  extends: [.python_matrix, .matching_build]
+  stage: test
+  script:
+    - source .env/bin/activate
+    - coverage run -m pytest --junit-xml=report.xml
+    - coverage report
+    - coverage xml
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: report.xml
+
+build:trixie:
+  extends: .compile
+  image: sergiud/hogpp:trixie
+  stage: build
+  script:
+    - export pybind11_DIR=$(pybind11-config --cmakedir)
+    - cmake . -B build/
+      -DCMAKE_BUILD_TYPE=Debug
+      -DCMAKE_REQUIRE_FIND_PACKAGE_pybind11=ON
+      -DCMAKE_REQUIRE_FIND_PACKAGE_Python=ON
+      -DCMAKE_REQUIRE_FIND_PACKAGE_Sphinx=ON
+      -GNinja
+    - cmake --build build/
+  cache:
+    key: ccache-trixie
+    paths:
+      - .cache/
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - build/
+    exclude:
+      - build/**/*.o
+
+docs:trixie:
+  image: sergiud/hogpp:trixie
+  stage: build
+  needs:
+    - build:trixie
+  script:
+    - PYTHONPATH=${CI_PROJECT_DIR}/build/
+      sphinx-build -M html
+      ${CI_PROJECT_DIR}/docs/
+      ${CI_PROJECT_DIR}/build/docs/_build/
+      -W --keep-going
+  artifacts:
+    paths:
+      - build/docs/
+
+test:trixie:
+  image: sergiud/hogpp:trixie
   stage: test
   needs:
-    - build
+    - build:trixie
   script:
     # Run unit tests
     - ctest --test-dir build/
@@ -109,164 +161,22 @@ stages:
         path: build/coverage.xml
       junit: build/ctest.xml
 
-.pytest_template: &pytest_definition
-  stage: test
-  script:
-    - source .env/bin/activate
-    - coverage run -m pytest --junit-xml=report.xml
-    - coverage report
-    - coverage xml
-  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
-  artifacts:
-    when: always
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
-      junit: report.xml
-
-.lint_template: &lint_definition
-  stage: test
-  allow_failure: true
+lint:
+  extends: [.python_matrix, .lint]
   script:
     - black --check --diff .
     - flake8 .
     - isort --check-only --diff .
 
-build:python3.11:
-  image: sergiud/hogpp:python3.11
-  <<: *skbuild_definition
-
-docs:python3.11:
-  image: sergiud/hogpp:python3.11
-  <<: *skdocs_definition
-  needs:
-    - build:python3.11
-
-test:python3.11:
-  image: sergiud/hogpp:python3.11
-  <<: *pytest_definition
-  needs:
-    - build:python3.11
-
-lint:python3.11:
-  image: sergiud/hogpp:python3.11
-  <<: *lint_definition
-  needs: []
-
-build:python3.12:
-  image: sergiud/hogpp:python3.12
-  <<: *skbuild_definition
-
-docs:python3.12:
-  image: sergiud/hogpp:python3.12
-  <<: *skdocs_definition
-  needs:
-    - build:python3.12
-
-test:python3.12:
-  image: sergiud/hogpp:python3.12
-  <<: *pytest_definition
-  needs:
-    - build:python3.12
-
-lint:python3.12:
-  image: sergiud/hogpp:python3.12
-  <<: *lint_definition
-  needs: []
-
-build:python3.13:
-  image: sergiud/hogpp:python3.13
-  <<: *skbuild_definition
-
-docs:python3.13:
-  image: sergiud/hogpp:python3.13
-  <<: *skdocs_definition
-  needs:
-    - build:python3.13
-
-test:python3.13:
-  image: sergiud/hogpp:python3.13
-  <<: *pytest_definition
-  needs:
-    - build:python3.13
-
-lint:python3.13:
-  image: sergiud/hogpp:python3.13
-  <<: *lint_definition
-  needs: []
-
-build:python3.14:
-  image: sergiud/hogpp:python3.14
-  <<: *skbuild_definition
-
-docs:python3.14:
-  image: sergiud/hogpp:python3.14
-  <<: *skdocs_definition
-  needs:
-    - build:python3.14
-
-test:python3.14:
-  image: sergiud/hogpp:python3.14
-  <<: *pytest_definition
-  needs:
-    - build:python3.14
-
-lint:python3.14:
-  image: sergiud/hogpp:python3.14
-  <<: *lint_definition
-  needs: []
-
-build:pypy3.11:
-  image: sergiud/hogpp:pypy3.11
-  <<: *skbuild_definition
-
-docs:pypy3.11:
-  image: sergiud/hogpp:pypy3.11
-  <<: *skdocs_definition
-  needs:
-    - build:pypy3.11
-
-test:pypy3.11:
-  image: sergiud/hogpp:pypy3.11
-  <<: *pytest_definition
-  needs:
-    - build:pypy3.11
-
-lint:pypy3.11:
-  image: sergiud/hogpp:pypy3.11
-  <<: *lint_definition
-  needs: []
-
 lint:cpp:
+  extends: .lint
   image: sergiud/hogpp:lint-23
-  stage: test
-  allow_failure: true
   script:
     - fdfind -g '*.[ch]pp' -x clang-format-23 --dry-run --Werror
-  needs: []
 
 lint:python-typing:
+  extends: .lint
   image: sergiud/hogpp:lint-23
-  stage: test
-  allow_failure: true
   script:
     - mypy --strict python/hogpp/_hogpp.pyi python/hogpp/__init__.pyi
     - ty check python/hogpp/_hogpp.pyi python/hogpp/__init__.pyi
-  needs: []
-
-build:trixie:
-  image: sergiud/hogpp:trixie
-  <<: *build_definition
-
-docs:trixie:
-  image: sergiud/hogpp:trixie
-  <<: *docs_definition
-  needs:
-    - build:trixie
-
-test:trixie:
-  image: sergiud/hogpp:trixie
-  <<: *test_definition
-  needs:
-    - build:trixie
