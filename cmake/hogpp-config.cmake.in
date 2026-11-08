@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Sergiu Deitsch
+#
+# SPDX-License-Identifier: Apache-2.0
+
+@PACKAGE_INIT@
+
+include (CMakeFindDependencyMacro)
+
+# Eigen 3.4.1 and later accept version ranges, whereas earlier releases of
+# Eigen 3 are found by their minimum version alone.
+find_package (Eigen3 @hogpp_Eigen3_VERSION_RANGE@ CONFIG QUIET)
+
+if (NOT Eigen3_FOUND)
+  find_dependency (Eigen3 @hogpp_Eigen3_MIN_VERSION@ CONFIG)
+endif (NOT Eigen3_FOUND)
+
+find_dependency (fmt @hogpp_fmt_MIN_VERSION@ CONFIG)
+
+include ("${CMAKE_CURRENT_LIST_DIR}/hogpp-targets.cmake")
+
+check_required_components (hogpp)

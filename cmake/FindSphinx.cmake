@@ -32,14 +32,10 @@ if (Sphinx_BUILD_EXECUTABLE)
 
   # Extract version information
   execute_process (COMMAND ${Sphinx_BUILD_EXECUTABLE} --version
-    RESULT_VARIABLE _Sphinx_RESULT
     OUTPUT_VARIABLE _Sphinx_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
   )
-
-  if (NOT _Sphinx_RESULT EQUAL 0)
-    message (FATAL_ERROR "Failed to obtain sphinx-build version")
-  endif (NOT _Sphinx_RESULT EQUAL 0)
 
   if (_Sphinx_VERSION)
     string (REGEX MATCH "sphinx-build[ \t]+([0-9]+)\.([0-9]+)\.([0-9]+)"

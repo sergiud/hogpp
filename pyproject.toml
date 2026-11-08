@@ -33,6 +33,9 @@ CMAKE_DISABLE_FIND_PACKAGE_Sphinx = true
 CMAKE_REQUIRE_FIND_PACKAGE_pybind11 = true
 
 [tool.cibuildwheel]
+# The build environments of wheels lack Eigen and fmt, which are therefore
+# downloaded and built from source.
+config-settings = { 'cmake.define.BUILD_DEPS' = 'ON' }
 enable = [
     'pypy',
 ]

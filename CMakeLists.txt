@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.18...3.30)
+cmake_minimum_required (VERSION 3.28...4.4)
 project (hogpp
   VERSION 0.3.0
   LANGUAGES CXX
@@ -15,93 +15,107 @@ set (CMAKE_CXX_VISIBILITY_PRESET hidden)
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 set (CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
-list (APPEND CMAKE_MODULE_PATH ${hogpp_SOURCE_DIR}/cmake)
+list (APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-include (CheckCXXCompilerFlag)
-include (CheckCXXSourceCompiles)
-include (CheckCXXSymbolExists)
-include (CTest)
-include (GNUInstallDirs)
+# Eigen 3.4.1 and later accept version ranges, whereas earlier releases of
+# Eigen 3 are found by their minimum version alone. The installed package
+# configuration searches for the dependencies the same way.
+set (hogpp_Eigen3_VERSION_RANGE 3.4.1...5)
+set (hogpp_Eigen3_MIN_VERSION 3.3.7)
+set (hogpp_fmt_MIN_VERSION 6.0)
 
-check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
-check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
-check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
+include (CMakeDependentOption)
 
-# Lifts the limit on the number of sections of an object file that heavily
-# templated sources exceed.
-function (hogpp_enable_big_obj target)
-  if (HAVE_MBIG_OBJ)
-    set_property (TARGET ${target} APPEND PROPERTY COMPILE_OPTIONS -Wa,-mbig-obj)
-  elseif (HAVE_BIGOBJ)
-    set_property (TARGET ${target} APPEND PROPERTY COMPILE_OPTIONS /bigobj)
-  endif (HAVE_MBIG_OBJ)
-endfunction (hogpp_enable_big_obj)
+# Projects that add hogpp as a subdirectory define their own tests.
+if (PROJECT_IS_TOP_LEVEL)
+  include (CTest)
+endif (PROJECT_IS_TOP_LEVEL)
 
-set (PYBIND11_NOPYTHON ON)
+option (WITH_PYTHON "Build the Python module" ${PROJECT_IS_TOP_LEVEL})
+option (BUILD_DEPS
+  "Download and build Eigen and fmt instead of using the installed packages" OFF)
+# The exported targets require the installed packages of the dependencies, and
+# Python wheels contain the module only.
+cmake_dependent_option (WITH_INSTALL
+  "Install the headers along with the CMake package configuration"
+  ${PROJECT_IS_TOP_LEVEL} "NOT BUILD_DEPS;NOT SKBUILD" OFF)
 
-find_package (Boost 1.70 COMPONENTS unit_test_framework NO_MODULE)
-find_package (OpenCV 4.0 COMPONENTS core NO_MODULE)
-find_package (Python 3.0 COMPONENTS Development.Module OPTIONAL_COMPONENTS Interpreter)
-find_package (Sphinx 4.0)
+if (PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+  set (hogpp_BUILD_TESTS ON)
+else (PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+  set (hogpp_BUILD_TESTS OFF)
+endif (PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
 
-if ("$ENV{CIBUILDWHEEL}" EQUAL 1)
-  set (CIBUILDWHEEL ON)
-else ("$ENV{CIBUILDWHEEL}" EQUAL 1)
-  set (CIBUILDWHEEL OFF)
-endif ("$ENV{CIBUILDWHEEL}" EQUAL 1)
+if (hogpp_BUILD_TESTS)
+  find_package (Boost 1.70 CONFIG)
+endif (hogpp_BUILD_TESTS)
 
-if (NOT CIBUILDWHEEL)
-  find_package (Eigen3 3.4.1...5 NO_MODULE)
-
-  if (NOT Eigen3_FOUND)
-    find_package (Eigen3 3.3.7 REQUIRED NO_MODULE)
-  endif (NOT Eigen3_FOUND)
-
-  find_package (fmt 6.0 REQUIRED)
-else (NOT CIBUILDWHEEL)
+if (BUILD_DEPS)
   include (FetchContent)
 
   # Use EXCLUDE_FROM_ALL to avoid installing headers and libraries into the
   # wheels.
-
   FetchContent_Declare (eigen3
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-    GIT_TAG 5.0.1
+    GIT_TAG bc3b39870ecb690a623a3f49149a358b95c5781d # 5.0.1
     EXCLUDE_FROM_ALL
+    SYSTEM
   )
 
   FetchContent_Declare (fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-    GIT_TAG 12.1.0
+    GIT_TAG 407c905e45ad75fc29bf0f9bb7c5c2fd3475976f # 12.1.0
     EXCLUDE_FROM_ALL
+    SYSTEM
   )
 
-  FetchContent_MakeAvailable (eigen3)
-  FetchContent_MakeAvailable (fmt)
-endif (NOT CIBUILDWHEEL)
+  FetchContent_MakeAvailable (eigen3 fmt)
+else (BUILD_DEPS)
+  find_package (Eigen3 ${hogpp_Eigen3_VERSION_RANGE} CONFIG)
 
-if (SKBUILD_SOABI)
-  set (Python_SOABI ${SKBUILD_SOABI})
-else (SKBUILD_SOABI)
-  if (Python_INTERPRETER_ID STREQUAL "PyPy")
-    # Correct SOABI which is missing the platform tag. See
-    # https://github.com/pypy/pypy/issues/3815.
-    execute_process (COMMAND
-      ${Python_EXECUTABLE} -c
-      "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX').split('.')[1])"
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      OUTPUT_VARIABLE Python_SOABI
-      # FIXME: Use COMMAND_ERROR_IS_FATAL ANY when CMake >= 3.19
-    )
-  endif (Python_INTERPRETER_ID STREQUAL "PyPy")
-endif (SKBUILD_SOABI)
+  if (NOT Eigen3_FOUND)
+    find_package (Eigen3 ${hogpp_Eigen3_MIN_VERSION} REQUIRED CONFIG)
+  endif (NOT Eigen3_FOUND)
 
-if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
-  find_package (pybind11 2.9.0 NO_MODULE)
-else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
-  find_package (pybind11 2.6.2 NO_MODULE)
-endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+  find_package (fmt ${hogpp_fmt_MIN_VERSION} REQUIRED CONFIG)
+endif (BUILD_DEPS)
 
+find_package (OpenCV 4.0 CONFIG COMPONENTS core)
+
+if (WITH_PYTHON)
+  set (PYBIND11_NOPYTHON ON)
+
+  # Python precedes pybind11 whose package configuration otherwise searches
+  # for Python itself.
+  find_package (Python 3.11 COMPONENTS Development.Module
+    OPTIONAL_COMPONENTS Interpreter)
+
+  if (SKBUILD_SOABI)
+    set (Python_SOABI ${SKBUILD_SOABI})
+  endif (SKBUILD_SOABI)
+
+  if (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+    find_package (pybind11 2.9.0 CONFIG)
+  else (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+    find_package (pybind11 2.6.2 CONFIG)
+  endif (MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+
+  find_package (Sphinx 4.0)
+endif (WITH_PYTHON)
+
+include (BoostTestDiscovery)
+include (CheckCXXCompilerFlag)
+include (CheckCXXSourceCompiles)
+include (CheckCXXSymbolExists)
+include (CMakePackageConfigHelpers)
+include (GNUInstallDirs)
+
+# Header-only packages are independent of the architecture.
+set (hogpp_package_dir ${CMAKE_INSTALL_DATADIR}/cmake/hogpp)
+
+check_cxx_compiler_flag (-Wa,-mbig-obj HAVE_MBIG_OBJ)
+check_cxx_compiler_flag (/bigobj HAVE_BIGOBJ)
+check_cxx_compiler_flag (/Zc:preprocessor HAVE_ZC_PREPROCESSOR)
 check_cxx_symbol_exists (std::execution::par execution HAVE_EXECUTION)
 
 # Replacing the allocation functions of glibc allows tests to observe the heap.
@@ -111,21 +125,62 @@ extern \"C\" void* __libc_malloc(std::size_t size);
 int main() { return __libc_malloc(1) == nullptr; }
 " HAVE_LIBC_MALLOC)
 
+# Lifts the limit on the number of sections of an object file that heavily
+# templated sources exceed.
+function (hogpp_enable_big_obj target)
+  if (HAVE_MBIG_OBJ)
+    target_compile_options (${target} PRIVATE -Wa,-mbig-obj)
+  elseif (HAVE_BIGOBJ)
+    target_compile_options (${target} PRIVATE /bigobj)
+  endif (HAVE_MBIG_OBJ)
+endfunction (hogpp_enable_big_obj)
+
 if (WIN32)
   add_compile_definitions (NOMINMAX)
   add_compile_definitions (WIN32_LEAN_AND_MEAN)
 endif (WIN32)
 
-if (HAVE_ZC_PREPROCESSOR)
-  add_compile_options (/Zc:preprocessor)
-endif (HAVE_ZC_PREPROCESSOR)
-
 add_library (hogpp INTERFACE)
 add_library (hogpp::hogpp ALIAS hogpp)
 
-target_include_directories (hogpp INTERFACE
-  $<BUILD_INTERFACE:${hogpp_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+target_sources (hogpp INTERFACE FILE_SET HEADERS
+  BASE_DIRS include
+  FILES
+    include/hogpp/assume.hpp
+    include/hogpp/axis.hpp
+    include/hogpp/bounds.hpp
+    include/hogpp/cartesianproduct.hpp
+    include/hogpp/constants.hpp
+    include/hogpp/gradient.hpp
+    include/hogpp/gradientmagnitude.hpp
+    include/hogpp/gradientsqrtmagnitude.hpp
+    include/hogpp/gradientsquaremagnitude.hpp
+    include/hogpp/integralhistogram.hpp
+    include/hogpp/integralhogdescriptor.hpp
+    include/hogpp/l1hys.hpp
+    include/hogpp/l1norm.hpp
+    include/hogpp/l1sqrt.hpp
+    include/hogpp/l2hys.hpp
+    include/hogpp/l2norm.hpp
+    include/hogpp/multiplyadd.hpp
+    include/hogpp/normalize.hpp
+    include/hogpp/normtraits.hpp
+    include/hogpp/nouniqueaddress.hpp
+    include/hogpp/precision.hpp
+    include/hogpp/promote.hpp
+    include/hogpp/repeatborder.hpp
+    include/hogpp/signedgradient.hpp
+    include/hogpp/spatialinterpolation.hpp
+    include/hogpp/spatialweighting.hpp
+    include/hogpp/unsignedgradient.hpp
+)
+# The prefix and the suffix enclose the contents of other headers and do not
+# compile on their own.
+target_sources (hogpp INTERFACE FILE_SET fragments TYPE HEADERS
+  BASE_DIRS include
+  FILES
+    include/hogpp/prefix.hpp
+    include/hogpp/suffix.hpp
 )
 
 target_compile_features (hogpp INTERFACE cxx_std_20)
@@ -134,49 +189,67 @@ target_link_libraries (hogpp INTERFACE
   fmt::fmt
 )
 
-if (pybind11_FOUND AND Python_Development.Module_FOUND)
+if (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
   add_library (python_type_caster STATIC
     python/type_caster/bounds.cpp
-    python/type_caster/bounds.hpp
     python/type_caster/maskingref.cpp
-    python/type_caster/maskingref.hpp
-    python/type_caster/stride.hpp
-    python/type_caster/tensor.hpp
-    python/type_caster/typesequence.hpp
+  )
+
+  target_sources (python_type_caster PRIVATE FILE_SET HEADERS
+    BASE_DIRS python
+    FILES
+      python/type_caster/bounds.hpp
+      python/type_caster/maskingref.hpp
+      python/type_caster/stride.hpp
+      python/type_caster/tensor.hpp
+      python/type_caster/typesequence.hpp
   )
 
   if (OpenCV_FOUND)
-    target_sources (python_type_caster PRIVATE
-      python/type_caster/opencv.cpp
-      python/type_caster/opencv.hpp
+    target_sources (python_type_caster PRIVATE python/type_caster/opencv.cpp)
+    target_sources (python_type_caster PRIVATE FILE_SET HEADERS
+      FILES python/type_caster/opencv.hpp
     )
     target_link_libraries (python_type_caster PUBLIC opencv_core)
   endif (OpenCV_FOUND)
 
-  target_link_libraries (python_type_caster PUBLIC
-    Eigen3::Eigen
-    hogpp::hogpp
-    pybind11::headers
-    PRIVATE Python::Module
+  target_link_libraries (python_type_caster
+    PUBLIC
+      Eigen3::Eigen
+      hogpp::hogpp
+      pybind11::headers
+    PRIVATE
+      Python::Module
   )
 
-  python_add_library (pyhogpp WITH_SOABI
+  python_add_library (pyhogpp MODULE WITH_SOABI
     python/binning.cpp
-    python/binning.hpp
     python/blocknormalizer.cpp
-    python/blocknormalizer.hpp
-    python/formatter.hpp
     python/hogpp.cpp
-    python/hogpp.hpp
     python/integralhogdescriptor.cpp
-    python/integralhogdescriptor.hpp
     python/interpolation.cpp
-    python/interpolation.hpp
     python/magnitude.cpp
-    python/magnitude.hpp
+  )
+
+  target_sources (pyhogpp PRIVATE FILE_SET HEADERS
+    BASE_DIRS python
+    FILES
+      python/binning.hpp
+      python/blocknormalizer.hpp
+      python/formatter.hpp
+      python/hogpp.hpp
+      python/integralhogdescriptor.hpp
+      python/interpolation.hpp
+      python/magnitude.hpp
   )
 
   hogpp_enable_big_obj (pyhogpp)
+
+  # The conforming preprocessor of MSVC evaluates the variadic macros of the
+  # free-threading support.
+  if (HAVE_ZC_PREPROCESSOR)
+    target_compile_options (pyhogpp PRIVATE /Zc:preprocessor)
+  endif (HAVE_ZC_PREPROCESSOR)
 
   if (OpenCV_FOUND)
     target_compile_definitions (pyhogpp PRIVATE HAVE_OPENCV)
@@ -186,349 +259,237 @@ if (pybind11_FOUND AND Python_Development.Module_FOUND)
     target_compile_definitions (pyhogpp PRIVATE HAVE_EXECUTION)
   endif (HAVE_EXECUTION)
 
+  if (SKBUILD)
+    set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME _hogpp)
+    set_property (SOURCE python/hogpp.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+      HOGPP_SKBUILD)
+  else (SKBUILD)
+    set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
+  endif (SKBUILD)
+
   target_link_libraries (pyhogpp PRIVATE
     hogpp::hogpp
     python_type_caster
   )
 
-  python_add_library (type_caster_test WITH_SOABI
+  python_add_library (type_caster_test MODULE WITH_SOABI
     python/type_caster_test.cpp
-  )
-
-  target_link_libraries (type_caster_test PRIVATE
-    python_type_caster
-    Eigen3::Eigen
   )
 
   if (OpenCV_FOUND)
     target_compile_definitions (type_caster_test PRIVATE HAVE_OPENCV)
   endif (OpenCV_FOUND)
 
-  if (SKBUILD)
-    set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME _hogpp)
-    set_property (SOURCE python/hogpp.cpp APPEND PROPERTY COMPILE_DEFINITIONS HOGPP_SKBUILD)
-  else (SKBUILD)
-    set_target_properties (pyhogpp PROPERTIES OUTPUT_NAME hogpp)
-  endif (SKBUILD)
-endif (pybind11_FOUND AND Python_Development.Module_FOUND)
+  target_link_libraries (type_caster_test PRIVATE
+    Eigen3::Eigen
+    python_type_caster
+  )
+endif (WITH_PYTHON AND Python_FOUND AND pybind11_FOUND)
 
-if (BUILD_TESTING)
-  if (Boost_unit_test_framework_FOUND)
-    add_executable (test_integral_histogram
-      tests/cpp/test_integral_histogram.cpp
-    )
-    target_link_libraries (test_integral_histogram PRIVATE
-      Boost::unit_test_framework
-      Eigen3::Eigen
-      hogpp::hogpp
-    )
+if (hogpp_BUILD_TESTS)
+  # Each public header compiles on its own.
+  set_property (TARGET hogpp PROPERTY VERIFY_INTERFACE_HEADER_SETS ON)
+  set_property (TARGET hogpp PROPERTY INTERFACE_HEADER_SETS_TO_VERIFY HEADERS)
 
-    add_test (NAME integral_histogram_full COMMAND test_integral_histogram -t full)
-    add_test (NAME integral_histogram_sub COMMAND test_integral_histogram -t sub)
-    add_test (NAME integral_histogram_volumetric COMMAND test_integral_histogram -t volumetric)
-    add_test (NAME integral_histogram_cascade_matches_closed_form_for_constant_field COMMAND test_integral_histogram -t cascade_matches_closed_form_for_constant_field)
-    add_test (NAME integral_histogram_interpolate_matches_brute_force_bilinear_splat COMMAND test_integral_histogram -t interpolate_matches_brute_force_bilinear_splat)
-    add_test (NAME integral_histogram_interpolate_row_major_matches_column_major COMMAND test_integral_histogram -t interpolate_row_major_matches_column_major)
-    add_test (NAME integral_histogram_interpolate_unsigned_coordinates_near_lower_boundary COMMAND test_integral_histogram -t interpolate_unsigned_coordinates_near_lower_boundary)
+  add_test (NAME hogpp_verify_interface_header_sets
+    COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR}
+      --target hogpp_verify_interface_header_sets --config $<CONFIG>
+  )
+  add_test (NAME hogpp_header_set_complete
+    COMMAND ${CMAKE_COMMAND}
+      -D "HEADERS=$<JOIN:$<TARGET_PROPERTY:hogpp,HEADER_SET>;$<TARGET_PROPERTY:hogpp,HEADER_SET_fragments>,|>"
+      -D INCLUDE_DIR=${PROJECT_SOURCE_DIR}/include
+      -D SOURCE_DIR=${PROJECT_SOURCE_DIR}
+      -P ${PROJECT_SOURCE_DIR}/tests/cmake/header_set_complete.cmake
+  )
 
-    add_executable (test_cartesian_product tests/cpp/test_cartesian_product.cpp)
-    target_link_libraries (test_cartesian_product PRIVATE hogpp::hogpp
-      Boost::unit_test_framework)
-
-    if (MSVC)
-      set (_long_long_name __int64)
-    else (MSVC)
-      set (_long_long_name "long long")
-    endif (MSVC)
-
-    add_test (NAME cartesian_product_loop_counter_type_schar COMMAND test_cartesian_product -t "loop_counter_type<signed char>")
-    add_test (NAME cartesian_product_loop_counter_type_uchar COMMAND test_cartesian_product -t "loop_counter_type<unsigned char>")
-    add_test (NAME cartesian_product_loop_counter_type_short COMMAND test_cartesian_product -t "loop_counter_type<short>")
-    add_test (NAME cartesian_product_loop_counter_type_ushort COMMAND test_cartesian_product -t "loop_counter_type<unsigned short>")
-    add_test (NAME cartesian_product_loop_counter_type_int COMMAND test_cartesian_product -t "loop_counter_type<int>")
-    add_test (NAME cartesian_product_loop_counter_type_uint COMMAND test_cartesian_product -t "loop_counter_type<unsigned int>")
-    add_test (NAME cartesian_product_loop_counter_type_long COMMAND test_cartesian_product -t "loop_counter_type<long>")
-    add_test (NAME cartesian_product_loop_counter_type_ulong COMMAND test_cartesian_product -t "loop_counter_type<unsigned long>")
-    add_test (NAME cartesian_product_loop_counter_type_longlong COMMAND test_cartesian_product -t "loop_counter_type<${_long_long_name}>")
-    add_test (NAME cartesian_product_loop_counter_type_ulonglong COMMAND test_cartesian_product -t "loop_counter_type<unsigned ${_long_long_name}>")
-
-    unset (_long_long_name)
-
-    add_executable (test_gradient tests/cpp/test_gradient.cpp)
-    target_link_libraries (test_gradient PRIVATE hogpp::hogpp
-      Boost::unit_test_framework)
-
-    add_test (NAME gradient_interior_border_magnitude_comparable_float COMMAND test_gradient -t "interior_border_magnitude_comparable<float>")
-    add_test (NAME gradient_interior_border_magnitude_comparable_double COMMAND test_gradient -t "interior_border_magnitude_comparable<double>")
-    add_test (NAME gradient_interior_border_magnitude_comparable_long_double COMMAND test_gradient -t "interior_border_magnitude_comparable<long double>")
-
-    add_test (NAME gradient_single_row_float COMMAND test_gradient -t "single_row<float>")
-    add_test (NAME gradient_single_row_double COMMAND test_gradient -t "single_row<double>")
-    add_test (NAME gradient_single_row_long_double COMMAND test_gradient -t "single_row<long double>")
-
-    add_test (NAME gradient_single_column_float COMMAND test_gradient -t "single_column<float>")
-    add_test (NAME gradient_single_column_double COMMAND test_gradient -t "single_column<double>")
-    add_test (NAME gradient_single_column_long_double COMMAND test_gradient -t "single_column<long double>")
-
-    add_executable (test_binning tests/cpp/test_binning.cpp)
-    target_link_libraries (test_binning PRIVATE hogpp::hogpp
-      Boost::unit_test_framework)
-
-    add_test (NAME binning_signed_gradient_float COMMAND test_binning -t "signed_gradient<float>")
-    add_test (NAME binning_signed_gradient_double COMMAND test_binning -t "signed_gradient<double>")
-    add_test (NAME binning_signed_gradient_long_double COMMAND test_binning -t "signed_gradient<long double>")
-
-    add_test (NAME binning_unsigned_gradient_float COMMAND test_binning -t "unsigned_gradient<float>")
-    add_test (NAME binning_unsigned_gradient_double COMMAND test_binning -t "unsigned_gradient<double>")
-    add_test (NAME binning_unsigned_gradient_long_double COMMAND test_binning -t "unsigned_gradient<long double>")
-
-    add_executable (test_descriptor tests/cpp/test_descriptor.cpp)
-    target_link_libraries (test_descriptor PRIVATE hogpp::hogpp
-      Boost::unit_test_framework)
-    hogpp_enable_big_obj (test_descriptor)
-
-    add_test (NAME descriptor_empty_float COMMAND test_descriptor -t "empty<float>")
-    add_test (NAME descriptor_empty_double COMMAND test_descriptor -t "empty<double>")
-    add_test (NAME descriptor_empty_long_double COMMAND test_descriptor -t "empty<long double>")
-
-    add_test (NAME descriptor_void_gradient_float COMMAND test_descriptor -t "void_gradient<float>")
-    add_test (NAME descriptor_void_gradient_double COMMAND test_descriptor -t "void_gradient<double>")
-    add_test (NAME descriptor_void_gradient_long_double COMMAND test_descriptor -t "void_gradient<long double>")
-
-    add_test (NAME descriptor_features_block_larger_than_region_float COMMAND test_descriptor -t "features_block_larger_than_region<float>")
-    add_test (NAME descriptor_features_block_larger_than_region_double COMMAND test_descriptor -t "features_block_larger_than_region<double>")
-    add_test (NAME descriptor_features_block_larger_than_region_long_double COMMAND test_descriptor -t "features_block_larger_than_region<long double>")
-
-    add_test (NAME descriptor_features_cover_region_border_float COMMAND test_descriptor -t "features_cover_region_border<float>")
-    add_test (NAME descriptor_features_cover_region_border_double COMMAND test_descriptor -t "features_cover_region_border<double>")
-    add_test (NAME descriptor_features_cover_region_border_long_double COMMAND test_descriptor -t "features_cover_region_border<long double>")
-
-    add_test (NAME descriptor_features_largest_block_stride_float COMMAND test_descriptor -t "features_largest_block_stride<float>")
-    add_test (NAME descriptor_features_largest_block_stride_double COMMAND test_descriptor -t "features_largest_block_stride<double>")
-    add_test (NAME descriptor_features_largest_block_stride_long_double COMMAND test_descriptor -t "features_largest_block_stride<long double>")
-
-    add_test (NAME descriptor_features_clip_block_to_small_region_float COMMAND test_descriptor -t "features_clip_block_to_small_region<float>")
-    add_test (NAME descriptor_features_clip_block_to_small_region_double COMMAND test_descriptor -t "features_clip_block_to_small_region<double>")
-    add_test (NAME descriptor_features_clip_block_to_small_region_long_double COMMAND test_descriptor -t "features_clip_block_to_small_region<long double>")
-
-    add_test (NAME descriptor_nan_pixel_float COMMAND test_descriptor -t "nan_pixel<float>")
-    add_test (NAME descriptor_nan_pixel_double COMMAND test_descriptor -t "nan_pixel<double>")
-    add_test (NAME descriptor_nan_pixel_long_double COMMAND test_descriptor -t "nan_pixel<long double>")
-
-    add_test (NAME descriptor_default_descriptor_has_no_spatial_interpolation_float COMMAND test_descriptor -t "default_descriptor_has_no_spatial_interpolation<float>")
-    add_test (NAME descriptor_default_descriptor_has_no_spatial_interpolation_double COMMAND test_descriptor -t "default_descriptor_has_no_spatial_interpolation<double>")
-    add_test (NAME descriptor_default_descriptor_has_no_spatial_interpolation_long_double COMMAND test_descriptor -t "default_descriptor_has_no_spatial_interpolation<long double>")
-
-    add_test (NAME descriptor_trilinear_interpolation_even_cell_size_float COMMAND test_descriptor -t "trilinear_interpolation_even_cell_size<float>")
-    add_test (NAME descriptor_trilinear_interpolation_even_cell_size_double COMMAND test_descriptor -t "trilinear_interpolation_even_cell_size<double>")
-    add_test (NAME descriptor_trilinear_interpolation_even_cell_size_long_double COMMAND test_descriptor -t "trilinear_interpolation_even_cell_size<long double>")
-    add_test (NAME descriptor_trilinear_interpolation_odd_cell_size_float COMMAND test_descriptor -t "trilinear_interpolation_odd_cell_size<float>")
-    add_test (NAME descriptor_trilinear_interpolation_odd_cell_size_double COMMAND test_descriptor -t "trilinear_interpolation_odd_cell_size<double>")
-    add_test (NAME descriptor_trilinear_interpolation_odd_cell_size_long_double COMMAND test_descriptor -t "trilinear_interpolation_odd_cell_size<long double>")
-    add_test (NAME descriptor_trilinear_interpolation_large_float_image COMMAND test_descriptor -t trilinear_interpolation_large_float_image)
-
-    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_float COMMAND test_descriptor -t "trilinear_interpolation_with_gaussian_weighting<float>")
-    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_double COMMAND test_descriptor -t "trilinear_interpolation_with_gaussian_weighting<double>")
-    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_long_double COMMAND test_descriptor -t "trilinear_interpolation_with_gaussian_weighting<long double>")
-    add_test (NAME descriptor_trilinear_interpolation_with_gaussian_weighting_large_float_image COMMAND test_descriptor -t trilinear_interpolation_with_gaussian_weighting_large_float_image)
+  # The tests include the header-only variant of Boost.Test.
+  if (Boost_FOUND)
+    set (cpp_tests binning block_norm cartesian_product descriptor gradient
+      integral_histogram maskingref multiply_add spatialweighting)
 
     if (HAVE_LIBC_MALLOC)
-      add_executable (test_allocations tests/cpp/test_allocations.cpp)
-      target_link_libraries (test_allocations PRIVATE hogpp::hogpp
-        Boost::unit_test_framework)
-
-      foreach (_type IN ITEMS float double)
-        add_test (NAME allocations_trilinear_features_allocate_no_more_per_cell_${_type} COMMAND test_allocations -t "trilinear_features_allocate_no_more_per_cell<${_type}>")
-        add_test (NAME allocations_weighted_trilinear_features_allocate_no_more_per_cell_${_type} COMMAND test_allocations -t "weighted_trilinear_features_allocate_no_more_per_cell<${_type}>")
-        add_test (NAME allocations_trilinear_recompute_keeps_one_cascade_${_type} COMMAND test_allocations -t "trilinear_recompute_keeps_one_cascade<${_type}>")
-      endforeach (_type IN ITEMS float double)
+      list (APPEND cpp_tests allocations)
     endif (HAVE_LIBC_MALLOC)
 
-    add_executable (test_multiply_add tests/cpp/test_multiply_add.cpp)
-    target_link_libraries (test_multiply_add PRIVATE hogpp::hogpp
-      Boost::unit_test_framework)
+    foreach (test IN LISTS cpp_tests)
+      add_executable (test_${test} tests/cpp/test_${test}.cpp)
+      target_link_libraries (test_${test} PRIVATE
+        Boost::headers
+        hogpp::hogpp
+      )
+      boost_test_discover_tests (test_${test} TEST_PREFIX test_${test}/)
+    endforeach (test)
 
-    add_test (NAME multiply_add_fused_only_if_fast_float COMMAND test_multiply_add -t "fused_only_if_fast<float>")
-    add_test (NAME multiply_add_fused_only_if_fast_double COMMAND test_multiply_add -t "fused_only_if_fast<double>")
-    add_test (NAME multiply_add_fused_only_if_fast_long_double COMMAND test_multiply_add -t "fused_only_if_fast<long double>")
-
-    add_executable (test_spatialweighting tests/cpp/test_spatialweighting.cpp)
-    target_link_libraries (test_spatialweighting PRIVATE hogpp::hogpp
-      Boost::unit_test_framework)
+    hogpp_enable_big_obj (test_descriptor)
     hogpp_enable_big_obj (test_spatialweighting)
+  endif (Boost_FOUND)
 
-    add_test (NAME spatialweighting_gaussian_matches_reference_float COMMAND test_spatialweighting -t "gaussian_matches_reference<float>")
-    add_test (NAME spatialweighting_gaussian_matches_reference_double COMMAND test_spatialweighting -t "gaussian_matches_reference<double>")
-    add_test (NAME spatialweighting_gaussian_matches_reference_long_double COMMAND test_spatialweighting -t "gaussian_matches_reference<long double>")
+  # Consumers find the installed package or add the source tree as a
+  # subdirectory, and build with the compiler and generator of this build.
+  set (consumer_options
+    --build-generator ${CMAKE_GENERATOR}
+    --build-config $<CONFIG>
+  )
 
-    add_test (NAME spatialweighting_recompute_replaces_previous_image_float COMMAND test_spatialweighting -t "recompute_replaces_previous_image<float>")
-    add_test (NAME spatialweighting_recompute_replaces_previous_image_double COMMAND test_spatialweighting -t "recompute_replaces_previous_image<double>")
-    add_test (NAME spatialweighting_recompute_replaces_previous_image_long_double COMMAND test_spatialweighting -t "recompute_replaces_previous_image<long double>")
+  if (CMAKE_GENERATOR_PLATFORM)
+    list (APPEND consumer_options
+      --build-generator-platform ${CMAKE_GENERATOR_PLATFORM})
+  endif (CMAKE_GENERATOR_PLATFORM)
 
-    add_test (NAME spatialweighting_set_histogram_replaces_previous_image_float COMMAND test_spatialweighting -t "set_histogram_replaces_previous_image<float>")
-    add_test (NAME spatialweighting_set_histogram_replaces_previous_image_double COMMAND test_spatialweighting -t "set_histogram_replaces_previous_image<double>")
-    add_test (NAME spatialweighting_set_histogram_replaces_previous_image_long_double COMMAND test_spatialweighting -t "set_histogram_replaces_previous_image<long double>")
+  if (CMAKE_GENERATOR_TOOLSET)
+    list (APPEND consumer_options
+      --build-generator-toolset ${CMAKE_GENERATOR_TOOLSET})
+  endif (CMAKE_GENERATOR_TOOLSET)
 
-    add_test (NAME spatialweighting_set_num_bins_after_compute_float COMMAND test_spatialweighting -t "set_num_bins_after_compute<float>")
-    add_test (NAME spatialweighting_set_num_bins_after_compute_double COMMAND test_spatialweighting -t "set_num_bins_after_compute<double>")
-    add_test (NAME spatialweighting_set_num_bins_after_compute_long_double COMMAND test_spatialweighting -t "set_num_bins_after_compute<long double>")
+  set (consumer_build_options -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
 
-    add_test (NAME spatialweighting_geometry_change_after_compute_float COMMAND test_spatialweighting -t "geometry_change_after_compute<float>")
-    add_test (NAME spatialweighting_geometry_change_after_compute_double COMMAND test_spatialweighting -t "geometry_change_after_compute<double>")
-    add_test (NAME spatialweighting_geometry_change_after_compute_long_double COMMAND test_spatialweighting -t "geometry_change_after_compute<long double>")
+  if (CMAKE_TOOLCHAIN_FILE)
+    list (APPEND consumer_build_options
+      -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
+  endif (CMAKE_TOOLCHAIN_FILE)
 
-    add_test (NAME spatialweighting_sigma_change_after_compute_float COMMAND test_spatialweighting -t "sigma_change_after_compute<float>")
-    add_test (NAME spatialweighting_sigma_change_after_compute_double COMMAND test_spatialweighting -t "sigma_change_after_compute<double>")
-    add_test (NAME spatialweighting_sigma_change_after_compute_long_double COMMAND test_spatialweighting -t "sigma_change_after_compute<long double>")
+  set (consumer_test_command
+    --test-command ${CMAKE_CTEST_COMMAND} --output-on-failure
+      --build-config $<CONFIG>
+  )
 
-    add_test (NAME spatialweighting_tiny_sigma_keeps_closest_pixels_float COMMAND test_spatialweighting -t "tiny_sigma_keeps_closest_pixels<float>")
-    add_test (NAME spatialweighting_tiny_sigma_keeps_closest_pixels_double COMMAND test_spatialweighting -t "tiny_sigma_keeps_closest_pixels<double>")
-    add_test (NAME spatialweighting_tiny_sigma_keeps_closest_pixels_long_double COMMAND test_spatialweighting -t "tiny_sigma_keeps_closest_pixels<long double>")
+  if (WITH_INSTALL)
+    set (consumer_prefix ${PROJECT_BINARY_DIR}/consumer-prefix)
 
-    add_test (NAME spatialweighting_invalid_sigma_rejected_float COMMAND test_spatialweighting -t "invalid_sigma_rejected<float>")
-    add_test (NAME spatialweighting_invalid_sigma_rejected_double COMMAND test_spatialweighting -t "invalid_sigma_rejected<double>")
-    add_test (NAME spatialweighting_invalid_sigma_rejected_long_double COMMAND test_spatialweighting -t "invalid_sigma_rejected<long double>")
+    # Files an earlier run left in the prefix would hide those the install
+    # rules no longer install.
+    add_test (NAME package_clean
+      COMMAND ${CMAKE_COMMAND} -E rm -rf ${consumer_prefix}
+    )
+    add_test (NAME package_install
+      COMMAND ${CMAKE_COMMAND} --install ${PROJECT_BINARY_DIR}
+        --prefix ${consumer_prefix} --config $<CONFIG>
+        --component Development
+    )
+    # Toolchains for cross compiling restrict the search for packages to the
+    # sysroot, which the prefix is not part of.
+    if (CMAKE_CROSSCOMPILING)
+      set (consumer_find_option -Dhogpp_DIR=${consumer_prefix}/${hogpp_package_dir})
+    else (CMAKE_CROSSCOMPILING)
+      set (consumer_find_option -DCMAKE_PREFIX_PATH=${consumer_prefix})
+    endif (CMAKE_CROSSCOMPILING)
 
-    add_test (NAME spatialweighting_largest_sigma_matches_reference_float COMMAND test_spatialweighting -t "largest_sigma_matches_reference<float>")
-    add_test (NAME spatialweighting_largest_sigma_matches_reference_double COMMAND test_spatialweighting -t "largest_sigma_matches_reference<double>")
-    add_test (NAME spatialweighting_largest_sigma_matches_reference_long_double COMMAND test_spatialweighting -t "largest_sigma_matches_reference<long double>")
-
-    add_test (NAME spatialweighting_disabled_matches_default_float COMMAND test_spatialweighting -t "disabled_matches_default<float>")
-    add_test (NAME spatialweighting_disabled_matches_default_double COMMAND test_spatialweighting -t "disabled_matches_default<double>")
-    add_test (NAME spatialweighting_disabled_matches_default_long_double COMMAND test_spatialweighting -t "disabled_matches_default<long double>")
-
-    add_test (NAME spatialweighting_disabled_weighting_adds_no_storage_float COMMAND test_spatialweighting -t "disabled_weighting_adds_no_storage<float>")
-    add_test (NAME spatialweighting_disabled_weighting_adds_no_storage_double COMMAND test_spatialweighting -t "disabled_weighting_adds_no_storage<double>")
-    add_test (NAME spatialweighting_disabled_weighting_adds_no_storage_long_double COMMAND test_spatialweighting -t "disabled_weighting_adds_no_storage<long double>")
-
-    add_test (NAME spatialweighting_masked_pixels_excluded_float COMMAND test_spatialweighting -t "masked_pixels_excluded<float>")
-    add_test (NAME spatialweighting_masked_pixels_excluded_double COMMAND test_spatialweighting -t "masked_pixels_excluded<double>")
-    add_test (NAME spatialweighting_masked_pixels_excluded_long_double COMMAND test_spatialweighting -t "masked_pixels_excluded<long double>")
-
-    add_test (NAME spatialweighting_fast_path_selection_float COMMAND test_spatialweighting -t "fast_path_selection<float>")
-    add_test (NAME spatialweighting_fast_path_selection_double COMMAND test_spatialweighting -t "fast_path_selection<double>")
-    add_test (NAME spatialweighting_fast_path_selection_long_double COMMAND test_spatialweighting -t "fast_path_selection<long double>")
-
-    add_test (NAME spatialweighting_failed_prepare_discards_weighting_float COMMAND test_spatialweighting -t "failed_prepare_discards_weighting<float>")
-    add_test (NAME spatialweighting_failed_prepare_discards_weighting_double COMMAND test_spatialweighting -t "failed_prepare_discards_weighting<double>")
-    add_test (NAME spatialweighting_failed_prepare_discards_weighting_long_double COMMAND test_spatialweighting -t "failed_prepare_discards_weighting<long double>")
-
-    add_test (NAME spatialweighting_restored_weighting_matches_exactly_float COMMAND test_spatialweighting -t "restored_weighting_matches_exactly<float>")
-    add_test (NAME spatialweighting_restored_weighting_matches_exactly_double COMMAND test_spatialweighting -t "restored_weighting_matches_exactly<double>")
-    add_test (NAME spatialweighting_restored_weighting_matches_exactly_long_double COMMAND test_spatialweighting -t "restored_weighting_matches_exactly<long double>")
-
-    add_test (NAME spatialweighting_mismatched_weighting_rejected_float COMMAND test_spatialweighting -t "mismatched_weighting_rejected<float>")
-    add_test (NAME spatialweighting_mismatched_weighting_rejected_double COMMAND test_spatialweighting -t "mismatched_weighting_rejected<double>")
-    add_test (NAME spatialweighting_mismatched_weighting_rejected_long_double COMMAND test_spatialweighting -t "mismatched_weighting_rejected<long double>")
-
-    add_test (NAME spatialweighting_descriptor_prepares_weighting_float COMMAND test_spatialweighting -t "descriptor_prepares_weighting<float>")
-    add_test (NAME spatialweighting_descriptor_prepares_weighting_double COMMAND test_spatialweighting -t "descriptor_prepares_weighting<double>")
-    add_test (NAME spatialweighting_descriptor_prepares_weighting_long_double COMMAND test_spatialweighting -t "descriptor_prepares_weighting<long double>")
-
-    add_executable (test_block_norm tests/cpp/test_block_norm.cpp)
-    target_link_libraries (test_block_norm PRIVATE hogpp::hogpp
-      Boost::unit_test_framework)
-
-    add_test (NAME block_norm_zero_l1hys_float COMMAND test_block_norm -t "zero<hogpp__L1Hys<float*")
-    add_test (NAME block_norm_zero_l1hys_double COMMAND test_block_norm -t "zero<hogpp__L1Hys<double*")
-    add_test (NAME block_norm_zero_l1hys_long_double COMMAND test_block_norm -t "zero<hogpp__L1Hys<long double*")
-    add_test (NAME block_norm_zero_l1norm_float COMMAND test_block_norm -t "zero<hogpp__L1Norm<float*")
-    add_test (NAME block_norm_zero_l1norm_double COMMAND test_block_norm -t "zero<hogpp__L1Norm<double*")
-    add_test (NAME block_norm_zero_l1norm_long_double COMMAND test_block_norm -t "zero<hogpp__L1Norm<long double*")
-    add_test (NAME block_norm_zero_l1sqrt_float COMMAND test_block_norm -t "zero<hogpp__L1Sqrt<float*")
-    add_test (NAME block_norm_zero_l1sqrt_double COMMAND test_block_norm -t "zero<hogpp__L1Sqrt<double*")
-    add_test (NAME block_norm_zero_l1sqrt_long_double COMMAND test_block_norm -t "zero<hogpp__L1Sqrt<long double*")
-    add_test (NAME block_norm_zero_l2hys_float COMMAND test_block_norm -t "zero<hogpp__L2Hys<float*")
-    add_test (NAME block_norm_zero_l2hys_double COMMAND test_block_norm -t "zero<hogpp__L2Hys<double*")
-    add_test (NAME block_norm_zero_l2hys_long_double COMMAND test_block_norm -t "zero<hogpp__L2Hys<long double*")
-    add_test (NAME block_norm_zero_l2norm_float COMMAND test_block_norm -t "zero<hogpp__L2Norm<float*")
-    add_test (NAME block_norm_zero_l2norm_double COMMAND test_block_norm -t "zero<hogpp__L2Norm<double*")
-    add_test (NAME block_norm_zero_l2norm_long_double COMMAND test_block_norm -t "zero<hogpp__L2Norm<long double*")
-
-    add_test (NAME block_norm_negative_near_zero_l1hys_float COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Hys<float*")
-    add_test (NAME block_norm_negative_near_zero_l1hys_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Hys<double*")
-    add_test (NAME block_norm_negative_near_zero_l1hys_long_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Hys<long double*")
-    add_test (NAME block_norm_negative_near_zero_l1norm_float COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Norm<float*")
-    add_test (NAME block_norm_negative_near_zero_l1norm_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Norm<double*")
-    add_test (NAME block_norm_negative_near_zero_l1norm_long_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Norm<long double*")
-    add_test (NAME block_norm_negative_near_zero_l1sqrt_float COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Sqrt<float*")
-    add_test (NAME block_norm_negative_near_zero_l1sqrt_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Sqrt<double*")
-    add_test (NAME block_norm_negative_near_zero_l1sqrt_long_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L1Sqrt<long double*")
-    add_test (NAME block_norm_negative_near_zero_l2hys_float COMMAND test_block_norm -t "negative_near_zero<hogpp__L2Hys<float*")
-    add_test (NAME block_norm_negative_near_zero_l2hys_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L2Hys<double*")
-    add_test (NAME block_norm_negative_near_zero_l2hys_long_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L2Hys<long double*")
-    add_test (NAME block_norm_negative_near_zero_l2norm_float COMMAND test_block_norm -t "negative_near_zero<hogpp__L2Norm<float*")
-    add_test (NAME block_norm_negative_near_zero_l2norm_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L2Norm<double*")
-    add_test (NAME block_norm_negative_near_zero_l2norm_long_double COMMAND test_block_norm -t "negative_near_zero<hogpp__L2Norm<long double*")
-
-    add_test (NAME block_norm_positive_near_zero_l1hys_float COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Hys<float*")
-    add_test (NAME block_norm_positive_near_zero_l1hys_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Hys<double*")
-    add_test (NAME block_norm_positive_near_zero_l1hys_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Hys<long double*")
-    add_test (NAME block_norm_positive_near_zero_l1norm_float COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Norm<float*")
-    add_test (NAME block_norm_positive_near_zero_l1norm_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Norm<double*")
-    add_test (NAME block_norm_positive_near_zero_l1norm_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Norm<long double*")
-    add_test (NAME block_norm_positive_near_zero_l1sqrt_float COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Sqrt<float*")
-    add_test (NAME block_norm_positive_near_zero_l1sqrt_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Sqrt<double*")
-    add_test (NAME block_norm_positive_near_zero_l1sqrt_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L1Sqrt<long double*")
-    add_test (NAME block_norm_positive_near_zero_l2hys_float COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Hys<float*")
-    add_test (NAME block_norm_positive_near_zero_l2hys_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Hys<double*")
-    add_test (NAME block_norm_positive_near_zero_l2hys_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Hys<long double*")
-    add_test (NAME block_norm_positive_near_zero_l2norm_float COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<float*")
-    add_test (NAME block_norm_positive_near_zero_l2norm_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<double*")
-    add_test (NAME block_norm_positive_near_zero_l2norm_long_double COMMAND test_block_norm -t "positive_near_zero<hogpp__L2Norm<long double*")
-
-    add_executable (test_maskingref tests/cpp/test_maskingref.cpp)
-    target_compile_features (test_maskingref PRIVATE cxx_std_20)
-    target_link_libraries (test_maskingref PRIVATE
-      Boost::unit_test_framework
-      hogpp::hogpp
+    add_test (NAME package_consumer
+      COMMAND ${CMAKE_CTEST_COMMAND}
+        --build-and-test ${PROJECT_SOURCE_DIR}/tests/consumer
+          ${PROJECT_BINARY_DIR}/consumer-package
+        ${consumer_options}
+        --build-options ${consumer_build_options} ${consumer_find_option}
+          -DHOGPP_REQUIRED_VERSION=${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+        ${consumer_test_command}
     )
 
-    add_test (NAME maskingref_copy_refers_to_callable COMMAND test_maskingref -t copy_refers_to_callable)
-  endif (Boost_unit_test_framework_FOUND)
+    set_tests_properties (package_clean PROPERTIES
+      FIXTURES_SETUP hogpp_prefix
+    )
+    set_tests_properties (package_install PROPERTIES
+      FIXTURES_REQUIRED hogpp_prefix
+      FIXTURES_SETUP hogpp_package
+    )
+    set_tests_properties (package_consumer PROPERTIES
+      FIXTURES_REQUIRED hogpp_package
+    )
+
+    # The package rejects requests for an earlier minor version, since
+    # releases before 1.0 may break the interface with each minor version.
+    if (PROJECT_VERSION_MINOR GREATER 0)
+      math (EXPR previous_minor "${PROJECT_VERSION_MINOR} - 1")
+
+      add_test (NAME package_previous_minor_version
+        COMMAND ${CMAKE_CTEST_COMMAND}
+          --build-and-test ${PROJECT_SOURCE_DIR}/tests/consumer
+            ${PROJECT_BINARY_DIR}/consumer-previous-minor-version
+          ${consumer_options}
+          --build-options ${consumer_build_options} ${consumer_find_option}
+            -DHOGPP_REQUIRED_VERSION=${PROJECT_VERSION_MAJOR}.${previous_minor}
+      )
+
+      set_tests_properties (package_previous_minor_version PROPERTIES
+        FIXTURES_REQUIRED hogpp_package
+        PASS_REGULAR_EXPRESSION
+          "considered but not accepted:\n\n *[^\n]*/hogpp-config.cmake, version: ${PROJECT_VERSION}\n"
+      )
+    endif (PROJECT_VERSION_MINOR GREATER 0)
+  endif (WITH_INSTALL)
+
+  # The consumer runs its own test only, since hogpp registers its tests as
+  # the top-level project alone.
+  if (NOT BUILD_DEPS)
+    add_test (NAME subdirectory_consumer
+      COMMAND ${CMAKE_CTEST_COMMAND}
+        --build-and-test ${PROJECT_SOURCE_DIR}/tests/consumer
+          ${PROJECT_BINARY_DIR}/consumer-subdirectory
+        ${consumer_options}
+        --build-options ${consumer_build_options}
+          -DHOGPP_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        ${consumer_test_command}
+    )
+
+    # CTest 4.4 omits the count of failed tests from the summary if there are
+    # none.
+    set_tests_properties (subdirectory_consumer PROPERTIES
+      PASS_REGULAR_EXPRESSION "100% tests passed(, 0 tests failed)? out of 1\n"
+    )
+  endif (NOT BUILD_DEPS)
 
   # pytest-xdist running on PyPy with extension modules compiled using MSVC runs
   # extremely slow. Avoid using xdist.
   if (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
-    set (_pytest_xdist_ARGS)
+    set (pytest_xdist_args)
   else (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
-    set (_pytest_xdist_ARGS -n auto)
+    set (pytest_xdist_args -n auto)
   endif (Python_INTERPRETER_ID STREQUAL "PyPy" AND MSVC)
 
-  if (TARGET pyhogpp)
-    add_test (NAME python_hogpp COMMAND
-      ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/module/test_hogpp.py
-      WORKING_DIRECTORY ${hogpp_SOURCE_DIR}
+  set (pytest_command Python::Interpreter -m pytest -W error ${pytest_xdist_args})
+
+  if (TARGET pyhogpp AND TARGET Python::Interpreter)
+    add_test (NAME python_hogpp
+      COMMAND ${pytest_command}
+        ${PROJECT_SOURCE_DIR}/tests/python/module/test_hogpp.py
+      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+    add_test (NAME python_tensor_type_caster
+      COMMAND ${pytest_command}
+        ${PROJECT_SOURCE_DIR}/tests/python/internal/test_tensor_type_caster.py
+    )
+    add_test (NAME python_repr
+      COMMAND ${pytest_command}
+        ${PROJECT_SOURCE_DIR}/tests/python/module/test_repr.py
     )
 
-    add_test (NAME python_tensor_type_caster COMMAND
-      ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/internal/test_tensor_type_caster.py)
+    set_tests_properties (python_hogpp python_tensor_type_caster python_repr
+      PROPERTIES
+        ENVIRONMENT_MODIFICATION
+          PYTHONPATH=path_list_prepend:$<TARGET_FILE_DIR:pyhogpp>
+    )
+  endif (TARGET pyhogpp AND TARGET Python::Interpreter)
 
-    add_test (NAME python_repr COMMAND
-      ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
-      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/module/test_repr.py)
-  endif (TARGET pyhogpp)
+  if (TARGET type_caster_test AND TARGET Python::Interpreter AND OpenCV_FOUND)
+    add_test (NAME python_opencv_type_caster
+      COMMAND ${pytest_command}
+        ${PROJECT_SOURCE_DIR}/tests/python/internal/test_opencv_type_caster.py
+    )
 
-  if (TARGET type_caster_test AND OpenCV_FOUND)
-    add_test (NAME python_opencv_type_caster COMMAND
-      ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:type_caster_test>
-      ${Python_EXECUTABLE} -m pytest -W error ${_pytest_xdist_ARGS}
-      ${hogpp_SOURCE_DIR}/tests/python/internal/test_opencv_type_caster.py)
-  endif (TARGET type_caster_test AND OpenCV_FOUND)
-endif (BUILD_TESTING)
+    set_tests_properties (python_opencv_type_caster PROPERTIES
+      ENVIRONMENT_MODIFICATION
+        PYTHONPATH=path_list_prepend:$<TARGET_FILE_DIR:type_caster_test>
+    )
+  endif (TARGET type_caster_test AND TARGET Python::Interpreter AND OpenCV_FOUND)
+endif (hogpp_BUILD_TESTS)
 
 if (TARGET pyhogpp AND Sphinx_FOUND)
   add_custom_target (sphinx
     ${CMAKE_COMMAND} -E env
       PYTHONPATH=$<TARGET_FILE_DIR:pyhogpp>
         $<TARGET_FILE:Sphinx::build> -M html
-        ${hogpp_SOURCE_DIR}/docs
-        ${hogpp_BINARY_DIR}/docs/_build
+        ${PROJECT_SOURCE_DIR}/docs
+        ${PROJECT_BINARY_DIR}/docs/_build
         -W --keep-going
     DEPENDS pyhogpp
     BYPRODUCTS docs/_build/html/.buildinfo
@@ -539,11 +500,39 @@ if (TARGET pyhogpp AND Sphinx_FOUND)
   set_property (DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES docs/_build)
 endif (TARGET pyhogpp AND Sphinx_FOUND)
 
-if (TARGET pyhogpp)
-  if (SKBUILD)
-    install (TARGETS pyhogpp
-      LIBRARY DESTINATION ${PROJECT_NAME} COMPONENT Runtime
-      RUNTIME DESTINATION ${PROJECT_NAME} COMPONENT Runtime
-    )
-  endif (SKBUILD)
-endif (TARGET pyhogpp)
+if (TARGET pyhogpp AND SKBUILD)
+  install (TARGETS pyhogpp
+    LIBRARY DESTINATION ${PROJECT_NAME} COMPONENT Runtime
+    RUNTIME DESTINATION ${PROJECT_NAME} COMPONENT Runtime
+  )
+endif (TARGET pyhogpp AND SKBUILD)
+
+if (WITH_INSTALL)
+  install (TARGETS hogpp
+    EXPORT hogpp-targets
+    FILE_SET HEADERS COMPONENT Development
+    FILE_SET fragments COMPONENT Development
+  )
+  install (EXPORT hogpp-targets
+    NAMESPACE hogpp::
+    DESTINATION ${hogpp_package_dir}
+    COMPONENT Development
+  )
+
+  configure_package_config_file (cmake/hogpp-config.cmake.in
+    ${PROJECT_BINARY_DIR}/hogpp-config.cmake
+    INSTALL_DESTINATION ${hogpp_package_dir}
+  )
+  # Releases before 1.0 may break the interface with each minor version.
+  write_basic_package_version_file (${PROJECT_BINARY_DIR}/hogpp-config-version.cmake
+    COMPATIBILITY SameMinorVersion
+    ARCH_INDEPENDENT
+  )
+
+  install (FILES
+    ${PROJECT_BINARY_DIR}/hogpp-config.cmake
+    ${PROJECT_BINARY_DIR}/hogpp-config-version.cmake
+    DESTINATION ${hogpp_package_dir}
+    COMPONENT Development
+  )
+endif (WITH_INSTALL)
